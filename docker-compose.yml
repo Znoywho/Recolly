@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:18
+    container_name: recolly-db-container
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: recolly123
+      POSTGRES_DB: recolly_db
+    ports:
+      - "5433-5433"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d recolly_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks: 
+      - recolly-network
+  server:
+    build: ./server/
+    container_name: recolly-server-container
+    ports: 
+      - "8765:8765"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+        - recolly-network
+    
+    
+      
+networks:
+  recolly-network:
+    driver: bridge
+
+
