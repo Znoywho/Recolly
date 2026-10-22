@@ -1,4 +1,4 @@
-# Recolly API v1 — Draft
+# jecolly API v1 — Draft
 
 > Status: **DRAFT** — needs review by the whole team before freezing (R01).
 > Owner: Backend (Member 1). Consumers: Flutter (Members 2, 3).
