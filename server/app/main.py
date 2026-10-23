@@ -1,13 +1,27 @@
+from contextlib import asynccontextmanager
+
+import uvicorn
+from fastapi import FastAPI
+
+import app.models.user  # noqa: F401  register tables on Base.metadata
 from app.db.base import Base
-from app.db.session import SessionLocal, engine
-from app.repository.user_repository import User, UserRepository
+from app.db.session import engine
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Create missing tables until migrations (Alembic) are set up
+    Base.metadata.create_all(engine)
+    yield
+
+
+app = FastAPI(title="Recolly API", lifespan=lifespan)
+
+
+@app.get("/")
+def read_root():
+    return {"status": "ok"}
+
 
 if __name__ == "__main__":
-    
-    Base.metadata.create_all(engine)
-    # create database table
-    with SessionLocal() as session:
-        userRepo = UserRepository(session)
-        user = User()
-        user.email = "1212"
-        userRepo.create(user)
+    uvicorn.run(app, host="0.0.0.0", port=8765)

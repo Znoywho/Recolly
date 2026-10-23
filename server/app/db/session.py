@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.config import Config
 
 engine = create_engine(
-    Config.POSTGRES_DATABSAE_URI,
+    Config.POSTGRES_DATABASE_URI,
     echo=os.getenv("SQL_ECHO", "false").lower() == "true",
     pool_pre_ping=True,
     pool_recycle=1800,
