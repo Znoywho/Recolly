@@ -15,6 +15,8 @@ class Todo {
     this.difficulty,
     this.startAt,
     this.endAt,
+    this.scheduledMinutes = 0,
+    this.completedAt,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -31,6 +33,8 @@ class Todo {
     difficulty: json['difficulty'] as int?,
     startAt: parseDateTimeOrNull(json['start_at']),
     endAt: parseDateTimeOrNull(json['end_at']),
+    scheduledMinutes: json['scheduled_minutes'] as int,
+    completedAt: parseDateTimeOrNull(json['completed_at']),
     createdAt: parseDateTime(json['created_at']),
     updatedAt: parseDateTime(json['updated_at']),
   );
@@ -42,14 +46,23 @@ class Todo {
   final TodoStatus status;
   final Priority priority;
   final DateTime? deadlineAt;
+
+  /// With [deadlineAt], needed for the scheduler (S1) to plan this todo.
   final int? estimatedMinutes;
 
-  /// 1–5; hard tasks go into peak alertness windows.
+  /// 1–5; hard tasks go into the golden hours (lowest predicted KSS).
   final int? difficulty;
 
   /// Optional fixed time.
   final DateTime? startAt;
   final DateTime? endAt;
+
+  /// Minutes of study events already linked (read-only), for a progress
+  /// bar against [estimatedMinutes].
+  final int scheduledMinutes;
+
+  /// Set by the server when [status] becomes done.
+  final DateTime? completedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -65,18 +78,19 @@ class Todo {
     'difficulty': difficulty,
     'start_at': formatDateTimeOrNull(startAt),
     'end_at': formatDateTimeOrNull(endAt),
+    'scheduled_minutes': scheduledMinutes,
+    'completed_at': formatDateTimeOrNull(completedAt),
     'created_at': formatDateTime(createdAt),
     'updated_at': formatDateTime(updatedAt),
   };
 }
 
-/// D2 `POST /todos` body.
+/// D2 `POST /todos` body. New todos start as `todo`.
 class TodoCreate {
   const TodoCreate({
     required this.title,
     this.description,
     this.category = TodoCategory.other,
-    this.status = TodoStatus.todo,
     this.priority = Priority.medium,
     this.deadlineAt,
     this.estimatedMinutes,
@@ -88,7 +102,6 @@ class TodoCreate {
   final String title;
   final String? description;
   final TodoCategory category;
-  final TodoStatus status;
   final Priority priority;
   final DateTime? deadlineAt;
   final int? estimatedMinutes;
@@ -100,7 +113,6 @@ class TodoCreate {
     'title': title,
     'description': description,
     'category': category.toJson(),
-    'status': status.toJson(),
     'priority': priority.toJson(),
     'deadline_at': formatDateTimeOrNull(deadlineAt),
     'estimated_minutes': estimatedMinutes,
@@ -110,7 +122,7 @@ class TodoCreate {
   };
 }
 
-/// D4 `PATCH /todos/{id}` body.
+/// D4 `PATCH /todos/{id}` body. Status `done` sets `completed_at`.
 class TodoUpdate {
   const TodoUpdate({
     this.title,
@@ -153,68 +165,102 @@ class TodoUpdate {
   }
 }
 
-/// D1 filters.
-class TodoQuery {
-  const TodoQuery({this.status, this.category, this.dueBefore});
+/// D1 sort order.
+enum TodoSort {
+  deadlineAsc('deadline_at'),
+  deadlineDesc('-deadline_at'),
+  priorityAsc('priority'),
+  priorityDesc('-priority'),
+  createdAsc('created_at'),
+  createdDesc('-created_at');
 
-  final TodoStatus? status;
+  const TodoSort(this.value);
+  final String value;
+}
+
+/// D1 filters. [statuses] may hold several values (`?status=a&status=b`).
+class TodoQuery {
+  const TodoQuery({
+    this.statuses = const [],
+    this.category,
+    this.dueBefore,
+    this.dueAfter,
+    this.sort,
+  });
+
+  final List<TodoStatus> statuses;
   final TodoCategory? category;
   final DateTime? dueBefore;
+  final DateTime? dueAfter;
+
+  /// Server default: deadline first, todos without a deadline last.
+  final TodoSort? sort;
 
   Map<String, Object?> toQuery() => {
-    'status': status?.value,
+    'status': [for (final s in statuses) s.value],
     'category': category?.value,
     'due_before': formatDateTimeOrNull(dueBefore),
+    'due_after': formatDateTimeOrNull(dueAfter),
+    'sort': sort?.value,
   };
 }
 
-/// Todo parsed from a voice recording (V1). Not saved; the app sends it to
-/// D2 after the user confirms.
+/// Todo parsed from a voice recording (V1). Not saved; the app lets the
+/// user edit it, then sends it to D2.
 class TodoDraft {
   const TodoDraft({
     required this.title,
-    this.category,
+    this.description,
+    required this.category,
+    required this.priority,
     this.deadlineAt,
     this.estimatedMinutes,
-    this.priority,
+    this.difficulty,
   });
 
   factory TodoDraft.fromJson(Json json) => TodoDraft(
     title: json['title'] as String,
-    category: json['category'] == null
-        ? null
-        : TodoCategory.fromJson(json['category']),
+    description: json['description'] as String?,
+    category: TodoCategory.fromJson(json['category']),
+    priority: Priority.fromJson(json['priority']),
     deadlineAt: parseDateTimeOrNull(json['deadline_at']),
     estimatedMinutes: json['estimated_minutes'] as int?,
-    priority: json['priority'] == null
-        ? null
-        : Priority.fromJson(json['priority']),
+    difficulty: json['difficulty'] as int?,
   );
 
   final String title;
-  final TodoCategory? category;
+  final String? description;
+  final TodoCategory category;
+  final Priority priority;
   final DateTime? deadlineAt;
   final int? estimatedMinutes;
-  final Priority? priority;
+  final int? difficulty;
 
   Json toJson() => {
     'title': title,
-    'category': category?.toJson(),
+    'description': description,
+    'category': category.toJson(),
+    'priority': priority.toJson(),
     'deadline_at': formatDateTimeOrNull(deadlineAt),
     'estimated_minutes': estimatedMinutes,
-    'priority': priority?.toJson(),
+    'difficulty': difficulty,
   };
 }
 
 /// V1 `POST /voice/transcribe` response.
 class VoiceTranscription {
-  const VoiceTranscription({required this.transcript, this.todoDraft});
+  const VoiceTranscription({
+    required this.transcript,
+    this.todoDraft,
+    required this.parser,
+  });
 
   factory VoiceTranscription.fromJson(Json json) => VoiceTranscription(
     transcript: json['transcript'] as String,
     todoDraft: json['todo_draft'] == null
         ? null
         : TodoDraft.fromJson(json['todo_draft'] as Json),
+    parser: json['parser'] as String,
   );
 
   final String transcript;
@@ -222,8 +268,12 @@ class VoiceTranscription {
   /// `null` if no todo could be extracted from the transcript.
   final TodoDraft? todoDraft;
 
+  /// `gemini`, or `rules` when Gemini was down.
+  final String parser;
+
   Json toJson() => {
     'transcript': transcript,
     'todo_draft': todoDraft?.toJson(),
+    'parser': parser,
   };
 }

@@ -2,18 +2,28 @@ import '../api/api_client.dart';
 import '../api/api_exception.dart';
 import '../models/models.dart';
 
-/// Health profile, sleep logs, sleep debt and biorhythm (H1–H8).
+/// Chronotype questionnaire, health profile, sleep logs, sleep debt and
+/// biorhythm (C1, H1–H8). Endpoints marked "later" in the contract (H9,
+/// screen inference, KSS check-ins, model B1/B2) are not wrapped yet.
 abstract interface class SleepRepository {
+  /// C1: scores the onboarding questionnaire without saving it. Throws
+  /// `ApiException` 422 `RMEQ_REQUIRED` when MCTQ cannot be used.
+  Future<ChronotypeAssessment> assessChronotype(
+    ChronotypeAssessmentRequest request,
+  );
+
   /// `null` if onboarding is not finished (H1 returns 404).
   Future<HealthProfile?> getHealthProfile();
 
-  Future<HealthProfile> saveHealthProfile(HealthProfile profile);
+  Future<HealthProfile> saveHealthProfile(HealthProfileInput profile);
 
-  Future<Paginated<SleepLog>> listSleepLogs({
+  /// H3: logs whose wake-up date is in [from]..[to] (default: last 14 days),
+  /// newest first. [confirmed] `false` → only inferred logs to confirm.
+  Future<List<SleepLog>> listSleepLogs({
     DateTime? from,
     DateTime? to,
-    int? limit,
-    String? cursor,
+    SleepSource? source,
+    bool? confirmed,
   });
 
   Future<SleepLog> createSleepLog(SleepLogCreate log);
@@ -22,15 +32,29 @@ abstract interface class SleepRepository {
 
   Future<void> deleteSleepLog(String id);
 
+  /// H7: [days] 1–30, ending today.
   Future<SleepDebt> getSleepDebt({int days = 7});
 
-  Future<Biorhythm> getBiorhythm(DateTime date);
+  /// H8: [days] 1–7 starting at [date] (default today), sampled every
+  /// [intervalMinutes] (5, 15, 30 or 60; default 15).
+  Future<Biorhythm> getBiorhythm({
+    DateTime? date,
+    int? days,
+    int? intervalMinutes,
+  });
 }
 
 class ApiSleepRepository implements SleepRepository {
   ApiSleepRepository(this._client);
 
   final ApiClient _client;
+
+  @override
+  Future<ChronotypeAssessment> assessChronotype(
+    ChronotypeAssessmentRequest request,
+  ) async => ChronotypeAssessment.fromJson(
+    await _client.post('chronotype/assess', body: request.toJson()) as Json,
+  );
 
   @override
   Future<HealthProfile?> getHealthProfile() async {
@@ -45,28 +69,28 @@ class ApiSleepRepository implements SleepRepository {
   }
 
   @override
-  Future<HealthProfile> saveHealthProfile(HealthProfile profile) async =>
+  Future<HealthProfile> saveHealthProfile(HealthProfileInput profile) async =>
       HealthProfile.fromJson(
         await _client.put('health-profile', body: profile.toJson()) as Json,
       );
 
   @override
-  Future<Paginated<SleepLog>> listSleepLogs({
+  Future<List<SleepLog>> listSleepLogs({
     DateTime? from,
     DateTime? to,
-    int? limit,
-    String? cursor,
+    SleepSource? source,
+    bool? confirmed,
   }) async {
     final body = await _client.get(
       'sleep-logs',
       query: {
         'from': formatDateOrNull(from),
         'to': formatDateOrNull(to),
-        'limit': limit,
-        'cursor': cursor,
+        'source': source?.value,
+        'confirmed': confirmed,
       },
     );
-    return Paginated.fromJson(body, SleepLog.fromJson);
+    return parseItems(body, SleepLog.fromJson);
   }
 
   @override
@@ -90,7 +114,18 @@ class ApiSleepRepository implements SleepRepository {
   );
 
   @override
-  Future<Biorhythm> getBiorhythm(DateTime date) async => Biorhythm.fromJson(
-    await _client.get('biorhythm', query: {'date': formatDate(date)}) as Json,
+  Future<Biorhythm> getBiorhythm({
+    DateTime? date,
+    int? days,
+    int? intervalMinutes,
+  }) async => Biorhythm.fromJson(
+    await _client.get(
+      'biorhythm',
+      query: {
+        'date': formatDateOrNull(date),
+        'days': days,
+        'interval_minutes': intervalMinutes,
+      },
+    ) as Json,
   );
 }

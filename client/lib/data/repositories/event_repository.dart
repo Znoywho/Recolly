@@ -3,11 +3,13 @@ import '../models/models.dart';
 
 /// Calendar events (E1–E5).
 abstract interface class EventRepository {
-  /// E1: events between [from] and [to] (max 62 days), with recurring
-  /// events expanded into instances.
+  /// E1: events in `[from, to)` (max 62 days), sorted by start, with
+  /// recurring events expanded into instances.
   Future<List<CalendarEvent>> listEvents({
     required DateTime from,
     required DateTime to,
+    EventKind? kind,
+    EventSource? source,
   });
 
   Future<CalendarEvent> createEvent(EventCreate event);
@@ -28,10 +30,17 @@ class ApiEventRepository implements EventRepository {
   Future<List<CalendarEvent>> listEvents({
     required DateTime from,
     required DateTime to,
+    EventKind? kind,
+    EventSource? source,
   }) async {
     final body = await _client.get(
       'events',
-      query: {'from': formatDateTime(from), 'to': formatDateTime(to)},
+      query: {
+        'from': formatDateTime(from),
+        'to': formatDateTime(to),
+        'kind': kind?.value,
+        'source': source?.value,
+      },
     );
     return parseItems(body, CalendarEvent.fromJson);
   }

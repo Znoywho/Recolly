@@ -4,6 +4,7 @@ import 'mock/mock_repositories.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/calendar_sync_repository.dart';
 import 'repositories/event_repository.dart';
+import 'repositories/home_repository.dart';
 import 'repositories/reminder_repository.dart';
 import 'repositories/schedule_repository.dart';
 import 'repositories/sleep_repository.dart';
@@ -31,6 +32,7 @@ class AppRepositories {
     required this.schedule,
     required this.calendarSync,
     required this.reminders,
+    required this.home,
   });
 
   factory AppRepositories.api(ApiClient client) => AppRepositories(
@@ -44,6 +46,7 @@ class AppRepositories {
     schedule: ApiScheduleRepository(client),
     calendarSync: ApiCalendarSyncRepository(client),
     reminders: ApiReminderRepository(client),
+    home: ApiHomeRepository(client),
   );
 
   /// [latency] simulates network delay so loading states can be seen.
@@ -59,6 +62,7 @@ class AppRepositories {
         schedule: MockScheduleRepository(latency: latency),
         calendarSync: MockCalendarSyncRepository(latency: latency),
         reminders: MockReminderRepository(latency: latency),
+        home: MockHomeRepository(latency: latency),
       );
 
   /// Mock unless built with `--dart-define=USE_MOCK_API=false`.
@@ -76,4 +80,5 @@ class AppRepositories {
   final ScheduleRepository schedule;
   final CalendarSyncRepository calendarSync;
   final ReminderRepository reminders;
+  final HomeRepository home;
 }

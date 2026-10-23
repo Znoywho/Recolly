@@ -7,7 +7,10 @@ abstract interface class ReminderRepository {
 
   Future<ReminderSettings> saveSettings(ReminderSettings settings);
 
-  Future<void> registerDevice(String fcmToken, {String platform = 'android'});
+  Future<void> registerDevice(
+    String fcmToken, {
+    DevicePlatform platform = DevicePlatform.android,
+  });
 
   Future<void> unregisterDevice(String fcmToken);
 
@@ -30,11 +33,13 @@ class ApiReminderRepository implements ReminderRepository {
       );
 
   @override
-  Future<void> registerDevice(String fcmToken, {String platform = 'android'}) =>
-      _client.post(
-        'devices',
-        body: {'fcm_token': fcmToken, 'platform': platform},
-      );
+  Future<void> registerDevice(
+    String fcmToken, {
+    DevicePlatform platform = DevicePlatform.android,
+  }) => _client.post(
+    'devices',
+    body: {'fcm_token': fcmToken, 'platform': platform.value},
+  );
 
   @override
   Future<void> unregisterDevice(String fcmToken) =>
