@@ -1,0 +1,2948 @@
+openapi: 3.1.0
+info:
+  title: Recolly API
+  version: 1.0.0-draft.2
+  summary: Backend contract for the Recolly Android app (FastAPI + PostgreSQL).
+  description: |
+    Machine-readable contract for Recolly (task R01). `docs/api-v1.md` is the
+    human-readable overview; **this file is the source of truth** for request and
+    response shapes. Status: **DRAFT** — must be reviewed by the whole team before
+    it is frozen. Never change an endpoint's shape without flagging it for the team.
+
+    ## Conventions
+
+    | Item | Rule |
+    |---|---|
+    | Base URL | `https://<host>/api/v1` (local: `http://localhost:8765/api/v1`) |
+    | Format | JSON, except uploads (`multipart/form-data`) |
+    | Auth | `Authorization: Bearer <access_token>` unless the operation says `security: []` |
+    | Datetime | ISO 8601 with offset, e.g. `2026-10-19T08:00:00+07:00`. Responses use the user's `timezone` |
+    | Date / time | `YYYY-MM-DD` / `HH:MM` (24h, no seconds) |
+    | Recurrence | RFC 5545 RRULE without the `RRULE:` prefix |
+    | IDs | UUID v4 |
+    | Naming | `snake_case` fields, kebab-case paths |
+    | Pagination | `?limit=&cursor=` → `{ "items": [...], "next_cursor": "..." \| null }` |
+    | Partial update | `PATCH` sends only the fields to change (at least one). An omitted field is unchanged; `null` on a nullable field clears it |
+    | Nullable | Response fields are always present; "nullable" means the value may be `null` |
+
+    ## Errors
+
+    Every non-2xx response except 422 has the body `{ "detail": "...", "code": "..." }`.
+    422 is FastAPI's default validation body (`HTTPValidationError`).
+    Flutter should branch on `code`, never on `detail` (free text, may change).
+
+    | Code | HTTP | Meaning |
+    |---|---|---|
+    | `TOKEN_INVALID` / `TOKEN_EXPIRED` | 401 | Access token missing, malformed or expired |
+    | `REFRESH_TOKEN_INVALID` | 401 | Refresh token unknown, revoked or already used |
+    | `GOOGLE_CODE_INVALID` | 400 | `server_auth_code` rejected by Google |
+    | `GOOGLE_SCOPE_MISSING` | 403 | Calendar scope not granted |
+    | `CALENDAR_NOT_CONNECTED` | 409 | Calendar operation without a connection |
+    | `FORBIDDEN` | 403 | Resource belongs to another user |
+    | `<RESOURCE>_NOT_FOUND` | 404 | e.g. `TODO_NOT_FOUND`, `EVENT_NOT_FOUND`, `HEALTH_PROFILE_NOT_FOUND` |
+    | `RANGE_TOO_LARGE` | 400 | `from`/`to` range longer than the endpoint allows |
+    | `INVALID_RANGE` | 400 | `to` before `from`, or end before start |
+    | `SLEEP_LOG_OVERLAP` | 409 | New/edited sleep log overlaps another log |
+    | `SCREEN_TRACKING_DISABLED` | 403 | Screen upload while `screen_tracking_enabled = false` |
+    | `RMEQ_REQUIRED` | 422 | C1 / H2: MSFsc cannot be computed (irregular schedule or 7 school days) and no `rmeq_score` |
+    | `SUGGESTION_NOT_FOUND` / `SUGGESTION_EXPIRED` | 404 / 410 | Scheduler suggestion unknown / older than 1 h |
+    | `UNSUPPORTED_IMAGE` / `UNSUPPORTED_AUDIO` | 400 | Wrong file type |
+    | `AUDIO_TOO_LONG` | 400 | Recording longer than 60 s |
+    | `FILE_TOO_LARGE` | 413 | Upload over the size limit |
+    | `RATE_LIMITED` | 429 | Too many AI requests (OCR, voice, Gemini) |
+    | `OCR_UNAVAILABLE` / `ASR_UNAVAILABLE` / `GOOGLE_UNAVAILABLE` | 503 | AI model or Google API down |
+
+    OCR job failure codes (inside `OcrJob.error`, not HTTP errors):
+    `OCR_NO_TABLE_FOUND`, `OCR_LOW_QUALITY`, `OCR_MODEL_ERROR`.
+
+    ## Sleep model (Module 2)
+
+    Implements the personalised two-process model from the Recolly sleep research
+    (Skeldon & Dijk 2025; Van Dongen et al. 2007; Roenneberg MCTQ):
+
+    ```
+    screen on/off ──► HMM ──► sleep/wake ──┐
+    MCTQ / rMEQ ────► chronotype prior ────┼─► 2PM + Bayes ──► predicted KSS ──► CP-SAT ──► Google Calendar
+    KSS check-ins ─────────────────────────┘     ▲ updated on every check-in
+    ```
+
+    * **Process S** (sleep pressure `H`, 0–1): awake `dH/dt = (μ − H)/χw`, asleep `dH/dt = −H/χs`.
+    * **Process C**: `C(t) = cos(2π(t − φ)/24)`; `φ` (hour of the circadian peak) **is the chronotype**.
+    * Thresholds `H±(t) = H0± + a·C(t)`. **Alertness** `A(t) = H⁺(t) − H(t)`; `A ≤ 0` means "should be asleep".
+    * **KSS** (Karolinska Sleepiness Scale, 1 = very alert … 9 = fighting sleep): `KSS = 7.5 − 9·A + ε`.
+    * Personal parameters `θ = (φ, χw)` have a grid posterior (φ: 96 × 0.25 h, χw: 12–26 h step 0.5),
+      updated from KSS check-ins. Other constants are fixed: χs 4.2 h, μ 1, H0⁺ 0.67, H0⁻ 0.17, a 0.12.
+    * Priors: population φ ~ N(17.4 h, 1.5 h); questionnaire φ ~ N(φ_MCTQ + 0.9 h, 1.0 h);
+      χw ~ N(18.2 h, 2.5 h). The +0.9 h corrects the systematic ~50–55 min early bias of MCTQ found
+      in the research (synthetic data; recalibrate on real data).
+    * `alertness_score = round(100 · (9 − kss_pred) / 8)`, clamped to 0–100 — the UI-friendly number.
+
+    **Course-project scope (draft 2.1).** The app ships with the questionnaire path only:
+    MCTQ / rMEQ → `chronotype` shown as an animal (`lion` / `bear` / `wolf`) plus a separate
+    `sleep_concern` flag (`dolphin` = fragmented sleep, not a chronotype) → the 2PM runs on a
+    **typical week** built from the questionnaire sleep times (night before a school day = school-day
+    times, other nights = free-day times). Screen inference (P1–P4), KSS check-ins (K1–K3), Bayes
+    personalisation (B1, B2) and H9 stay in the contract but are marked `x-phase: later`.
+
+    This is a scheduling aid, **not** a medical or diagnostic tool.
+  contact:
+    name: Backend — Member 1 (Lê Thiên Hạo)
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: http://localhost:8765/api/v1
+    description: Local (docker compose / uvicorn)
+  - url: https://{host}/api/v1
+    description: Deployed
+    variables:
+      host:
+        default: api.recolly.example
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+    description: Google sign-in and backend JWTs.
+  - name: User
+    description: Account profile.
+  - name: Chronotype & profile
+    description: Onboarding questionnaire (MCTQ / rMEQ / sleep quality) → lion / bear / wolf + dolphin flag, and the baseline sleep profile.
+  - name: Sleep logs
+    description: Manual and inferred sleep episodes, sleep debt.
+  - name: Screen & sleep inference
+    description: Android screen on/off events → HMM → inferred sleep episodes.
+  - name: KSS check-ins
+    description: Self-reported sleepiness used to personalise the model (Bayes).
+  - name: Biorhythm
+    description: Process S/C curves, predicted KSS, golden hours and the personal model.
+  - name: OCR
+    description: Timetable photo → subjects (Vintern, async jobs).
+  - name: Timetable
+    description: Weekly class slots; each creates a recurring class event.
+  - name: Events
+    description: Calendar blocks (classes, study sessions, bedtime, manual, Google).
+  - name: Todos
+    description: Tasks and deadlines for the scheduler.
+  - name: Voice
+    description: Vietnamese speech → todo draft (PhoWhisper + Gemini).
+  - name: Scheduler
+    description: CP-SAT study planning on the predicted KSS curve.
+  - name: Google Calendar
+    description: OAuth connection, one-/two-way sync and conflicts.
+  - name: Reminders
+    description: Reminder settings, FCM devices and motivation quotes.
+  - name: Home
+    description: Aggregated data for the Home screen.
+  - name: System
+    description: Operational endpoints.
+
+paths:
+  # ───────────────────────────── Auth ─────────────────────────────
+  /auth/google:
+    post:
+      tags: [Auth]
+      operationId: signInWithGoogle
+      summary: A1 · Sign in with Google
+      description: |
+        Flutter uses `google_sign_in` with `serverClientId`, requests the scopes
+        `openid email profile https://www.googleapis.com/auth/calendar.events`, and sends the
+        one-time `serverAuthCode`. The backend exchanges it, stores the Google refresh token
+        encrypted, and issues its own JWTs. `is_new_user = true` → show onboarding (R55).
+      x-task-ids: [R07, R08]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GoogleSignInRequest' }
+      responses:
+        '200':
+          description: Signed in.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshToken
+      summary: A2 · Get a new access token
+      description: Refresh tokens rotate — the old one is invalid after use.
+      x-task-ids: [R08]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '200':
+          description: New token pair.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: A3 · Revoke a refresh token
+      x-task-ids: [R08]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '204': { description: Logged out. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ───────────────────────────── User ─────────────────────────────
+  /users/me:
+    get:
+      tags: [User]
+      operationId: getMe
+      summary: U1 · Current user
+      x-task-ids: [R61]
+      responses:
+        '200':
+          description: The signed-in user.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [User]
+      operationId: updateMe
+      summary: U2 · Update profile
+      x-task-ids: [R61]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserUpdate' }
+      responses:
+        '200':
+          description: Updated user.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [User]
+      operationId: deleteMe
+      summary: U3 · Delete account and all data
+      description: Deletes every row owned by the user (including raw screen events) and revokes the Google tokens.
+      x-task-ids: [R61]
+      responses:
+        '204': { description: Account deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ─────────────────────── Chronotype & profile ───────────────────────
+  /chronotype/assess:
+    post:
+      tags: [Chronotype & profile]
+      operationId: assessChronotype
+      summary: C1 · Score the questionnaire without saving
+      description: |
+        Onboarding result card: scores the questionnaire and returns the animal, the dolphin flag,
+        the natural sleep window and the **typical week** energy curve **before** the user confirms
+        the profile with H2. Nothing is stored. Send `school_onset_shift_minutes` for the "what if I
+        slept earlier" slider (phi is kept, only the school-night bedtime moves).
+
+        * MCTQ: `SD = end − onset`, `MS = onset + SD/2`, `SDweek = (SDw·WD + SDf·(7 − WD))/7`,
+          `MSFsc = MSF − (SDf − SDweek)/2` if `SDf > SDw` else `MSF`, `SJL = |MSF − MSW|`.
+        * Animal from MSFsc: `< 04:00` lion, `04:00–06:00` bear, `≥ 06:00` wolf (provisional cut-offs).
+          From rMEQ only: `≥ 18` lion, `12–17` bear, `≤ 11` wolf.
+        * MCTQ is used when `regular_schedule` is true and `work_days` ≤ 6; otherwise `rmeq_score` is
+          required (`422 RMEQ_REQUIRED`).
+        * `sleep_concern`: `dolphin` when F1 or F2 is `3+` nights and F3 is `>3m`; `watch` when `3+`
+          but shorter. Screening flag only, never a diagnosis; it does not change the animal.
+        * `phi_prior_hours = φ(MSFsc) + 0.9 h` (bias correction, see the model notes in `info`).
+        * If `work_days` is omitted, it is the number of distinct weekdays in the saved timetable (fallback 5).
+      x-task-ids: [R18, R55]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChronotypeAssessmentRequest' }
+      responses:
+        '200':
+          description: Scored questionnaire.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChronotypeAssessment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422':
+          description: Validation error, or `RMEQ_REQUIRED` when MSFsc cannot be computed and no `rmeq_score` was sent.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - { $ref: '#/components/schemas/HTTPValidationError' }
+                  - { $ref: '#/components/schemas/Error' }
+
+  /health-profile:
+    get:
+      tags: [Chronotype & profile]
+      operationId: getHealthProfile
+      summary: H1 · Get sleep profile
+      description: Returns `404 HEALTH_PROFILE_NOT_FOUND` if onboarding is not finished.
+      x-task-ids: [R17, R55]
+      responses:
+        '200':
+          description: The sleep profile.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthProfile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Chronotype & profile]
+      operationId: putHealthProfile
+      summary: H2 · Create or replace sleep profile
+      description: |
+        Chronotype source priority: `mctq` > `rmeq` > `self_report` (the `chronotype` field).
+        When `mctq` or `rmeq_score` is given, the server computes `chronotype` and ignores the
+        value sent. Changing the questionnaire re-seeds the model prior (B1) but keeps KSS history.
+      x-task-ids: [R17, R55]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HealthProfileInput' }
+      responses:
+        '200':
+          description: Saved profile.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthProfile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  # ─────────────────────────── Sleep logs ───────────────────────────
+  /sleep-logs:
+    get:
+      tags: [Sleep logs]
+      operationId: listSleepLogs
+      summary: H3 · List sleep logs
+      description: Logs whose `wake_at` date (user timezone) is in `[from, to]`, newest first. Max range 92 days.
+      x-task-ids: [R17, R34]
+      parameters:
+        - name: from
+          in: query
+          description: Inclusive start date. Default `to − 13 days`.
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          description: Inclusive end date. Default today.
+          schema: { type: string, format: date }
+        - name: source
+          in: query
+          schema: { $ref: '#/components/schemas/SleepSource' }
+        - name: confirmed
+          in: query
+          description: '`false` → only inferred logs waiting for the user to confirm.'
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Sleep logs.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SleepLogList' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Sleep logs]
+      operationId: createSleepLog
+      summary: H4 · Add a sleep log (manual)
+      description: |
+        Creates a `source = manual`, `confirmed = true` log. An overlapping **unconfirmed** inferred
+        log is replaced; any other overlap returns `409 SLEEP_LOG_OVERLAP`. Naps are allowed (they
+        lower Process S like any sleep).
+      x-task-ids: [R17, R34]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SleepLogCreate' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SleepLog' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /sleep-logs/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    patch:
+      tags: [Sleep logs]
+      operationId: updateSleepLog
+      summary: H5 · Edit a sleep log
+      description: Editing an inferred log also sets `confirmed = true` (the user corrected it).
+      x-task-ids: [R17, R34]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SleepLogUpdate' }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SleepLog' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Sleep logs]
+      operationId: deleteSleepLog
+      summary: H6 · Delete a sleep log
+      description: Deleting an inferred log marks that night as "user rejected" so inference does not recreate it.
+      x-task-ids: [R17]
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /sleep-logs/{id}/confirm:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [Sleep logs]
+      operationId: confirmSleepLog
+      summary: H9 · One-tap confirm of an inferred sleep log
+      x-phase: later  # after the course project
+      description: |
+        Morning flow: "You slept 23:40–07:05 — correct?" → confirm (this endpoint) or edit (H5).
+        The research showed sleep-measurement quality, not model complexity, is the bottleneck
+        (KSS RMSE 0.75 with true sleep vs 0.98 with screen-inferred sleep), so confirmed logs are
+        weighted as ground truth by the model. Idempotent.
+      x-task-ids: [R17, R34]
+      responses:
+        '200':
+          description: Confirmed log.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SleepLog' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /sleep-debt:
+    get:
+      tags: [Sleep logs]
+      operationId: getSleepDebt
+      summary: H7 · Sleep debt and social jetlag summary
+      x-task-ids: [R20, R35]
+      parameters:
+        - name: days
+          in: query
+          description: Number of days ending today.
+          schema: { type: integer, minimum: 1, maximum: 30, default: 7 }
+      responses:
+        '200':
+          description: Sleep debt summary.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SleepDebtSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ───────────────────── Screen & sleep inference ─────────────────────
+  /screen-events:
+    post:
+      tags: [Screen & sleep inference]
+      operationId: uploadScreenEvents
+      summary: P1 · Upload screen on/off events
+      x-phase: later  # after the course project
+      description: |
+        Android only. Flutter reads `UsageStatsManager.queryEvents` (`SCREEN_INTERACTIVE` → `on`,
+        `SCREEN_NON_INTERACTIVE` → `off`; needs the `PACKAGE_USAGE_STATS` permission) for
+        `[window_start, window_end)` and uploads them — e.g. once each morning and on app open.
+        The window tells the server which periods are covered: no events inside the window means
+        "screen off", outside any uploaded window means "no data".
+
+        Idempotent: events already stored (same `type` + `at`) are counted as `duplicates`.
+        After a successful upload the server re-runs sleep inference for the affected nights in
+        the background and creates/updates **unconfirmed** `screen_inferred` sleep logs.
+      x-task-ids: [R17, R19]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ScreenEventBatch' }
+      responses:
+        '202':
+          description: Accepted; inference queued.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScreenEventBatchResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Screen & sleep inference]
+      operationId: deleteScreenEvents
+      summary: P3 · Delete all raw screen data
+      x-phase: later  # after the course project
+      description: Privacy control. Removes raw events only; sleep logs already created are kept.
+      x-task-ids: [R17]
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /screen-events/summary:
+    get:
+      tags: [Screen & sleep inference]
+      operationId: getScreenEventsSummary
+      summary: P2 · How much screen data the server has
+      x-phase: later  # after the course project
+      x-task-ids: [R17]
+      responses:
+        '200':
+          description: Coverage summary.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScreenDataSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /sleep-inference:
+    post:
+      tags: [Screen & sleep inference]
+      operationId: runSleepInference
+      summary: P4 · Run sleep inference now
+      x-phase: later  # after the course project
+      description: |
+        Runs the two-state HMM {awake, asleep} on 5-minute screen bins for the requested nights and
+        upserts unconfirmed `screen_inferred` sleep logs. Transition probabilities depend on time of
+        day around the user's typical sleep window (from the current `φ` estimate); emissions are
+        `P(on | asleep) = 0.01` and `P(on | awake)` = the user's daytime usage rate. Forward–backward
+        gives `P(asleep)`; the main episode per night is where it is > 0.5.
+        Confirmed or user-deleted nights are never overwritten. Max range 14 nights.
+      x-task-ids: [R19]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SleepInferenceRequest' }
+      responses:
+        '200':
+          description: Inference result per night.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SleepInferenceResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  # ─────────────────────────── KSS check-ins ───────────────────────────
+  /kss-checkins:
+    get:
+      tags: [KSS check-ins]
+      operationId: listKssCheckins
+      summary: K1 · List KSS check-ins
+      x-phase: later  # after the course project
+      description: Check-ins with `recorded_at` date (user timezone) in `[from, to]`, newest first. Max range 92 days.
+      x-task-ids: [R19, R59]
+      parameters:
+        - name: from
+          in: query
+          description: Inclusive start date. Default `to − 13 days`.
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          description: Inclusive end date. Default today.
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Check-ins.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KssCheckinList' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [KSS check-ins]
+      operationId: createKssCheckin
+      summary: K2 · Record sleepiness (KSS 1–9)
+      x-phase: later  # after the course project
+      description: |
+        Stores the check-in and synchronously updates the Bayes posterior of `(φ, χw)` (a 96 × 29 grid,
+        a few ms). `checkin.predicted_kss` is what the model predicted **before** seeing this answer,
+        so the UI can show "model expected 4, you said 6".
+        `recorded_at` must not be in the future nor more than 24 h in the past.
+        Check-ins made while the user is logged as asleep are stored but ignored by the model.
+      x-task-ids: [R19, R59]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KssCheckinCreate' }
+      responses:
+        '201':
+          description: Stored; model updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KssCheckinResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /kss-checkins/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    delete:
+      tags: [KSS check-ins]
+      operationId: deleteKssCheckin
+      summary: K3 · Delete a check-in
+      x-phase: later  # after the course project
+      description: The posterior is recomputed without it.
+      x-task-ids: [R19]
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ───────────────────────────── Biorhythm ─────────────────────────────
+  /biorhythm:
+    get:
+      tags: [Biorhythm]
+      operationId: getBiorhythm
+      summary: H8 · Process S/C curves, predicted KSS and golden hours
+      description: |
+        Sleep state per point: `observed` from sleep logs (past), `projected` for the future — the
+        2PM free-run sleep, but waking no later than `first class − morning_prep_minutes`.
+        Before any sleep log exists, sleep comes from the questionnaire **typical week**
+        (`sleep_state = typical`, warning `TYPICAL_WEEK`); this is the default in the course project.
+        KSS / alertness fields are `null` while asleep.
+
+        * `peak_windows` ("golden hours"): awake runs ≥ 30 min where `kss_pred` ≤ that day's 25th
+          percentile of awake points, excluding the first 30 min after waking (sleep inertia).
+        * `low_windows`: awake runs ≥ 30 min where `kss_pred` ≥ that day's 75th percentile.
+
+        Works without KSS data (population/questionnaire prior) — check `warnings`.
+        Returns `404 HEALTH_PROFILE_NOT_FOUND` before onboarding.
+      x-task-ids: [R18, R20, R59]
+      parameters:
+        - name: date
+          in: query
+          description: First day (user timezone). Default today.
+          schema: { type: string, format: date }
+        - name: days
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 7, default: 1 }
+        - name: interval_minutes
+          in: query
+          schema: { type: integer, enum: [5, 15, 30, 60], default: 15 }
+      responses:
+        '200':
+          description: Curves for the requested days.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Biorhythm' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /biorhythm/model:
+    get:
+      tags: [Biorhythm]
+      operationId: getBiorhythmModel
+      summary: B1 · Personal model parameters and learning progress
+      x-phase: later  # after the course project
+      x-task-ids: [R18, R19, R59]
+      responses:
+        '200':
+          description: Current posterior and priors.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BiorhythmModel' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /biorhythm/model/reset:
+    post:
+      tags: [Biorhythm]
+      operationId: resetBiorhythmModel
+      summary: B2 · Reset personalisation
+      x-phase: later  # after the course project
+      description: |
+        Re-seeds the posterior from the chosen prior and ignores KSS check-ins recorded before now
+        (they are kept for history). Use after a big routine change (new semester, travel).
+      x-task-ids: [R19]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ModelResetRequest' }
+      responses:
+        '200':
+          description: Reset model.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BiorhythmModel' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  # ─────────────────────────────── OCR ───────────────────────────────
+  /ocr/timetable:
+    post:
+      tags: [OCR]
+      operationId: uploadTimetableImage
+      summary: T1 · Upload a timetable photo
+      description: OCR (Vintern) runs asynchronously. Poll T2 about every 2 s.
+      x-task-ids: [R09]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  contentMediaType: application/octet-stream
+                  description: JPEG, PNG or HEIC, max 10 MB.
+            encoding:
+              image:
+                contentType: image/jpeg, image/png, image/heic
+      responses:
+        '202':
+          description: Job queued.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OcrJobCreated' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /ocr/jobs/{job_id}:
+    parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [OCR]
+      operationId: getOcrJob
+      summary: T2 · OCR job status and parsed timetable
+      description: When `status = failed`, `error` holds a code and Flutter shows the scan-failed screen (R62). Jobs are kept for 24 h, then this returns `404 OCR_JOB_NOT_FOUND`.
+      x-task-ids: [R10, R11]
+      responses:
+        '200':
+          description: Job state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OcrJob' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ───────────────────────────── Timetable ─────────────────────────────
+  /timetable:
+    get:
+      tags: [Timetable]
+      operationId: listSubjects
+      summary: T3 · List subjects
+      x-task-ids: [R15]
+      responses:
+        '200':
+          description: All subjects of the user.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubjectList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Timetable]
+      operationId: createSubjects
+      summary: T4 · Save subjects in bulk (after OCR review or manual entry)
+      description: |
+        Each subject also creates a weekly recurring event (`kind = class`, `source = ocr | manual`)
+        so it appears in E1 and is used by the scheduler and the projected wake time.
+        `replace_existing = true` deletes the old subjects and their events first.
+      x-task-ids: [R15, R16]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubjectBulkCreate' }
+      responses:
+        '201':
+          description: Saved subjects.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubjectList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /timetable/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    patch:
+      tags: [Timetable]
+      operationId: updateSubject
+      summary: T5 · Edit a subject
+      description: The linked recurring event is updated too (and marked `pending` if it was synced).
+      x-task-ids: [R15]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubjectUpdate' }
+      responses:
+        '200':
+          description: Updated subject.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subject' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Timetable]
+      operationId: deleteSubject
+      summary: T6 · Delete a subject
+      description: Also deletes its recurring event (and the Google copy on next sync).
+      x-task-ids: [R15]
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ─────────────────────────────── Events ───────────────────────────────
+  /events:
+    get:
+      tags: [Events]
+      operationId: listEvents
+      summary: E1 · List events in a range
+      description: |
+        Recurring events are expanded into instances inside `[from, to)`; each instance has the
+        series `id` plus `occurrence_start`. Max range 62 days. Edits and deletes act on the series.
+      x-task-ids: [R28]
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date-time }
+        - name: kind
+          in: query
+          schema: { $ref: '#/components/schemas/EventKind' }
+        - name: source
+          in: query
+          schema: { $ref: '#/components/schemas/EventSource' }
+      responses:
+        '200':
+          description: Events sorted by start.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventList' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Events]
+      operationId: createEvent
+      summary: E2 · Create an event
+      x-task-ids: [R28]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EventInput' }
+      responses:
+        '201':
+          description: Created (`source = manual`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Event' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /events/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [Events]
+      operationId: getEvent
+      summary: E3 · Event detail
+      x-task-ids: [R58]
+      responses:
+        '200':
+          description: The event.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Event' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Events]
+      operationId: updateEvent
+      summary: E4 · Edit an event
+      description: If the event was already synced, `sync_status` becomes `pending`.
+      x-task-ids: [R58]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EventUpdate' }
+      responses:
+        '200':
+          description: Updated event.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Event' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Events]
+      operationId: deleteEvent
+      summary: E5 · Delete an event
+      description: A synced event is also deleted from Google Calendar on the next sync.
+      x-task-ids: [R58]
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ─────────────────────────────── Todos ───────────────────────────────
+  /todos:
+    get:
+      tags: [Todos]
+      operationId: listTodos
+      summary: D1 · List todos
+      x-task-ids: [R21, R22]
+      parameters:
+        - name: status
+          in: query
+          description: Repeatable, e.g. `?status=todo&status=in_progress`.
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/TodoStatus' }
+          style: form
+          explode: true
+        - name: category
+          in: query
+          schema: { $ref: '#/components/schemas/TodoCategory' }
+        - name: due_before
+          in: query
+          schema: { type: string, format: date-time }
+        - name: due_after
+          in: query
+          schema: { type: string, format: date-time }
+        - name: sort
+          in: query
+          description: Todos without a deadline sort last for `deadline_at`.
+          schema:
+            type: string
+            enum: [deadline_at, -deadline_at, priority, -priority, created_at, -created_at]
+            default: deadline_at
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: One page of todos.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TodoPage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Todos]
+      operationId: createTodo
+      summary: D2 · Create a todo
+      x-task-ids: [R21, R57]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TodoInput' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Todo' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /todos/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [Todos]
+      operationId: getTodo
+      summary: D3 · Todo detail
+      x-task-ids: [R21]
+      responses:
+        '200':
+          description: The todo.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Todo' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Todos]
+      operationId: updateTodo
+      summary: D4 · Edit a todo or change its status
+      description: Setting `status = done` sets `completed_at`; any other status clears it.
+      x-task-ids: [R21, R57]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TodoUpdate' }
+      responses:
+        '200':
+          description: Updated todo.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Todo' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Todos]
+      operationId: deleteTodo
+      summary: D5 · Delete a todo
+      description: Study events created for it are kept, with `todo_id = null`.
+      x-task-ids: [R21]
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ─────────────────────────────── Voice ───────────────────────────────
+  /voice/transcribe:
+    post:
+      tags: [Voice]
+      operationId: transcribeVoice
+      summary: V1 · Audio → transcript + todo draft
+      description: |
+        PhoWhisper transcribes Vietnamese speech; Gemini extracts a todo draft (rule-based fallback
+        when Gemini is down). The draft is **not saved** — Flutter lets the user edit it, then calls D2.
+      x-task-ids: [R42, R43]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [audio]
+              properties:
+                audio:
+                  type: string
+                  contentMediaType: application/octet-stream
+                  description: m4a, wav or ogg; max 25 MB and 60 s.
+                reference_time:
+                  type: string
+                  format: date-time
+                  description: Device "now", used to resolve relative dates ("thứ sáu", "tối mai"). Default server time.
+            encoding:
+              audio:
+                contentType: audio/mp4, audio/x-m4a, audio/wav, audio/ogg
+      responses:
+        '200':
+          description: Transcript and optional draft.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TranscribeResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  # ───────────────────────────── Scheduler ─────────────────────────────
+  /schedule/generate:
+    post:
+      tags: [Scheduler]
+      operationId: generateSchedule
+      summary: S1 · Run CP-SAT → suggested study blocks (not saved)
+      description: |
+        Inputs: todos (`deadline_at` + `estimated_minutes` required), class/other events, the
+        projected sleep of each night and the predicted KSS curve from the personal model.
+
+        Hard constraints: no overlap with events or projected sleep; nothing in the first
+        `wake_buffer_minutes` after waking or the last `bed_buffer_minutes` before bedtime;
+        meal windows free; every block ends before its todo's deadline; at least
+        `min_break_minutes` between blocks; at most `max_study_minutes_per_day`.
+
+        Objective: minimise Σ predicted KSS × minutes, weighted by `difficulty` (hard work goes to
+        golden hours), plus a penalty per unscheduled minute (weighted by priority) and a small
+        penalty for finishing close to the deadline.
+
+        `todo_ids = null` → every todo that is not `done`. Suggestions expire after 1 hour.
+        Max range 14 days.
+      x-task-ids: [R24, R25, R26, R27]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ScheduleGenerateRequest' }
+      responses:
+        '200':
+          description: Suggestion (may be partial — see `unscheduled`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScheduleSuggestion' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /schedule/apply:
+    post:
+      tags: [Scheduler]
+      operationId: applySchedule
+      summary: S2 · Save chosen suggestion blocks as events
+      description: |
+        `block_indexes = null` → apply every block. Blocks become events with `source = scheduler`
+        and `kind` = the block kind. With `sync_to_google = true` they are pushed immediately.
+      x-task-ids: [R27, R33]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ScheduleApplyRequest' }
+      responses:
+        '201':
+          description: Created events.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScheduleApplyResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '410': { $ref: '#/components/responses/Gone' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  # ─────────────────────────── Google Calendar ───────────────────────────
+  /calendar/status:
+    get:
+      tags: [Google Calendar]
+      operationId: getCalendarStatus
+      summary: G1 · Connection and last sync info
+      x-task-ids: [R32, R46]
+      responses:
+        '200':
+          description: Calendar status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CalendarStatus' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /calendar/connection:
+    post:
+      tags: [Google Calendar]
+      operationId: connectCalendar
+      summary: G6 · Connect (or re-grant) Google Calendar
+      description: |
+        For users who skipped the Calendar scope at sign-in. Flutter requests the
+        `calendar.events` scope again and sends the new `server_auth_code`.
+      x-task-ids: [R30, R32]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GoogleSignInRequest' }
+      responses:
+        '200':
+          description: Connected.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CalendarStatus' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    delete:
+      tags: [Google Calendar]
+      operationId: disconnectCalendar
+      summary: G7 · Disconnect Google Calendar
+      description: Stops the watch channel and revokes Calendar access. Local events stay; their `sync_status` becomes `not_synced`.
+      x-task-ids: [R32]
+      responses:
+        '204': { description: Disconnected. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /calendar/settings:
+    patch:
+      tags: [Google Calendar]
+      operationId: updateCalendarSettings
+      summary: G8 · Change target calendar or two-way sync
+      x-task-ids: [R32, R46]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CalendarSettingsUpdate' }
+      responses:
+        '200':
+          description: Updated status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CalendarStatus' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /calendar/sync:
+    post:
+      tags: [Google Calendar]
+      operationId: syncCalendar
+      summary: G2 · Push pending events (and pull changes when two-way)
+      x-task-ids: [R30, R31, R45]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SyncRequest' }
+      responses:
+        '200':
+          description: Sync result.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SyncResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /calendar/conflicts:
+    get:
+      tags: [Google Calendar]
+      operationId: listCalendarConflicts
+      summary: G3 · Unresolved sync conflicts
+      x-task-ids: [R45, R46]
+      responses:
+        '200':
+          description: Conflicts, oldest first.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SyncConflictList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /calendar/conflicts/{id}/resolve:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [Google Calendar]
+      operationId: resolveCalendarConflict
+      summary: G4 · Keep the local or the Google version
+      x-task-ids: [R45, R46]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConflictResolveRequest' }
+      responses:
+        '200':
+          description: The event after resolution.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Event' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /calendar/webhook:
+    post:
+      tags: [Google Calendar]
+      operationId: googleCalendarWebhook
+      summary: G5 · Google push notification (called by Google, not Flutter)
+      description: |
+        Verified by `X-Goog-Channel-Token`. Always answers 200 quickly; the incremental sync runs in
+        the background. Body is empty. Unknown channel or bad token → 200 as well, but ignored (so
+        Google stops retrying) and logged.
+      x-task-ids: [R45]
+      security:
+        - googleChannelToken: []
+      parameters:
+        - { name: X-Goog-Channel-ID, in: header, required: true, schema: { type: string } }
+        - { name: X-Goog-Resource-ID, in: header, required: true, schema: { type: string } }
+        - name: X-Goog-Resource-State
+          in: header
+          required: true
+          schema: { type: string, enum: [sync, exists, not_exists] }
+        - { name: X-Goog-Message-Number, in: header, required: false, schema: { type: string } }
+      responses:
+        '200': { description: Received. }
+
+  # ───────────────────────── Reminders & motivation ─────────────────────────
+  /reminder-settings:
+    get:
+      tags: [Reminders]
+      operationId: getReminderSettings
+      summary: R1 · Get reminder settings
+      description: Returns defaults if the user never saved settings.
+      x-task-ids: [R38, R39]
+      responses:
+        '200':
+          description: Settings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReminderSettings' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    put:
+      tags: [Reminders]
+      operationId: putReminderSettings
+      summary: R2 · Replace reminder settings
+      x-task-ids: [R38, R39]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReminderSettings' }
+      responses:
+        '200':
+          description: Saved settings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReminderSettings' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /devices:
+    post:
+      tags: [Reminders]
+      operationId: registerDevice
+      summary: R3 · Register an FCM token
+      description: Upsert — registering an existing token moves it to the current user.
+      x-task-ids: [R40]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceRegister' }
+      responses:
+        '204': { description: Registered. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /devices/{fcm_token}:
+    parameters:
+      - name: fcm_token
+        in: path
+        required: true
+        description: URL-encoded FCM token.
+        schema: { type: string, maxLength: 512 }
+    delete:
+      tags: [Reminders]
+      operationId: unregisterDevice
+      summary: R4 · Unregister a device (call on logout)
+      x-task-ids: [R40]
+      responses:
+        '204': { description: Unregistered (also when the token was unknown). }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /quotes/random:
+    get:
+      tags: [Reminders]
+      operationId: getRandomQuote
+      summary: R5 · Motivation quote (Gemini, with fallback)
+      x-task-ids: [R49, R50]
+      parameters:
+        - name: context
+          in: query
+          schema: { $ref: '#/components/schemas/QuoteContext' }
+      responses:
+        '200':
+          description: A quote. Never fails because of Gemini — falls back to the built-in list.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Quote' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ─────────────────────────────── Home ───────────────────────────────
+  /home:
+    get:
+      tags: [Home]
+      operationId: getHomeOverview
+      summary: O1 · Everything the Home screen needs in one call
+      x-task-ids: [R56, R60]
+      responses:
+        '200':
+          description: Home overview for "now".
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HomeOverview' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ─────────────────────────────── System ───────────────────────────────
+  /health:
+    get:
+      tags: [System]
+      operationId: healthCheck
+      summary: X1 · Liveness / readiness check
+      x-task-ids: [R03]
+      security: []
+      responses:
+        '200':
+          description: All dependencies up.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthStatus' }
+        '503':
+          description: A dependency is down.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthStatus' }
+
+webhooks:
+  pushNotification:
+    post:
+      operationId: pushNotification
+      summary: FCM data message sent by the server (not an HTTP call)
+      description: |
+        Documents the `data` payload of push notifications the server sends through Firebase Cloud
+        Messaging (R39, R40). Flutter routes on `type` and opens `deep_link`. All values are strings
+        in FCM, so `ref_id` and `scheduled_for` arrive as strings.
+
+        | type | Sent when |
+        |---|---|
+        | `bedtime` | `bedtime_reminder_minutes_before` before tonight's recommended bedtime |
+        | `deadline` | each `deadline_reminder_hours_before` before a todo's deadline |
+        | `kss_prompt` | `kss_prompts_per_day` random awake times inside `kss_prompt_window` |
+        | `sleep_confirm` | morning, when an unconfirmed inferred sleep log exists |
+        | `motivation` | after a study block ends or a todo is done |
+        | `sync_conflict` | a two-way sync conflict is detected |
+
+        Nothing is sent during `quiet_hours` except `bedtime`.
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PushPayload' }
+      responses:
+        '200': { description: Delivered to FCM. }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Backend-issued access token (15 min). Renew with A2.
+    googleChannelToken:
+      type: apiKey
+      in: header
+      name: X-Goog-Channel-Token
+      description: Secret set when the server creates the Google watch channel.
+
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Cursor:
+      name: cursor
+      in: query
+      description: Opaque value from the previous page's `next_cursor`.
+      schema: { type: string }
+
+  responses:
+    BadRequest:
+      description: Bad request.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { detail: Range is longer than 62 days, code: RANGE_TOO_LARGE }
+    Unauthorized:
+      description: Missing, invalid or expired token.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { detail: Token expired, code: TOKEN_EXPIRED }
+    Forbidden:
+      description: Not allowed.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { detail: Google Calendar scope not granted, code: GOOGLE_SCOPE_MISSING }
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { detail: Todo not found, code: TODO_NOT_FOUND }
+    Conflict:
+      description: Conflicts with the current state.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { detail: Overlaps another sleep log, code: SLEEP_LOG_OVERLAP }
+    Gone:
+      description: No longer available.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { detail: Suggestion expired, code: SUGGESTION_EXPIRED }
+    PayloadTooLarge:
+      description: Upload too large.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { detail: Image larger than 10 MB, code: FILE_TOO_LARGE }
+    TooManyRequests:
+      description: Rate limited.
+      headers:
+        Retry-After:
+          description: Seconds to wait.
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { detail: Too many requests, code: RATE_LIMITED }
+    ServiceUnavailable:
+      description: AI model or external service unavailable.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { detail: OCR model is not available, code: OCR_UNAVAILABLE }
+    ValidationError:
+      description: Request body or parameters failed validation (FastAPI default body).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/HTTPValidationError' }
+
+  schemas:
+    # ─────────── Common ───────────
+    Error:
+      type: object
+      required: [detail, code]
+      properties:
+        detail: { type: string, description: Human-readable message (do not parse). }
+        code: { type: string, description: Stable machine-readable code. }
+    HTTPValidationError:
+      type: object
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            required: [loc, msg, type]
+            properties:
+              loc:
+                type: array
+                items:
+                  anyOf: [{ type: string }, { type: integer }]
+              msg: { type: string }
+              type: { type: string }
+    ClockTime:
+      type: string
+      pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+      description: Local wall-clock time `HH:MM` (24h).
+      examples: ['23:30']
+    HexColor:
+      type: string
+      pattern: '^#[0-9A-Fa-f]{6}$'
+      examples: ['#FF5C8A']
+    ClockWindow:
+      type: object
+      required: [start, end]
+      description: Daily window. `end < start` means it crosses midnight.
+      properties:
+        start: { $ref: '#/components/schemas/ClockTime' }
+        end: { $ref: '#/components/schemas/ClockTime' }
+
+    # ─────────── Enums ───────────
+    Chronotype:
+      type: string
+      description: |
+        Display layer over MSFsc (Sleep Foundation / Breus animals; not a validated classification):
+        `lion` MSFsc < 04:00, `bear` 04:00–06:00, `wolf` ≥ 06:00. Dolphin is not a chronotype — see `SleepConcern`.
+      enum: [lion, bear, wolf]
+    ChronotypeSpectrum:
+      type: string
+      description: 'Position on the continuous scale, for the lion ↔ wolf slider (MSFsc < 03:00, < 04:30, < 05:30, < 06:30, ≥ 06:30).'
+      enum: [early, slightly_early, intermediate, slightly_late, late]
+    SleepConcern:
+      type: string
+      description: |
+        Fragmented-sleep screening flag from `SleepQualityAnswers` (not a diagnosis):
+        `dolphin` ≥ 3 bad nights a week for > 3 months, `watch` ≥ 3 a week for less (ask again in 4 weeks), `none`.
+      enum: [none, watch, dolphin]
+    NightsPerWeek:
+      type: string
+      enum: ['0', '1-2', '3+']
+    ProblemDuration:
+      type: string
+      enum: ['<1m', '1-3m', '>3m']
+    ChronotypeSource:
+      type: string
+      enum: [mctq, rmeq, self_report]
+    RmeqCategory:
+      type: string
+      description: rMEQ (Adan & Almirall 1991) bands for 4–25 points.
+      enum: [definitely_morning, moderately_morning, neither, moderately_evening, definitely_evening]
+    SleepSource:
+      type: string
+      enum: [manual, screen_inferred]
+    PriorSource:
+      type: string
+      description: '`questionnaire` = MCTQ, else rMEQ, else self-reported chronotype / usual sleep times.'
+      enum: [population, questionnaire]
+    PersonalizationLevel:
+      type: string
+      description: |
+        By number of days with ≥ 1 KSS check-in since the last reset:
+        `prior_only` 0, `early` 1–3, `developing` 4–13, `personalized` ≥ 14
+        (in the research the error is near its floor after ~14 days).
+      enum: [prior_only, early, developing, personalized]
+    EventSource:
+      type: string
+      enum: [manual, ocr, scheduler, google]
+    EventKind:
+      type: string
+      enum: [class, study, rest, bedtime, other]
+    SyncStatus:
+      type: string
+      enum: [not_synced, pending, synced, conflict, error]
+    TodoStatus:
+      type: string
+      enum: [todo, in_progress, done]
+    TodoCategory:
+      type: string
+      enum: [study, assignment, exam, personal, other]
+    Priority:
+      type: string
+      enum: [low, medium, high]
+    JobStatus:
+      type: string
+      enum: [queued, processing, succeeded, failed]
+    DevicePlatform:
+      type: string
+      enum: [android, ios]
+    QuoteContext:
+      type: string
+      enum: [general, deadline, sleep, progress]
+      default: general
+
+    # ─────────── Auth ───────────
+    GoogleSignInRequest:
+      type: object
+      required: [server_auth_code]
+      properties:
+        server_auth_code: { type: string, examples: ['4/0Ab...'] }
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token: { type: string }
+    TokenPair:
+      type: object
+      required: [access_token, refresh_token, token_type, expires_in]
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        token_type: { type: string, const: bearer }
+        expires_in: { type: integer, description: Access token lifetime in seconds., examples: [900] }
+    AuthResponse:
+      type: object
+      required: [access_token, refresh_token, token_type, expires_in, user, is_new_user]
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        token_type: { type: string, const: bearer }
+        expires_in: { type: integer, examples: [900] }
+        user: { $ref: '#/components/schemas/User' }
+        is_new_user: { type: boolean }
+
+    # ─────────── User ───────────
+    User:
+      type: object
+      required: [id, email, display_name, avatar_url, date_of_birth, timezone,
+                 google_calendar_connected, onboarding_completed, created_at, last_login_at]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        display_name: { type: [string, 'null'], maxLength: 100 }
+        avatar_url: { type: [string, 'null'], format: uri }
+        date_of_birth: { type: [string, 'null'], format: date }
+        timezone: { type: string, description: IANA name., examples: [Asia/Ho_Chi_Minh] }
+        google_calendar_connected: { type: boolean }
+        onboarding_completed: { type: boolean, description: True once a health profile exists (H2). }
+        created_at: { type: string, format: date-time }
+        last_login_at: { type: [string, 'null'], format: date-time }
+    UserUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        display_name: { type: [string, 'null'], maxLength: 100 }
+        date_of_birth: { type: [string, 'null'], format: date }
+        timezone: { type: string, maxLength: 64, description: IANA name. }
+
+    # ─────────── Chronotype & profile ───────────
+    MctqAnswers:
+      type: object
+      description: |
+        Shortened MCTQ. "Work" = school days (days with classes), "free" = days without
+        obligations. Onset = falling asleep (not getting into bed); end = waking up.
+      required: [sleep_onset_work, sleep_end_work, sleep_onset_free, sleep_end_free]
+      properties:
+        sleep_onset_work: { $ref: '#/components/schemas/ClockTime' }
+        sleep_end_work: { $ref: '#/components/schemas/ClockTime' }
+        sleep_onset_free: { $ref: '#/components/schemas/ClockTime' }
+        sleep_end_free: { $ref: '#/components/schemas/ClockTime' }
+        work_days:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 7
+          description: |
+            School days per week. `null` → derived from the timetable (fallback 5).
+            `0` → only the free-day times are used; `7` → no free day, `rmeq_score` is required.
+        alarm_on_free_days:
+          type: boolean
+          default: false
+          description: D1. MSF is less reliable with an alarm on free days (prior SD 1.5 h instead of 1.0 h).
+      example:
+        sleep_onset_work: '00:30'
+        sleep_end_work: '06:30'
+        sleep_onset_free: '01:45'
+        sleep_end_free: '10:00'
+        work_days: 5
+    MctqResult:
+      type: object
+      description: Read-only scores computed from `MctqAnswers`.
+      required: [sd_work_hours, sd_free_hours, sd_week_hours, msw, msf, msf_sc,
+                 oversleep_corrected, social_jetlag_hours, chronotype]
+      properties:
+        sd_work_hours: { type: number, description: Sleep duration on school days. }
+        sd_free_hours: { type: number }
+        sd_week_hours: { type: number, description: Weekly average sleep duration. }
+        msw: { $ref: '#/components/schemas/ClockTime', description: Mid-sleep on school days. }
+        msf: { $ref: '#/components/schemas/ClockTime', description: Mid-sleep on free days. }
+        msf_sc: { $ref: '#/components/schemas/ClockTime', description: MSF corrected for catch-up sleep — the chronotype. }
+        oversleep_corrected: { type: boolean, description: True when `SDf > SDw` and the correction was applied. }
+        social_jetlag_hours: { type: number, description: '|MSF − MSW|.' }
+        chronotype: { $ref: '#/components/schemas/Chronotype' }
+    SleepQualityAnswers:
+      type: object
+      description: Onboarding questions F1–F3 (fragmented-sleep screening).
+      required: [slow_onset_nights, night_waking_nights]
+      properties:
+        slow_onset_nights:
+          $ref: '#/components/schemas/NightsPerWeek'
+          description: F1 · nights a week taking > 30 min to fall asleep.
+        night_waking_nights:
+          $ref: '#/components/schemas/NightsPerWeek'
+          description: F2 · nights a week waking at night or too early and unable to fall back asleep.
+        duration:
+          anyOf: [{ $ref: '#/components/schemas/ProblemDuration' }, { type: 'null' }]
+          description: F3 · only asked when F1 or F2 is `3+`.
+    ChronotypeAssessmentRequest:
+      type: object
+      minProperties: 1
+      properties:
+        mctq: { $ref: '#/components/schemas/MctqAnswers' }
+        rmeq_score: { type: integer, minimum: 4, maximum: 25 }
+        regular_schedule:
+          type: boolean
+          default: true
+          description: B1. `false` (shift work, constantly changing timetable) → rMEQ is used instead of MCTQ.
+        sleep_quality: { $ref: '#/components/schemas/SleepQualityAnswers' }
+        school_onset_shift_minutes:
+          type: integer
+          minimum: -180
+          maximum: 180
+          default: 0
+          description: What-if for the typical week only; negative = fall asleep earlier before school days.
+    TypicalWeekDay:
+      type: object
+      description: One waking period of the typical week (wake-up on `day` until the next sleep onset).
+      required: [day, wake_time, sleep_time, kss_08, kss_14, kss_22, worst_time, worst_kss,
+                 minutes_past_threshold, peak_start, peak_mean_kss]
+      properties:
+        day: { type: integer, minimum: 0, maximum: 6, description: 0 = Monday. }
+        wake_time: { $ref: '#/components/schemas/ClockTime' }
+        sleep_time: { $ref: '#/components/schemas/ClockTime' }
+        kss_08: { type: [number, 'null'], description: Predicted KSS at 08:00; null while asleep. }
+        kss_14: { type: [number, 'null'] }
+        kss_22: { type: [number, 'null'] }
+        worst_time: { $ref: '#/components/schemas/ClockTime' }
+        worst_kss: { type: number }
+        minutes_past_threshold:
+          type: integer
+          description: Minutes awake with alertness ≤ 0 ("should be asleep"). The 2PM under-estimates chronic sleep loss, so this is a lower bound.
+        peak_start:
+          anyOf: [{ $ref: '#/components/schemas/ClockTime' }, { type: 'null' }]
+          description: Start of the most alert 90-min block, excluding 30 min after waking and 1 h before sleep.
+        peak_mean_kss: { type: [number, 'null'] }
+    TypicalWeekPoint:
+      type: object
+      required: [day, time, asleep, alertness, kss]
+      properties:
+        day: { type: integer, minimum: 0, maximum: 6 }
+        time: { $ref: '#/components/schemas/ClockTime' }
+        asleep: { type: boolean }
+        alertness: { type: number }
+        kss: { type: [number, 'null'] }
+    TypicalWeek:
+      type: object
+      description: 2PM run on the questionnaire sleep times (3 simulated weeks, the last one reported).
+      required: [phi_hours, school_onset_shift_minutes, days, points]
+      properties:
+        phi_hours: { type: number }
+        school_onset_shift_minutes: { type: integer }
+        days:
+          type: array
+          minItems: 7
+          maxItems: 7
+          items: { $ref: '#/components/schemas/TypicalWeekDay' }
+        points:
+          type: array
+          description: Energy curve, every 15 min for 7 days (672 points).
+          items: { $ref: '#/components/schemas/TypicalWeekPoint' }
+    ChronotypeAssessment:
+      type: object
+      required: [chronotype, spectrum, sleep_concern, source, mctq_result, rmeq_category, phi_prior_hours,
+                 phi_prior_sd_hours, natural_sleep_time, natural_wake_time, sleep_shortfall_hours, typical_week]
+      properties:
+        chronotype: { $ref: '#/components/schemas/Chronotype' }
+        spectrum: { $ref: '#/components/schemas/ChronotypeSpectrum' }
+        sleep_concern: { $ref: '#/components/schemas/SleepConcern' }
+        source: { $ref: '#/components/schemas/ChronotypeSource' }
+        mctq_result:
+          anyOf: [{ $ref: '#/components/schemas/MctqResult' }, { type: 'null' }]
+        rmeq_category:
+          anyOf: [{ $ref: '#/components/schemas/RmeqCategory' }, { type: 'null' }]
+        phi_prior_hours: { type: number, minimum: 0, maximum: 24, description: Prior mean of the circadian phase φ (clock hours). }
+        phi_prior_sd_hours: { type: number }
+        natural_sleep_time:
+          $ref: '#/components/schemas/ClockTime'
+          description: '`MSFsc − SDweek/2`: when the body would fall asleep without alarms (rMEQ only: representative mid-sleep − 4 h).'
+        natural_wake_time: { $ref: '#/components/schemas/ClockTime' }
+        sleep_shortfall_hours:
+          type: [number, 'null']
+          description: '`max(0, 7 − SDweek)`; null when only the rMEQ is known.'
+        typical_week: { $ref: '#/components/schemas/TypicalWeek' }
+      example:
+        chronotype: bear
+        spectrum: intermediate
+        sleep_concern: none
+        source: mctq
+        mctq_result:
+          sd_work_hours: 6.0
+          sd_free_hours: 8.25
+          sd_week_hours: 6.64
+          msw: '03:30'
+          msf: '05:52'
+          msf_sc: '05:04'
+          oversleep_corrected: true
+          social_jetlag_hours: 2.38
+          chronotype: bear
+        rmeq_category: null
+        phi_prior_hours: 18.39
+        phi_prior_sd_hours: 1.0
+        natural_sleep_time: '01:45'
+        natural_wake_time: '08:24'
+        sleep_shortfall_hours: 0.36
+        typical_week:
+          phi_hours: 18.39
+          school_onset_shift_minutes: 0
+          days:
+            - day: 0
+              wake_time: '06:30'
+              sleep_time: '00:30'
+              kss_08: 4.3
+              kss_14: 4.9
+              kss_22: 6.5
+              worst_time: '00:25'
+              worst_kss: 7.6
+              minutes_past_threshold: 15
+              peak_start: '07:00'
+              peak_mean_kss: 4.2
+          points:
+            - { day: 0, time: '09:00', asleep: false, alertness: 0.33, kss: 4.6 }
+    HealthProfileInput:
+      type: object
+      required: [usual_sleep_time, usual_wake_time]
+      properties:
+        chronotype:
+          $ref: '#/components/schemas/Chronotype'
+          description: Self-reported; used only when neither `mctq` nor `rmeq_score` is given.
+        usual_sleep_time: { $ref: '#/components/schemas/ClockTime' }
+        usual_wake_time: { $ref: '#/components/schemas/ClockTime' }
+        sleep_need_hours: { type: number, minimum: 4, maximum: 12, default: 8.0 }
+        morning_prep_minutes:
+          type: integer
+          minimum: 0
+          maximum: 180
+          default: 60
+          description: Minutes needed between waking and the first class (sets the projected alarm).
+        mctq:
+          anyOf: [{ $ref: '#/components/schemas/MctqAnswers' }, { type: 'null' }]
+        rmeq_score: { type: [integer, 'null'], minimum: 4, maximum: 25 }
+        regular_schedule: { type: boolean, default: true, description: B1 (see C1). }
+        sleep_quality:
+          anyOf: [{ $ref: '#/components/schemas/SleepQualityAnswers' }, { type: 'null' }]
+        screen_tracking_enabled:
+          type: boolean
+          default: false
+          description: User consent to upload screen on/off events (P1).
+    HealthProfile:
+      type: object
+      required: [chronotype, spectrum, sleep_concern, chronotype_source, usual_sleep_time, usual_wake_time,
+                 sleep_need_hours, morning_prep_minutes, mctq, mctq_result, rmeq_score, rmeq_category,
+                 regular_schedule, sleep_quality, screen_tracking_enabled, updated_at]
+      properties:
+        chronotype: { $ref: '#/components/schemas/Chronotype' }
+        spectrum:
+          anyOf: [{ $ref: '#/components/schemas/ChronotypeSpectrum' }, { type: 'null' }]
+          description: Null for a self-reported chronotype.
+        sleep_concern: { $ref: '#/components/schemas/SleepConcern' }
+        chronotype_source: { $ref: '#/components/schemas/ChronotypeSource' }
+        usual_sleep_time: { $ref: '#/components/schemas/ClockTime' }
+        usual_wake_time: { $ref: '#/components/schemas/ClockTime' }
+        sleep_need_hours: { type: number }
+        morning_prep_minutes: { type: integer }
+        mctq:
+          anyOf: [{ $ref: '#/components/schemas/MctqAnswers' }, { type: 'null' }]
+        mctq_result:
+          anyOf: [{ $ref: '#/components/schemas/MctqResult' }, { type: 'null' }]
+        rmeq_score: { type: [integer, 'null'] }
+        rmeq_category:
+          anyOf: [{ $ref: '#/components/schemas/RmeqCategory' }, { type: 'null' }]
+        regular_schedule: { type: boolean }
+        sleep_quality:
+          anyOf: [{ $ref: '#/components/schemas/SleepQualityAnswers' }, { type: 'null' }]
+        screen_tracking_enabled: { type: boolean }
+        updated_at: { type: string, format: date-time }
+
+    # ─────────── Sleep logs ───────────
+    SleepLogCreate:
+      type: object
+      required: [sleep_at, wake_at]
+      description: '`wake_at` must be after `sleep_at`; duration at most 16 h.'
+      properties:
+        sleep_at: { type: string, format: date-time }
+        wake_at: { type: string, format: date-time }
+        quality: { type: [integer, 'null'], minimum: 1, maximum: 5 }
+        note: { type: [string, 'null'], maxLength: 500 }
+    SleepLogUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        sleep_at: { type: string, format: date-time }
+        wake_at: { type: string, format: date-time }
+        quality: { type: [integer, 'null'], minimum: 1, maximum: 5 }
+        note: { type: [string, 'null'], maxLength: 500 }
+    SleepLog:
+      type: object
+      required: [id, sleep_at, wake_at, duration_minutes, quality, note, source, confirmed,
+                 confidence, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        sleep_at: { type: string, format: date-time }
+        wake_at: { type: string, format: date-time }
+        duration_minutes: { type: integer, readOnly: true }
+        quality: { type: [integer, 'null'], minimum: 1, maximum: 5 }
+        note: { type: [string, 'null'] }
+        source: { $ref: '#/components/schemas/SleepSource' }
+        confirmed: { type: boolean, description: Always true for `manual`; true for `screen_inferred` after H5/H9. }
+        confidence:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 1
+          description: Mean HMM `P(asleep)` over the episode; `null` for manual logs.
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+      example:
+        id: 7b0c3c55-2f0e-4a51-9b1e-3f7f3e1a2b10
+        sleep_at: '2026-10-18T23:45:00+07:00'
+        wake_at: '2026-10-19T06:50:00+07:00'
+        duration_minutes: 425
+        quality: null
+        note: null
+        source: screen_inferred
+        confirmed: false
+        confidence: 0.93
+        created_at: '2026-10-19T07:10:00+07:00'
+        updated_at: '2026-10-19T07:10:00+07:00'
+    SleepLogList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/SleepLog' }
+    DailySleepDebt:
+      type: object
+      required: [date, has_data, slept_minutes, need_minutes, debt_minutes, mid_sleep, is_free_day]
+      properties:
+        date: { type: string, format: date, description: Date of waking up. }
+        has_data: { type: boolean, description: 'False when no log ends on this date (`slept_minutes = 0` is then unknown, not zero).' }
+        slept_minutes: { type: integer }
+        need_minutes: { type: integer }
+        debt_minutes: { type: integer, description: '`need − slept`; negative = surplus (pays back debt).' }
+        mid_sleep:
+          anyOf: [{ $ref: '#/components/schemas/ClockTime' }, { type: 'null' }]
+        is_free_day: { type: boolean, description: No class on this date (MCTQ "free day"). }
+    SleepDebtSummary:
+      type: object
+      required: [days, total_debt_minutes, average_sleep_minutes, social_jetlag_hours,
+                 current_process_s, daily]
+      properties:
+        days: { type: integer }
+        total_debt_minutes:
+          type: integer
+          minimum: 0
+          description: '`max(0, Σ debt_minutes)` over days with data.'
+        average_sleep_minutes: { type: [integer, 'null'] }
+        social_jetlag_hours:
+          type: [number, 'null']
+          description: '|mean mid-sleep on free days − on school days| from real logs; null without both kinds of days.'
+        current_process_s: { type: number, minimum: 0, maximum: 1, description: Sleep pressure H right now. }
+        daily:
+          type: array
+          items: { $ref: '#/components/schemas/DailySleepDebt' }
+
+    # ─────────── Screen & inference ───────────
+    ScreenEvent:
+      type: object
+      required: [type, at]
+      properties:
+        type: { type: string, enum: ['on', 'off'] }
+        at: { type: string, format: date-time }
+    ScreenEventBatch:
+      type: object
+      required: [window_start, window_end, events]
+      properties:
+        window_start: { type: string, format: date-time, description: Start of the period the device queried. }
+        window_end: { type: string, format: date-time, description: 'End of the queried period (≤ now, ≤ 7 days after start).' }
+        events:
+          type: array
+          maxItems: 5000
+          description: Events inside the window, any order. May be empty (screen stayed off).
+          items: { $ref: '#/components/schemas/ScreenEvent' }
+    ScreenEventBatchResult:
+      type: object
+      required: [accepted, duplicates, inference_queued]
+      properties:
+        accepted: { type: integer }
+        duplicates: { type: integer }
+        inference_queued: { type: boolean }
+    ScreenDataSummary:
+      type: object
+      required: [event_count, first_event_at, last_event_at, nights_covered, last_upload_at]
+      properties:
+        event_count: { type: integer }
+        first_event_at: { type: [string, 'null'], format: date-time }
+        last_event_at: { type: [string, 'null'], format: date-time }
+        nights_covered: { type: integer, description: Nights (18:00–12:00) fully inside uploaded windows. }
+        last_upload_at: { type: [string, 'null'], format: date-time }
+    SleepInferenceRequest:
+      type: object
+      required: [from, to]
+      properties:
+        from: { type: string, format: date, description: First night (date of the evening). }
+        to: { type: string, format: date, description: 'Last night, inclusive. Max 14 nights.' }
+        include_posterior: { type: boolean, default: false, description: Return the 5-minute `P(asleep)` series (debug / chart). }
+    SleepInferenceNight:
+      type: object
+      required: [night_of, status, sleep_log]
+      properties:
+        night_of: { type: string, format: date }
+        status:
+          type: string
+          enum: [inferred, kept_confirmed, kept_user_deleted, no_sleep_found, insufficient_data]
+        sleep_log:
+          anyOf: [{ $ref: '#/components/schemas/SleepLog' }, { type: 'null' }]
+    PosteriorPoint:
+      type: object
+      required: [time, screen_on, p_asleep]
+      properties:
+        time: { type: string, format: date-time, description: Start of the 5-minute bin. }
+        screen_on: { type: boolean }
+        p_asleep: { type: number, minimum: 0, maximum: 1 }
+    SleepInferenceResult:
+      type: object
+      required: [method, phi_used_hours, nights, posterior]
+      properties:
+        method: { type: string, const: hmm }
+        phi_used_hours: { type: number, description: Circadian phase used to place the sleep window. }
+        nights:
+          type: array
+          items: { $ref: '#/components/schemas/SleepInferenceNight' }
+        posterior:
+          type: [array, 'null']
+          items: { $ref: '#/components/schemas/PosteriorPoint' }
+
+    # ─────────── KSS ───────────
+    KssScore:
+      type: integer
+      minimum: 1
+      maximum: 9
+      description: |
+        Karolinska Sleepiness Scale. 1 extremely alert · 3 alert · 5 neither alert nor sleepy ·
+        7 sleepy, no effort to stay awake · 9 very sleepy, fighting sleep (2/4/6/8 in between).
+    KssCheckinCreate:
+      type: object
+      required: [score]
+      properties:
+        score: { $ref: '#/components/schemas/KssScore' }
+        recorded_at: { type: string, format: date-time, description: Default now. }
+        trigger:
+          type: string
+          enum: [prompt, self]
+          default: self
+          description: '`prompt` = answered a `kss_prompt` notification.'
+    KssCheckin:
+      type: object
+      required: [id, score, recorded_at, trigger, predicted_kss, used_by_model, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        score: { $ref: '#/components/schemas/KssScore' }
+        recorded_at: { type: string, format: date-time }
+        trigger: { type: string, enum: [prompt, self] }
+        predicted_kss: { type: [number, 'null'], description: Model prediction at `recorded_at` before this check-in. }
+        used_by_model: { type: boolean, description: False if recorded during logged sleep or before the last reset. }
+        created_at: { type: string, format: date-time }
+    KssCheckinList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/KssCheckin' }
+    KssCheckinResult:
+      type: object
+      required: [checkin, model]
+      properties:
+        checkin: { $ref: '#/components/schemas/KssCheckin' }
+        model: { $ref: '#/components/schemas/ModelSummary' }
+
+    # ─────────── Biorhythm ───────────
+    ModelSummary:
+      type: object
+      required: [phi_hours, phi_sd_hours, chi_w_hours, chi_w_sd_hours, personalization_level, kss_days]
+      properties:
+        phi_hours: { type: number, minimum: 0, maximum: 24, description: Posterior mean of φ (hour of the circadian peak). }
+        phi_sd_hours: { type: number }
+        chi_w_hours: { type: number, description: Posterior mean of χw (larger = builds sleep pressure more slowly). }
+        chi_w_sd_hours: { type: number }
+        personalization_level: { $ref: '#/components/schemas/PersonalizationLevel' }
+        kss_days: { type: integer }
+      example:
+        phi_hours: 18.5
+        phi_sd_hours: 0.43
+        chi_w_hours: 18.9
+        chi_w_sd_hours: 0.8
+        personalization_level: personalized
+        kss_days: 14
+    TwoProcessConstants:
+      type: object
+      required: [chi_s_hours, mu, h0_plus, h0_minus, amplitude, period_hours]
+      properties:
+        chi_s_hours: { type: number, examples: [4.2] }
+        mu: { type: number, examples: [1.0] }
+        h0_plus: { type: number, examples: [0.67] }
+        h0_minus: { type: number, examples: [0.17] }
+        amplitude: { type: number, examples: [0.12] }
+        period_hours: { type: number, examples: [24.0] }
+    ModelPrior:
+      type: object
+      required: [source, phi_mean_hours, phi_sd_hours, chi_w_mean_hours, chi_w_sd_hours]
+      properties:
+        source: { $ref: '#/components/schemas/PriorSource' }
+        phi_mean_hours: { type: number }
+        phi_sd_hours: { type: number }
+        chi_w_mean_hours: { type: number }
+        chi_w_sd_hours: { type: number }
+    BiorhythmModel:
+      type: object
+      required: [estimate, prior, constants, kss_mapping, data, reset_at, updated_at]
+      properties:
+        estimate: { $ref: '#/components/schemas/ModelSummary' }
+        prior: { $ref: '#/components/schemas/ModelPrior' }
+        constants: { $ref: '#/components/schemas/TwoProcessConstants' }
+        kss_mapping:
+          type: object
+          required: [beta0, beta1, sigma]
+          description: '`KSS = beta0 − beta1·A + N(0, sigma²)`.'
+          properties:
+            beta0: { type: number, examples: [7.5] }
+            beta1: { type: number, examples: [9.0] }
+            sigma: { type: number, examples: [0.7] }
+        data:
+          type: object
+          required: [kss_observations, sleep_nights_used, sleep_source, confirmed_ratio]
+          properties:
+            kss_observations: { type: integer }
+            sleep_nights_used: { type: integer }
+            sleep_source: { type: string, enum: [none, manual, screen_inferred, mixed] }
+            confirmed_ratio: { type: number, minimum: 0, maximum: 1, description: Share of used nights that are confirmed. }
+        reset_at: { type: [string, 'null'], format: date-time }
+        updated_at: { type: string, format: date-time }
+    ModelResetRequest:
+      type: object
+      required: [prior_source]
+      properties:
+        prior_source: { $ref: '#/components/schemas/PriorSource' }
+    BiorhythmPoint:
+      type: object
+      required: [time, asleep, sleep_state, process_s, process_c, upper_threshold, lower_threshold,
+                 alertness, kss_pred, kss_lo, kss_hi, alertness_score]
+      properties:
+        time: { type: string, format: date-time }
+        asleep: { type: boolean }
+        sleep_state:
+          type: string
+          enum: [observed, projected, typical]
+          description: '`typical` = from the questionnaire typical week (no sleep logs yet).'
+        process_s: { type: number, minimum: 0, maximum: 1, description: Sleep pressure H. }
+        process_c: { type: number, minimum: -1, maximum: 1, description: Circadian C(t). }
+        upper_threshold: { type: number, description: 'H⁺(t): reaching it while awake → sleep.' }
+        lower_threshold: { type: number, description: 'H⁻(t): reaching it while asleep → wake.' }
+        alertness: { type: number, description: 'A = H⁺ − H. Can be negative (staying up past the threshold).' }
+        kss_pred: { type: [number, 'null'], description: Posterior-mean KSS; null while asleep. }
+        kss_lo: { type: [number, 'null'], description: 2.5th percentile of the 95 % predictive interval. }
+        kss_hi: { type: [number, 'null'], description: 97.5th percentile. }
+        alertness_score: { type: [integer, 'null'], minimum: 0, maximum: 100 }
+    BiorhythmWindow:
+      type: object
+      required: [start, end, mean_kss_pred, alertness_score]
+      properties:
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        mean_kss_pred: { type: number }
+        alertness_score: { type: integer, minimum: 0, maximum: 100 }
+    ProjectedSleep:
+      type: object
+      description: Plan for one night, from the model and tomorrow's first class.
+      required: [night_of, natural_sleep_at, natural_wake_at, required_wake_at, recommended_sleep_at,
+                 projected_sleep_minutes]
+      properties:
+        night_of: { type: string, format: date }
+        natural_sleep_at: { type: string, format: date-time, description: When H reaches H⁺ (model sleep onset). }
+        natural_wake_at: { type: string, format: date-time, description: When H would reach H⁻ without an alarm. }
+        required_wake_at:
+          type: [string, 'null']
+          format: date-time
+          description: First class tomorrow − `morning_prep_minutes`; null if no class.
+        recommended_sleep_at:
+          type: string
+          format: date-time
+          description: 'min(natural_sleep_at, required_wake_at − sleep_need_hours). Drives the bedtime reminder.'
+        projected_sleep_minutes: { type: integer }
+    Biorhythm:
+      type: object
+      required: [date, days, interval_minutes, timezone, model, points, peak_windows, low_windows,
+                 projected_sleep, warnings]
+      properties:
+        date: { type: string, format: date }
+        days: { type: integer }
+        interval_minutes: { type: integer }
+        timezone: { type: string }
+        model: { $ref: '#/components/schemas/ModelSummary' }
+        points:
+          type: array
+          items: { $ref: '#/components/schemas/BiorhythmPoint' }
+        peak_windows:
+          type: array
+          description: Golden hours.
+          items: { $ref: '#/components/schemas/BiorhythmWindow' }
+        low_windows:
+          type: array
+          items: { $ref: '#/components/schemas/BiorhythmWindow' }
+        projected_sleep:
+          type: array
+          items: { $ref: '#/components/schemas/ProjectedSleep' }
+        warnings:
+          type: array
+          items:
+            type: string
+            enum: [NO_RECENT_SLEEP_DATA, UNCONFIRMED_SLEEP_DATA, PRIOR_ONLY, TYPICAL_WEEK]
+          description: |
+            `TYPICAL_WEEK`: no sleep logs; sleep follows the questionnaire typical week.
+            `NO_RECENT_SLEEP_DATA`: < 2 logged nights before `date`; H is seeded from usual sleep times.
+            `UNCONFIRMED_SLEEP_DATA`: recent nights are inferred but not confirmed.
+            `PRIOR_ONLY`: no KSS check-ins yet; parameters are the prior.
+      example:
+        date: '2026-10-22'
+        days: 1
+        interval_minutes: 15
+        timezone: Asia/Ho_Chi_Minh
+        model:
+          phi_hours: 18.5
+          phi_sd_hours: 0.43
+          chi_w_hours: 18.9
+          chi_w_sd_hours: 0.8
+          personalization_level: personalized
+          kss_days: 14
+        points:
+          - time: '2026-10-22T19:00:00+07:00'
+            asleep: false
+            sleep_state: projected
+            process_s: 0.47
+            process_c: 0.99
+            upper_threshold: 0.79
+            lower_threshold: 0.29
+            alertness: 0.32
+            kss_pred: 4.65
+            kss_lo: 3.15
+            kss_hi: 6.15
+            alertness_score: 54
+        peak_windows:
+          - start: '2026-10-22T09:30:00+07:00'
+            end: '2026-10-22T13:10:00+07:00'
+            mean_kss_pred: 3.65
+            alertness_score: 67
+        low_windows:
+          - start: '2026-10-22T21:20:00+07:00'
+            end: '2026-10-22T23:00:00+07:00'
+            mean_kss_pred: 6.05
+            alertness_score: 37
+        projected_sleep:
+          - night_of: '2026-10-22'
+            natural_sleep_at: '2026-10-23T02:07:00+07:00'
+            natural_wake_at: '2026-10-23T10:04:00+07:00'
+            required_wake_at: '2026-10-23T06:00:00+07:00'
+            recommended_sleep_at: '2026-10-22T22:00:00+07:00'
+            projected_sleep_minutes: 480
+        warnings: []
+
+    # ─────────── OCR & timetable ───────────
+    SubjectFields:
+      type: object
+      required: [name, day_of_week, start_time, end_time, start_date, end_date]
+      description: '`end_time > start_time`, `end_date ≥ start_date`.'
+      properties:
+        name: { type: string, maxLength: 255 }
+        code: { type: [string, 'null'], maxLength: 50 }
+        room: { type: [string, 'null'], maxLength: 100 }
+        lecturer: { type: [string, 'null'], maxLength: 255 }
+        day_of_week: { type: integer, minimum: 1, maximum: 7, description: 1 = Monday … 7 = Sunday. }
+        start_time: { $ref: '#/components/schemas/ClockTime' }
+        end_time: { $ref: '#/components/schemas/ClockTime' }
+        start_date: { type: string, format: date, description: First week of the course. }
+        end_date: { type: string, format: date, description: Last week of the course. }
+    OcrSubject:
+      allOf:
+        - $ref: '#/components/schemas/SubjectFields'
+        - type: object
+          required: [confidence]
+          properties:
+            confidence: { type: number, minimum: 0, maximum: 1 }
+    OcrResult:
+      type: object
+      required: [subjects]
+      properties:
+        subjects:
+          type: array
+          items: { $ref: '#/components/schemas/OcrSubject' }
+    OcrJobCreated:
+      type: object
+      required: [job_id, status]
+      properties:
+        job_id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/JobStatus' }
+    OcrJob:
+      type: object
+      required: [job_id, status, error, result, created_at]
+      properties:
+        job_id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/JobStatus' }
+        error:
+          type: [string, 'null']
+          enum: [OCR_NO_TABLE_FOUND, OCR_LOW_QUALITY, OCR_MODEL_ERROR, null]
+        result:
+          anyOf: [{ $ref: '#/components/schemas/OcrResult' }, { type: 'null' }]
+        created_at: { type: string, format: date-time }
+      example:
+        job_id: 3f1e8a2c-6b7d-4c1e-9a0b-1d2e3f4a5b6c
+        status: succeeded
+        error: null
+        result:
+          subjects:
+            - name: Cấu trúc dữ liệu
+              code: IT003
+              room: B1.02
+              lecturer: Nguyen Van B
+              day_of_week: 1
+              start_time: '07:30'
+              end_time: '09:45'
+              start_date: '2026-09-07'
+              end_date: '2026-12-20'
+              confidence: 0.87
+        created_at: '2026-10-19T08:00:00+07:00'
+    SubjectInput:
+      allOf:
+        - $ref: '#/components/schemas/SubjectFields'
+        - type: object
+          properties:
+            color: { anyOf: [{ $ref: '#/components/schemas/HexColor' }, { type: 'null' }] }
+    SubjectBulkCreate:
+      type: object
+      required: [subjects]
+      properties:
+        subjects:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { $ref: '#/components/schemas/SubjectInput' }
+        replace_existing: { type: boolean, default: false }
+    SubjectUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, maxLength: 255 }
+        code: { type: [string, 'null'], maxLength: 50 }
+        room: { type: [string, 'null'], maxLength: 100 }
+        lecturer: { type: [string, 'null'], maxLength: 255 }
+        day_of_week: { type: integer, minimum: 1, maximum: 7 }
+        start_time: { $ref: '#/components/schemas/ClockTime' }
+        end_time: { $ref: '#/components/schemas/ClockTime' }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        color: { anyOf: [{ $ref: '#/components/schemas/HexColor' }, { type: 'null' }] }
+    Subject:
+      allOf:
+        - $ref: '#/components/schemas/SubjectFields'
+        - type: object
+          required: [id, code, room, lecturer, color, created_at, updated_at]
+          properties:
+            id: { type: string, format: uuid }
+            color: { anyOf: [{ $ref: '#/components/schemas/HexColor' }, { type: 'null' }] }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+    SubjectList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Subject' }
+
+    # ─────────── Events ───────────
+    EventInput:
+      type: object
+      required: [title, start_at, end_at]
+      description: '`end_at > start_at`.'
+      properties:
+        title: { type: string, maxLength: 255 }
+        description: { type: [string, 'null'] }
+        location: { type: [string, 'null'], maxLength: 255 }
+        start_at: { type: string, format: date-time }
+        end_at: { type: string, format: date-time }
+        all_day: { type: boolean, default: false }
+        rrule:
+          type: [string, 'null']
+          maxLength: 500
+          examples: ['FREQ=WEEKLY;BYDAY=MO;UNTIL=20261220T000000Z']
+        kind:
+          $ref: '#/components/schemas/EventKind'
+          description: Default `other`; `class` is reserved for timetable events.
+        todo_id: { type: [string, 'null'], format: uuid }
+    EventUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        title: { type: string, maxLength: 255 }
+        description: { type: [string, 'null'] }
+        location: { type: [string, 'null'], maxLength: 255 }
+        start_at: { type: string, format: date-time }
+        end_at: { type: string, format: date-time }
+        all_day: { type: boolean }
+        rrule: { type: [string, 'null'], maxLength: 500 }
+        kind: { $ref: '#/components/schemas/EventKind' }
+        todo_id: { type: [string, 'null'], format: uuid }
+    Event:
+      type: object
+      required: [id, title, description, location, start_at, end_at, all_day, rrule, kind, source,
+                 subject_id, todo_id, google_event_id, sync_status, occurrence_start, created_at,
+                 updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: [string, 'null'] }
+        location: { type: [string, 'null'] }
+        start_at: { type: string, format: date-time, description: 'For expanded instances, the instance start.' }
+        end_at: { type: string, format: date-time }
+        all_day: { type: boolean }
+        rrule: { type: [string, 'null'] }
+        kind: { $ref: '#/components/schemas/EventKind' }
+        source: { $ref: '#/components/schemas/EventSource' }
+        subject_id: { type: [string, 'null'], format: uuid }
+        todo_id: { type: [string, 'null'], format: uuid }
+        google_event_id: { type: [string, 'null'] }
+        sync_status: { $ref: '#/components/schemas/SyncStatus' }
+        occurrence_start:
+          type: [string, 'null']
+          format: date-time
+          description: Set only on recurring instances returned by E1.
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+      example:
+        id: 0d5f3f0e-8a7b-4c6d-9e1f-2a3b4c5d6e7f
+        title: Ôn thi Giải tích
+        description: null
+        location: null
+        start_at: '2026-10-20T19:00:00+07:00'
+        end_at: '2026-10-20T20:30:00+07:00'
+        all_day: false
+        rrule: null
+        kind: study
+        source: scheduler
+        subject_id: null
+        todo_id: 5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b
+        google_event_id: abc123
+        sync_status: synced
+        occurrence_start: null
+        created_at: '2026-10-19T08:00:00+07:00'
+        updated_at: '2026-10-19T08:00:00+07:00'
+    EventList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Event' }
+
+    # ─────────── Todos ───────────
+    TodoInput:
+      type: object
+      required: [title]
+      description: |
+        `deadline_at` + `estimated_minutes` are needed for S1 to schedule it.
+        `start_at`/`end_at` = optional fixed slot (`end_at > start_at`).
+      properties:
+        title: { type: string, maxLength: 255 }
+        description: { type: [string, 'null'] }
+        category: { $ref: '#/components/schemas/TodoCategory', default: other }
+        priority: { $ref: '#/components/schemas/Priority', default: medium }
+        deadline_at: { type: [string, 'null'], format: date-time }
+        estimated_minutes: { type: [integer, 'null'], minimum: 1, maximum: 6000 }
+        difficulty:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 5
+          description: 1 easy … 5 hard. Hard tasks are placed in the lowest predicted KSS slots.
+        start_at: { type: [string, 'null'], format: date-time }
+        end_at: { type: [string, 'null'], format: date-time }
+    TodoUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        title: { type: string, maxLength: 255 }
+        description: { type: [string, 'null'] }
+        category: { $ref: '#/components/schemas/TodoCategory' }
+        status: { $ref: '#/components/schemas/TodoStatus' }
+        priority: { $ref: '#/components/schemas/Priority' }
+        deadline_at: { type: [string, 'null'], format: date-time }
+        estimated_minutes: { type: [integer, 'null'], minimum: 1, maximum: 6000 }
+        difficulty: { type: [integer, 'null'], minimum: 1, maximum: 5 }
+        start_at: { type: [string, 'null'], format: date-time }
+        end_at: { type: [string, 'null'], format: date-time }
+    Todo:
+      type: object
+      required: [id, title, description, category, status, priority, deadline_at, estimated_minutes,
+                 difficulty, start_at, end_at, scheduled_minutes, completed_at, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: [string, 'null'] }
+        category: { $ref: '#/components/schemas/TodoCategory' }
+        status: { $ref: '#/components/schemas/TodoStatus' }
+        priority: { $ref: '#/components/schemas/Priority' }
+        deadline_at: { type: [string, 'null'], format: date-time }
+        estimated_minutes: { type: [integer, 'null'] }
+        difficulty: { type: [integer, 'null'] }
+        start_at: { type: [string, 'null'], format: date-time }
+        end_at: { type: [string, 'null'], format: date-time }
+        scheduled_minutes:
+          type: integer
+          readOnly: true
+          description: Minutes of study events already linked to this todo (progress vs `estimated_minutes`).
+        completed_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+      example:
+        id: 5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b
+        title: Bài tập lớn CTDL
+        description: Chương 3–5
+        category: assignment
+        status: todo
+        priority: high
+        deadline_at: '2026-10-25T23:59:00+07:00'
+        estimated_minutes: 240
+        difficulty: 4
+        start_at: null
+        end_at: null
+        scheduled_minutes: 90
+        completed_at: null
+        created_at: '2026-10-19T08:00:00+07:00'
+        updated_at: '2026-10-19T08:00:00+07:00'
+    TodoPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Todo' }
+        next_cursor: { type: [string, 'null'] }
+
+    # ─────────── Voice ───────────
+    TodoDraft:
+      type: object
+      description: Parsed from speech; not saved until the user confirms with D2.
+      required: [title, description, category, priority, deadline_at, estimated_minutes, difficulty]
+      properties:
+        title: { type: string }
+        description: { type: [string, 'null'] }
+        category: { $ref: '#/components/schemas/TodoCategory' }
+        priority: { $ref: '#/components/schemas/Priority' }
+        deadline_at: { type: [string, 'null'], format: date-time }
+        estimated_minutes: { type: [integer, 'null'] }
+        difficulty: { type: [integer, 'null'], minimum: 1, maximum: 5 }
+    TranscribeResponse:
+      type: object
+      required: [transcript, todo_draft, parser]
+      properties:
+        transcript: { type: string }
+        todo_draft:
+          anyOf: [{ $ref: '#/components/schemas/TodoDraft' }, { type: 'null' }]
+        parser: { type: string, enum: [gemini, rules], description: Which extractor produced the draft. }
+      example:
+        transcript: Thứ sáu nộp bài tập lớn cấu trúc dữ liệu
+        todo_draft:
+          title: Nộp bài tập lớn cấu trúc dữ liệu
+          description: null
+          category: assignment
+          priority: medium
+          deadline_at: '2026-10-23T23:59:00+07:00'
+          estimated_minutes: null
+          difficulty: null
+        parser: gemini
+
+    # ─────────── Scheduler ───────────
+    ScheduleOptions:
+      type: object
+      description: Defaults follow the research setup (90-min blocks, ≥ 30-min breaks, sleep-inertia and pre-bed buffers).
+      properties:
+        max_study_minutes_per_day: { type: integer, minimum: 30, maximum: 720, default: 240 }
+        block_minutes: { type: integer, minimum: 25, maximum: 180, default: 90 }
+        min_block_minutes:
+          type: integer
+          minimum: 15
+          maximum: 180
+          default: 45
+          description: Shortest block allowed when a todo's remaining time is less than `block_minutes`.
+        min_break_minutes: { type: integer, minimum: 0, maximum: 120, default: 30 }
+        wake_buffer_minutes: { type: integer, minimum: 0, maximum: 120, default: 30, description: No study right after waking (sleep inertia). }
+        bed_buffer_minutes: { type: integer, minimum: 0, maximum: 180, default: 60, description: No study before recommended bedtime. }
+        meal_windows:
+          type: array
+          maxItems: 5
+          items: { $ref: '#/components/schemas/ClockWindow' }
+          default:
+            - { start: '11:30', end: '13:00' }
+            - { start: '18:00', end: '19:00' }
+        include_rest_blocks: { type: boolean, default: false, description: Also return `rest` blocks for the breaks between study blocks. }
+        include_bedtime_blocks: { type: boolean, default: true, description: Also return one `bedtime` block per night at `recommended_sleep_at`. }
+    ScheduleGenerateRequest:
+      type: object
+      required: [from, to]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date, description: Inclusive. Max 14 days after `from`. }
+        todo_ids:
+          type: [array, 'null']
+          items: { type: string, format: uuid }
+        options: { $ref: '#/components/schemas/ScheduleOptions' }
+    ScheduleBlock:
+      type: object
+      required: [index, kind, todo_id, title, start_at, end_at, predicted_kss, alertness_score]
+      properties:
+        index: { type: integer, description: Position used by S2 `block_indexes`. }
+        kind: { type: string, enum: [study, rest, bedtime] }
+        todo_id: { type: [string, 'null'], format: uuid }
+        title: { type: string }
+        start_at: { type: string, format: date-time }
+        end_at: { type: string, format: date-time }
+        predicted_kss: { type: [number, 'null'], description: Mean predicted KSS over the block; null for `bedtime`. }
+        alertness_score: { type: [integer, 'null'], minimum: 0, maximum: 100 }
+    UnscheduledTodo:
+      type: object
+      required: [todo_id, reason, missing_minutes]
+      properties:
+        todo_id: { type: string, format: uuid }
+        reason:
+          type: string
+          enum: [NOT_ENOUGH_TIME_BEFORE_DEADLINE, MISSING_DEADLINE, MISSING_ESTIMATE,
+                 DEADLINE_PASSED, DAILY_LIMIT_REACHED, ALREADY_SCHEDULED]
+        missing_minutes: { type: [integer, 'null'], description: Minutes that could not be placed. }
+    ScheduleSuggestion:
+      type: object
+      required: [suggestion_id, expires_at, from, to, solver_status, blocks, unscheduled, stats, model]
+      properties:
+        suggestion_id: { type: string, format: uuid }
+        expires_at: { type: string, format: date-time }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        solver_status: { type: string, enum: [OPTIMAL, FEASIBLE, INFEASIBLE, MODEL_INVALID, UNKNOWN] }
+        blocks:
+          type: array
+          items: { $ref: '#/components/schemas/ScheduleBlock' }
+        unscheduled:
+          type: array
+          items: { $ref: '#/components/schemas/UnscheduledTodo' }
+        stats:
+          type: object
+          required: [study_minutes, mean_predicted_kss, golden_hour_ratio, solve_ms]
+          properties:
+            study_minutes: { type: integer }
+            mean_predicted_kss: { type: [number, 'null'] }
+            golden_hour_ratio: { type: number, minimum: 0, maximum: 1, description: Share of study minutes inside peak windows. }
+            solve_ms: { type: integer }
+        model: { $ref: '#/components/schemas/ModelSummary' }
+      example:
+        suggestion_id: 9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d
+        expires_at: '2026-10-22T10:00:00+07:00'
+        from: '2026-10-22'
+        to: '2026-10-25'
+        solver_status: OPTIMAL
+        blocks:
+          - index: 0
+            kind: study
+            todo_id: 5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b
+            title: Bài tập lớn CTDL
+            start_at: '2026-10-24T09:30:00+07:00'
+            end_at: '2026-10-24T11:00:00+07:00'
+            predicted_kss: 3.6
+            alertness_score: 68
+        unscheduled: []
+        stats:
+          study_minutes: 90
+          mean_predicted_kss: 3.6
+          golden_hour_ratio: 1.0
+          solve_ms: 140
+        model:
+          phi_hours: 18.5
+          phi_sd_hours: 0.43
+          chi_w_hours: 18.9
+          chi_w_sd_hours: 0.8
+          personalization_level: personalized
+          kss_days: 14
+    ScheduleApplyRequest:
+      type: object
+      required: [suggestion_id]
+      properties:
+        suggestion_id: { type: string, format: uuid }
+        block_indexes:
+          type: [array, 'null']
+          items: { type: integer, minimum: 0 }
+        sync_to_google: { type: boolean, default: false }
+    ScheduleApplyResult:
+      type: object
+      required: [events, sync]
+      properties:
+        events:
+          type: array
+          items: { $ref: '#/components/schemas/Event' }
+        sync:
+          anyOf: [{ $ref: '#/components/schemas/SyncResult' }, { type: 'null' }]
+
+    # ─────────── Google Calendar ───────────
+    CalendarStatus:
+      type: object
+      required: [connected, google_email, calendar_id, two_way_sync, last_synced_at, pending_count,
+                 conflict_count]
+      properties:
+        connected: { type: boolean }
+        google_email: { type: [string, 'null'], format: email }
+        calendar_id: { type: [string, 'null'], examples: [primary] }
+        two_way_sync: { type: boolean }
+        last_synced_at: { type: [string, 'null'], format: date-time }
+        pending_count: { type: integer }
+        conflict_count: { type: integer }
+    CalendarSettingsUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        calendar_id: { type: string, description: '`primary` or a calendar ID the user can write to.' }
+        two_way_sync: { type: boolean }
+    SyncRequest:
+      type: object
+      properties:
+        event_ids:
+          type: [array, 'null']
+          items: { type: string, format: uuid }
+          description: Only these events; `null` → all pending.
+    SyncResult:
+      type: object
+      required: [pushed, pulled, failed, conflicts]
+      properties:
+        pushed: { type: integer }
+        pulled: { type: integer, description: Changes imported from Google (two-way only). }
+        failed: { type: integer }
+        conflicts: { type: integer }
+    GoogleEventSnapshot:
+      type: object
+      required: [title, description, location, start_at, end_at, updated_at]
+      properties:
+        title: { type: string }
+        description: { type: [string, 'null'] }
+        location: { type: [string, 'null'] }
+        start_at: { type: string, format: date-time }
+        end_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    SyncConflict:
+      type: object
+      required: [id, event_id, local, google, detected_at]
+      properties:
+        id: { type: string, format: uuid }
+        event_id: { type: string, format: uuid }
+        local: { $ref: '#/components/schemas/Event' }
+        google: { $ref: '#/components/schemas/GoogleEventSnapshot' }
+        detected_at: { type: string, format: date-time }
+    SyncConflictList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/SyncConflict' }
+    ConflictResolveRequest:
+      type: object
+      required: [keep]
+      properties:
+        keep: { type: string, enum: [local, google] }
+
+    # ─────────── Reminders ───────────
+    ReminderSettings:
+      type: object
+      required: [bedtime_reminder_enabled, bedtime_reminder_minutes_before, deadline_reminder_enabled,
+                 deadline_reminder_hours_before, kss_prompt_enabled, kss_prompts_per_day,
+                 kss_prompt_window, sleep_confirm_enabled, motivation_enabled, quiet_hours]
+      properties:
+        bedtime_reminder_enabled: { type: boolean, default: true }
+        bedtime_reminder_minutes_before:
+          type: integer
+          minimum: 0
+          maximum: 240
+          default: 30
+          description: Before tonight's `recommended_sleep_at` (H8 `projected_sleep`).
+        deadline_reminder_enabled: { type: boolean, default: true }
+        deadline_reminder_hours_before:
+          type: array
+          maxItems: 5
+          uniqueItems: true
+          items: { type: integer, minimum: 1, maximum: 168 }
+          default: [24, 2]
+        kss_prompt_enabled: { type: boolean, default: true }
+        kss_prompts_per_day: { type: integer, minimum: 1, maximum: 6, default: 4 }
+        kss_prompt_window:
+          $ref: '#/components/schemas/ClockWindow'
+          default: { start: '08:00', end: '23:00' }
+        sleep_confirm_enabled: { type: boolean, default: true, description: Morning push to confirm last night's inferred sleep. }
+        motivation_enabled: { type: boolean, default: true }
+        quiet_hours:
+          anyOf: [{ $ref: '#/components/schemas/ClockWindow' }, { type: 'null' }]
+      example:
+        bedtime_reminder_enabled: true
+        bedtime_reminder_minutes_before: 30
+        deadline_reminder_enabled: true
+        deadline_reminder_hours_before: [24, 2]
+        kss_prompt_enabled: true
+        kss_prompts_per_day: 4
+        kss_prompt_window: { start: '08:00', end: '23:00' }
+        sleep_confirm_enabled: true
+        motivation_enabled: true
+        quiet_hours: { start: '23:00', end: '07:00' }
+    DeviceRegister:
+      type: object
+      required: [fcm_token]
+      properties:
+        fcm_token: { type: string, maxLength: 512 }
+        platform: { $ref: '#/components/schemas/DevicePlatform', default: android }
+    Quote:
+      type: object
+      required: [text, author, source, context]
+      properties:
+        text: { type: string }
+        author: { type: [string, 'null'] }
+        source: { type: string, enum: [gemini, fallback] }
+        context: { $ref: '#/components/schemas/QuoteContext' }
+    PushPayload:
+      type: object
+      required: [type, title, body, deep_link]
+      properties:
+        type: { type: string, enum: [bedtime, deadline, kss_prompt, sleep_confirm, motivation, sync_conflict] }
+        title: { type: string }
+        body: { type: string }
+        deep_link: { type: string, examples: ['recolly://kss', 'recolly://todos/<id>', 'recolly://sleep-logs/<id>'] }
+        ref_id: { type: string, description: 'ID of the related todo / sleep log / conflict, if any.' }
+        scheduled_for: { type: string, description: ISO datetime the reminder refers to (e.g. bedtime). }
+
+    # ─────────── Home ───────────
+    NowState:
+      type: object
+      required: [time, asleep, process_s, process_c, kss_pred, kss_lo, kss_hi, alertness_score]
+      properties:
+        time: { type: string, format: date-time }
+        asleep: { type: boolean, description: True if the model expects the user to be asleep now. }
+        process_s: { type: number }
+        process_c: { type: number }
+        kss_pred: { type: [number, 'null'] }
+        kss_lo: { type: [number, 'null'] }
+        kss_hi: { type: [number, 'null'] }
+        alertness_score: { type: [integer, 'null'], minimum: 0, maximum: 100 }
+    HomeOverview:
+      type: object
+      required: [date, now, next_peak_window, tonight, today_events, upcoming_todos,
+                 sleep_debt_7d_minutes, last_night, needs_sleep_confirmation, kss_checkin_due, model]
+      properties:
+        date: { type: string, format: date }
+        now: { $ref: '#/components/schemas/NowState' }
+        next_peak_window:
+          anyOf: [{ $ref: '#/components/schemas/BiorhythmWindow' }, { type: 'null' }]
+        tonight:
+          anyOf: [{ $ref: '#/components/schemas/ProjectedSleep' }, { type: 'null' }]
+        today_events:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/Event' }
+        upcoming_todos:
+          type: array
+          maxItems: 3
+          description: Not done, nearest deadline first.
+          items: { $ref: '#/components/schemas/Todo' }
+        sleep_debt_7d_minutes: { type: integer, minimum: 0 }
+        last_night:
+          anyOf: [{ $ref: '#/components/schemas/SleepLog' }, { type: 'null' }]
+        needs_sleep_confirmation: { type: boolean, description: '`last_night` is inferred and unconfirmed → show the 1-tap confirm card.' }
+        kss_checkin_due: { type: boolean, description: No check-in in the last 3 awake hours. }
+        model: { $ref: '#/components/schemas/ModelSummary' }
+
+    # ─────────── System ───────────
+    HealthStatus:
+      type: object
+      required: [status, db, redis, version]
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        db: { type: string, enum: [ok, down] }
+        redis: { type: string, enum: [ok, down] }
+        version: { type: string, examples: [1.0.0] }

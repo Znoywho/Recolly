@@ -1,7 +1,9 @@
 export 'auth.dart';
 export 'calendar_sync.dart';
+export 'chronotype.dart';
 export 'enums.dart';
 export 'event.dart';
+export 'home.dart';
 export 'json_utils.dart';
 export 'paginated.dart';
 export 'reminder.dart';

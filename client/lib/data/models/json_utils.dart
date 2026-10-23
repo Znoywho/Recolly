@@ -1,4 +1,5 @@
-/// Shared JSON helpers for DTOs. Formats follow `docs/api-v1.md` section 1.
+/// Shared JSON helpers for DTOs. Formats follow `docs/openapi.yaml`
+/// (draft 2.1) conventions.
 library;
 
 typedef Json = Map<String, Object?>;
@@ -36,15 +37,14 @@ String? formatDateOrNull(DateTime? value) =>
 
 double parseDouble(Object? value) => (value as num).toDouble();
 
+double? parseDoubleOrNull(Object? value) => (value as num?)?.toDouble();
+
 List<T> parseList<T>(Object? value, T Function(Json json) fromJson) =>
     (value as List).cast<Json>().map(fromJson).toList();
 
-/// List endpoints may answer with a bare array or `{ "items": [...] }`; the
-/// draft contract is not explicit, so accept both.
-List<T> parseItems<T>(Object? body, T Function(Json json) fromJson) {
-  final list = body is Map ? body['items'] : body;
-  return parseList(list, fromJson);
-}
+/// List endpoints answer `{ "items": [...] }` (only D1 adds `next_cursor`).
+List<T> parseItems<T>(Object? body, T Function(Json json) fromJson) =>
+    parseList((body as Json)['items'], fromJson);
 
 /// Wall-clock time `HH:MM` without a date (usual sleep time, class start).
 class ClockTime implements Comparable<ClockTime> {
@@ -85,6 +85,22 @@ class ClockTime implements Comparable<ClockTime> {
 
   @override
   String toString() => toJson();
+}
+
+/// Daily window such as quiet hours or a meal break. `end < start` means it
+/// crosses midnight.
+class ClockWindow {
+  const ClockWindow({required this.start, required this.end});
+
+  factory ClockWindow.fromJson(Json json) => ClockWindow(
+    start: ClockTime.fromJson(json['start']),
+    end: ClockTime.fromJson(json['end']),
+  );
+
+  final ClockTime start;
+  final ClockTime end;
+
+  Json toJson() => {'start': start.toJson(), 'end': end.toJson()};
 }
 
 /// Wraps a new value for a nullable field in a PATCH body, so "set to null"

@@ -15,6 +15,7 @@ export 'models/models.dart';
 export 'repositories/auth_repository.dart';
 export 'repositories/calendar_sync_repository.dart';
 export 'repositories/event_repository.dart';
+export 'repositories/home_repository.dart';
 export 'repositories/reminder_repository.dart';
 export 'repositories/schedule_repository.dart';
 export 'repositories/sleep_repository.dart';

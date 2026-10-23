@@ -50,19 +50,31 @@ class ApiClient {
   Future<Object?> delete(String path, {Object? body, bool auth = true}) =>
       _sendJson('DELETE', path, body, auth: auth);
 
-  /// Uploads one file as `multipart/form-data` (OCR photo, voice recording).
+  /// Uploads one file as `multipart/form-data` (OCR photo, voice recording),
+  /// with optional text [fields] sent before it.
   Future<Object?> postMultipart(
     String path, {
     required String field,
     required Uint8List bytes,
     required String filename,
     String? contentType,
+    Map<String, String> fields = const {},
     bool auth = true,
   }) {
     final boundary = 'recolly-${_randomHex(16)}';
     final safeName = filename.replaceAll('"', '%22');
     final type = contentType ?? guessContentType(filename);
-    final body = BytesBuilder(copy: false)
+    final body = BytesBuilder(copy: false);
+    for (final e in fields.entries) {
+      body.add(
+        utf8.encode(
+          '--$boundary\r\n'
+          'Content-Disposition: form-data; name="${e.key}"\r\n\r\n'
+          '${e.value}\r\n',
+        ),
+      );
+    }
+    body
       ..add(
         utf8.encode(
           '--$boundary\r\n'
@@ -88,9 +100,13 @@ class ApiClient {
     final uri = baseUri.resolve(
       path.startsWith('/') ? path.substring(1) : path,
     );
-    final params = <String, String>{
+    // A list value repeats the key (`?status=todo&status=in_progress`).
+    final params = <String, Object>{
       for (final e in (query ?? const {}).entries)
-        if (e.value != null) e.key: e.value.toString(),
+        if (e.value case final List<Object?> list when list.isNotEmpty)
+          e.key: [for (final v in list) v.toString()]
+        else if (e.value != null && e.value is! List)
+          e.key: e.value.toString(),
     };
     return params.isEmpty ? uri : uri.replace(queryParameters: params);
   }

@@ -7,7 +7,8 @@ abstract interface class ScheduleRepository {
   Future<ScheduleSuggestion> generate(ScheduleRequest request);
 
   /// S2: saves the chosen blocks as events. [blockIndexes] `null` → all.
-  Future<List<CalendarEvent>> apply(
+  /// Throws `ApiException` 410 `SUGGESTION_EXPIRED` after one hour.
+  Future<ScheduleApplyResult> apply(
     String suggestionId, {
     List<int>? blockIndexes,
     bool syncToGoogle = false,
@@ -26,19 +27,18 @@ class ApiScheduleRepository implements ScheduleRepository {
       );
 
   @override
-  Future<List<CalendarEvent>> apply(
+  Future<ScheduleApplyResult> apply(
     String suggestionId, {
     List<int>? blockIndexes,
     bool syncToGoogle = false,
-  }) async {
-    final body = await _client.post(
+  }) async => ScheduleApplyResult.fromJson(
+    await _client.post(
       'schedule/apply',
       body: {
         'suggestion_id': suggestionId,
         'block_indexes': blockIndexes,
         'sync_to_google': syncToGoogle,
       },
-    ) as Json;
-    return parseList(body['events'], CalendarEvent.fromJson);
-  }
+    ) as Json,
+  );
 }

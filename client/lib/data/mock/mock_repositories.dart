@@ -5,6 +5,7 @@ import '../models/models.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/calendar_sync_repository.dart';
 import '../repositories/event_repository.dart';
+import '../repositories/home_repository.dart';
 import '../repositories/reminder_repository.dart';
 import '../repositories/schedule_repository.dart';
 import '../repositories/sleep_repository.dart';
@@ -73,6 +74,7 @@ final _user = User(
   dateOfBirth: DateTime(2005, 3, 12),
   timezone: 'Asia/Ho_Chi_Minh',
   googleCalendarConnected: true,
+  onboardingCompleted: true,
   createdAt: DateTime(2026, 9, 1),
   lastLoginAt: DateTime.now(),
 );
@@ -139,6 +141,7 @@ CalendarEvent _event(
   DateTime start,
   DateTime end, {
   EventSource source = EventSource.manual,
+  EventKind kind = EventKind.other,
   String? location,
   String? subjectId,
   String? todoId,
@@ -149,6 +152,7 @@ CalendarEvent _event(
   location: location,
   startAt: start,
   endAt: end,
+  kind: kind,
   source: source,
   subjectId: subjectId,
   todoId: todoId,
@@ -197,6 +201,44 @@ class MockUserRepository extends _Mock implements UserRepository {
   Future<void> deleteMe() => delay();
 }
 
+const _model = ModelSummary(
+  phiHours: 18.4,
+  phiSdHours: 1.0,
+  chiWHours: 18.2,
+  chiWSdHours: 2.5,
+  personalizationLevel: PersonalizationLevel.priorOnly,
+  kssDays: 0,
+);
+
+const _mctq = MctqAnswers(
+  sleepOnsetWork: ClockTime(0, 30),
+  sleepEndWork: ClockTime(6, 30),
+  sleepOnsetFree: ClockTime(1, 45),
+  sleepEndFree: ClockTime(10, 0),
+  workDays: 5,
+);
+
+/// Predicted KSS from 07:00 to 23:30, every 30 minutes (lower = more alert).
+const _kss = [
+  6.0, 5.4, 4.8, 4.3, 3.9, 3.6, 3.4, 3.3, 3.5, 3.8, 4.2, 4.8, 5.3, 5.6, //
+  5.7, 5.5, 5.0, 4.6, 4.2, 3.9, 3.7, 3.6, 3.8, 4.1, 4.6, 5.1, 5.6, 6.1, //
+  6.5, 6.9, 7.2, 7.5, 7.7, 7.9,
+];
+
+int _score(double kss) => (100 * (9 - kss) / 8).round().clamp(0, 100);
+
+ProjectedSleep _tonight(DateTime day) {
+  final d = DateTime(day.year, day.month, day.day);
+  return ProjectedSleep(
+    nightOf: d,
+    naturalSleepAt: DateTime(d.year, d.month, d.day + 1, 1, 45),
+    naturalWakeAt: DateTime(d.year, d.month, d.day + 1, 8, 24),
+    requiredWakeAt: DateTime(d.year, d.month, d.day + 1, 6, 30),
+    recommendedSleepAt: DateTime(d.year, d.month, d.day, 22, 30),
+    projectedSleepMinutes: 480,
+  );
+}
+
 class MockSleepRepository extends _Mock implements SleepRepository {
   MockSleepRepository({Duration latency = Duration.zero}) : super(latency) {
     // Last 7 nights: (sleep hour, minute, wake hour, minute).
@@ -220,50 +262,20 @@ class MockSleepRepository extends _Mock implements SleepRepository {
 
   final List<SleepLog> _logs = [];
 
-  static const _profile = HealthProfile(
-    chronotype: Chronotype.evening,
-    usualSleepTime: ClockTime(23, 30),
-    usualWakeTime: ClockTime(7, 0),
+  HealthProfile _profile = HealthProfile(
+    chronotype: Chronotype.bear,
+    spectrum: ChronotypeSpectrum.intermediate,
+    sleepConcern: SleepConcern.none,
+    chronotypeSource: ChronotypeSource.mctq,
+    usualSleepTime: const ClockTime(0, 30),
+    usualWakeTime: const ClockTime(6, 30),
     sleepNeedHours: 8,
+    morningPrepMinutes: 60,
+    mctq: _mctq,
+    regularSchedule: true,
+    screenTrackingEnabled: false,
+    updatedAt: DateTime(2026, 9, 1),
   );
-
-  /// Alertness from 07:00 to 23:30, every 30 minutes.
-  static const _alertness = [
-    0.42,
-    0.50,
-    0.58,
-    0.65,
-    0.71,
-    0.76,
-    0.79,
-    0.80,
-    0.78,
-    0.74,
-    0.68,
-    0.60,
-    0.52,
-    0.47,
-    0.45,
-    0.48,
-    0.54,
-    0.60,
-    0.66,
-    0.71,
-    0.74,
-    0.75,
-    0.73,
-    0.69,
-    0.63,
-    0.56,
-    0.49,
-    0.42,
-    0.36,
-    0.31,
-    0.27,
-    0.24,
-    0.22,
-    0.20,
-  ];
 
   SleepLog _log(
     String id,
@@ -278,7 +290,62 @@ class MockSleepRepository extends _Mock implements SleepRepository {
     durationMinutes: wakeAt.difference(sleepAt).inMinutes,
     quality: quality,
     note: note,
+    createdAt: wakeAt,
+    updatedAt: wakeAt,
   );
+
+  @override
+  Future<ChronotypeAssessment> assessChronotype(
+    ChronotypeAssessmentRequest request,
+  ) async {
+    await delay();
+    final shift = request.schoolOnsetShiftMinutes ?? 0;
+    return ChronotypeAssessment(
+      chronotype: Chronotype.bear,
+      spectrum: ChronotypeSpectrum.intermediate,
+      sleepConcern: SleepConcern.none,
+      source: ChronotypeSource.mctq,
+      phiPriorHours: 18.39,
+      phiPriorSdHours: 1.0,
+      naturalSleepTime: const ClockTime(1, 45),
+      naturalWakeTime: const ClockTime(8, 24),
+      sleepShortfallHours: 0.36,
+      typicalWeek: TypicalWeek(
+        phiHours: 18.39,
+        schoolOnsetShiftMinutes: shift,
+        days: [
+          for (var day = 0; day < 7; day++)
+            TypicalWeekDay(
+              day: day,
+              wakeTime: day < 5
+                  ? const ClockTime(6, 30)
+                  : const ClockTime(10, 0),
+              sleepTime: day < 4 || day == 6
+                  ? const ClockTime(0, 30)
+                  : const ClockTime(1, 45),
+              kss08: day < 5 ? 4.3 : null,
+              kss14: 4.9,
+              kss22: 6.5,
+              worstTime: const ClockTime(0, 25),
+              worstKss: 7.6,
+              minutesPastThreshold: day < 5 ? 15 : 0,
+              peakStart: const ClockTime(9, 30),
+              peakMeanKss: 3.6,
+            ),
+        ],
+        points: [
+          for (var i = 0; i < _kss.length; i++)
+            TypicalWeekPoint(
+              day: 0,
+              time: ClockTime(7 + i ~/ 2, i.isEven ? 0 : 30),
+              asleep: false,
+              alertness: (7.5 - _kss[i]) / 9,
+              kss: _kss[i],
+            ),
+        ],
+      ),
+    );
+  }
 
   @override
   Future<HealthProfile?> getHealthProfile() async {
@@ -287,20 +354,28 @@ class MockSleepRepository extends _Mock implements SleepRepository {
   }
 
   @override
-  Future<HealthProfile> saveHealthProfile(HealthProfile profile) async {
+  Future<HealthProfile> saveHealthProfile(HealthProfileInput profile) async {
     await delay();
-    return profile;
+    return _profile = HealthProfile.fromJson({
+      ..._profile.toJson(),
+      ...profile.toJson(),
+      'chronotype': profile.chronotype?.value ?? _profile.chronotype.value,
+      'updated_at': formatDateTime(DateTime.now()),
+    });
   }
 
   @override
-  Future<Paginated<SleepLog>> listSleepLogs({
+  Future<List<SleepLog>> listSleepLogs({
     DateTime? from,
     DateTime? to,
-    int? limit,
-    String? cursor,
+    SleepSource? source,
+    bool? confirmed,
   }) async {
     await delay();
-    return Paginated(items: _logs.reversed.toList());
+    return _logs.reversed
+        .where((l) => source == null || l.source == source)
+        .where((l) => confirmed == null || l.confirmed == confirmed)
+        .toList();
   }
 
   @override
@@ -350,44 +425,72 @@ class MockSleepRepository extends _Mock implements SleepRepository {
       for (var i = 0; i < slept.length; i++)
         SleepDebtDay(
           date: _at(i - slept.length + 1, 0),
+          hasData: true,
           sleptMinutes: slept[i],
           needMinutes: 480,
-          debtMinutes: slept[i] >= 480 ? 0 : 480 - slept[i],
+          debtMinutes: 480 - slept[i],
+          midSleep: const ClockTime(3, 30),
+          isFreeDay: _at(i - slept.length + 1, 0).weekday > 5,
         ),
     ];
+    final total = daily.fold(0, (sum, d) => sum + d.debtMinutes);
     return SleepDebt(
       days: daily.length,
-      totalDebtMinutes: daily.fold(0, (sum, d) => sum + d.debtMinutes),
+      totalDebtMinutes: total < 0 ? 0 : total,
+      averageSleepMinutes: slept.reduce((a, b) => a + b) ~/ slept.length,
+      socialJetlagHours: 1.9,
+      currentProcessS: 0.52,
       daily: daily,
     );
   }
 
   @override
-  Future<Biorhythm> getBiorhythm(DateTime date) async {
+  Future<Biorhythm> getBiorhythm({
+    DateTime? date,
+    int? days,
+    int? intervalMinutes,
+  }) async {
     await delay();
+    final day = date ?? _today;
     DateTime t(int i) => DateTime(
-      date.year,
-      date.month,
-      date.day,
+      day.year,
+      day.month,
+      day.day,
       7,
     ).add(Duration(minutes: 30 * i));
+    BiorhythmWindow window(int from, int to) => BiorhythmWindow(
+      start: t(from),
+      end: t(to),
+      meanKssPred: _kss[from],
+      alertnessScore: _score(_kss[from]),
+    );
     return Biorhythm(
-      date: DateTime(date.year, date.month, date.day),
+      date: DateTime(day.year, day.month, day.day),
+      days: 1,
       intervalMinutes: 30,
+      timezone: 'Asia/Ho_Chi_Minh',
+      model: _model,
       points: [
-        for (var i = 0; i < _alertness.length; i++)
+        for (var i = 0; i < _kss.length; i++)
           BiorhythmPoint(
             time: t(i),
-            processS: i / _alertness.length * 0.8,
-            processC: _alertness[i],
-            alertness: _alertness[i],
+            asleep: false,
+            sleepState: SleepState.typical,
+            processS: 0.2 + i / _kss.length * 0.6,
+            processC: (4.5 - _kss[i]) / 3.5,
+            upperThreshold: 0.79,
+            lowerThreshold: 0.29,
+            alertness: (7.5 - _kss[i]) / 9,
+            kssPred: _kss[i],
+            kssLo: _kss[i] - 1.5,
+            kssHi: _kss[i] + 1.5,
+            alertnessScore: _score(_kss[i]),
           ),
       ],
-      peakWindows: [
-        TimeWindow(start: t(4), end: t(9)),
-        TimeWindow(start: t(19), end: t(22)),
-      ],
-      lowWindows: [TimeWindow(start: t(29), end: t(33))],
+      peakWindows: [window(5, 9), window(19, 23)],
+      lowWindows: [window(29, 33)],
+      projectedSleep: [_tonight(day)],
+      warnings: const ['TYPICAL_WEEK'],
     );
   }
 }
@@ -395,11 +498,18 @@ class MockSleepRepository extends _Mock implements SleepRepository {
 class MockTimetableRepository extends _Mock implements TimetableRepository {
   MockTimetableRepository({Duration latency = Duration.zero}) : super(latency) {
     for (final s in _sampleSubjects()) {
-      _subjects.add(Subject.fromJson({...s.toJson(), 'id': newId()}));
+      _subjects.add(_saved(s));
     }
   }
 
   final List<Subject> _subjects = [];
+
+  Subject _saved(SubjectDraft s) => Subject.fromJson({
+    ...s.toJson(),
+    'id': newId(),
+    'created_at': formatDateTime(DateTime(2026, 9, 1)),
+    'updated_at': formatDateTime(DateTime(2026, 9, 1)),
+  });
 
   /// Any upload succeeds; a filename containing "fail" gives the
   /// `OCR_NO_TABLE_FOUND` result so the scan-failed screen can be built.
@@ -447,10 +557,7 @@ class MockTimetableRepository extends _Mock implements TimetableRepository {
   }) async {
     await delay();
     if (replaceExisting) _subjects.clear();
-    final saved = [
-      for (final s in subjects)
-        Subject.fromJson({...s.toJson(), 'id': newId()}),
-    ];
+    final saved = [for (final s in subjects) _saved(s)];
     _subjects.addAll(saved);
     return saved;
   }
@@ -485,6 +592,7 @@ class MockEventRepository extends _Mock implements EventRepository {
         _thisWeek(1, 7, 30),
         _thisWeek(1, 9, 45),
         source: EventSource.ocr,
+        kind: EventKind.classSession,
         location: 'B1.02',
         subjectId: 'mock-subject-1',
       ),
@@ -494,6 +602,7 @@ class MockEventRepository extends _Mock implements EventRepository {
         _thisWeek(2, 9, 55),
         _thisWeek(2, 12, 15),
         source: EventSource.ocr,
+        kind: EventKind.classSession,
         location: 'A2.05',
         subjectId: 'mock-subject-2',
       ),
@@ -503,6 +612,7 @@ class MockEventRepository extends _Mock implements EventRepository {
         _thisWeek(3, 13, 30),
         _thisWeek(3, 15, 45),
         source: EventSource.ocr,
+        kind: EventKind.classSession,
         location: 'C3.11',
         subjectId: 'mock-subject-3',
       ),
@@ -512,6 +622,7 @@ class MockEventRepository extends _Mock implements EventRepository {
         _thisWeek(5, 13, 30),
         _thisWeek(5, 15, 45),
         source: EventSource.ocr,
+        kind: EventKind.classSession,
         location: 'A1.10',
         subjectId: 'mock-subject-4',
       ),
@@ -521,6 +632,7 @@ class MockEventRepository extends _Mock implements EventRepository {
         _at(1, 19, 30),
         _at(1, 20, 20),
         source: EventSource.scheduler,
+        kind: EventKind.study,
         todoId: 'mock-todo-1',
         syncStatus: SyncStatus.pending,
       ),
@@ -541,10 +653,14 @@ class MockEventRepository extends _Mock implements EventRepository {
   Future<List<CalendarEvent>> listEvents({
     required DateTime from,
     required DateTime to,
+    EventKind? kind,
+    EventSource? source,
   }) async {
     await delay();
     return _events
         .where((e) => e.startAt.isBefore(to) && e.endAt.isAfter(from))
+        .where((e) => kind == null || e.kind == kind)
+        .where((e) => source == null || e.source == source)
         .toList()
       ..sort((a, b) => a.startAt.compareTo(b.startAt));
   }
@@ -669,12 +785,20 @@ class MockTodoRepository extends _Mock implements TodoRepository {
     String? cursor,
   }) async {
     await delay();
-    final due = query.dueBefore;
+    final before = query.dueBefore;
+    final after = query.dueAfter;
     return Paginated(
       items: _todos
-          .where((t) => query.status == null || t.status == query.status)
+          .where(
+            (t) => query.statuses.isEmpty || query.statuses.contains(t.status),
+          )
           .where((t) => query.category == null || t.category == query.category)
-          .where((t) => due == null || (t.deadlineAt?.isBefore(due) ?? false))
+          .where(
+            (t) => before == null || (t.deadlineAt?.isBefore(before) ?? false),
+          )
+          .where(
+            (t) => after == null || (t.deadlineAt?.isAfter(after) ?? false),
+          )
           .toList(),
     );
   }
@@ -686,6 +810,8 @@ class MockTodoRepository extends _Mock implements TodoRepository {
     final created = Todo.fromJson({
       ...todo.toJson(),
       'id': newId(),
+      'status': TodoStatus.todo.value,
+      'scheduled_minutes': 0,
       'created_at': now,
       'updated_at': now,
     });
@@ -703,9 +829,13 @@ class MockTodoRepository extends _Mock implements TodoRepository {
   Future<Todo> updateTodo(String id, TodoUpdate update) async {
     await delay();
     final i = indexOf(_todos, (t) => t.id, id, 'TODO_NOT_FOUND');
+    final now = formatDateTime(DateTime.now());
+    final status = update.status;
     return _todos[i] = patch(_todos[i], (t) => t.toJson(), {
       ...update.toJson(),
-      'updated_at': formatDateTime(DateTime.now()),
+      if (status != null)
+        'completed_at': status == TodoStatus.done ? now : null,
+      'updated_at': now,
     }, Todo.fromJson);
   }
 
@@ -723,6 +853,7 @@ class MockVoiceRepository extends _Mock implements VoiceRepository {
   Future<VoiceTranscription> transcribe(
     Uint8List audio, {
     required String filename,
+    DateTime? referenceTime,
   }) async {
     await delay();
     return VoiceTranscription(
@@ -733,6 +864,7 @@ class MockVoiceRepository extends _Mock implements VoiceRepository {
         deadlineAt: _thisWeek(5, 23, 59),
         priority: Priority.medium,
       ),
+      parser: 'gemini',
     );
   }
 }
@@ -741,26 +873,32 @@ class MockScheduleRepository extends _Mock implements ScheduleRepository {
   MockScheduleRepository({Duration latency = Duration.zero}) : super(latency);
 
   static final _blocks = [
-    StudyBlock(
+    ScheduleBlock(
+      index: 0,
+      kind: EventKind.study,
       todoId: 'mock-todo-1',
       title: 'Bài tập lớn CTDL',
       startAt: _at(1, 9, 30),
-      endAt: _at(1, 10, 20),
-      alertness: 0.82,
+      endAt: _at(1, 11, 0),
+      predictedKss: 3.4,
+      alertnessScore: 70,
     ),
-    StudyBlock(
+    ScheduleBlock(
+      index: 1,
+      kind: EventKind.study,
       todoId: 'mock-todo-2',
       title: 'Ôn thi giữa kỳ Giải tích',
-      startAt: _at(1, 19, 30),
-      endAt: _at(1, 20, 20),
-      alertness: 0.74,
+      startAt: _at(1, 16, 30),
+      endAt: _at(1, 18, 0),
+      predictedKss: 3.7,
+      alertnessScore: 66,
     ),
-    StudyBlock(
-      todoId: 'mock-todo-1',
-      title: 'Bài tập lớn CTDL',
-      startAt: _at(2, 10, 0),
-      endAt: _at(2, 10, 50),
-      alertness: 0.79,
+    ScheduleBlock(
+      index: 2,
+      kind: EventKind.bedtime,
+      title: 'Đi ngủ',
+      startAt: _at(1, 22, 30),
+      endAt: _at(2, 6, 30),
     ),
   ];
 
@@ -769,37 +907,59 @@ class MockScheduleRepository extends _Mock implements ScheduleRepository {
     await delay();
     return ScheduleSuggestion(
       suggestionId: 'mock-suggestion-1',
+      expiresAt: DateTime.now().add(const Duration(hours: 1)),
+      from: request.from,
+      to: request.to,
+      solverStatus: 'FEASIBLE',
       blocks: _blocks,
       unscheduled: const [
         UnscheduledTodo(
           todoId: 'mock-todo-5',
           reason: 'NOT_ENOUGH_TIME_BEFORE_DEADLINE',
+          missingMinutes: 60,
         ),
       ],
-      solverStatus: 'FEASIBLE',
+      stats: const ScheduleStats(
+        studyMinutes: 180,
+        meanPredictedKss: 3.55,
+        goldenHourRatio: 0.83,
+        solveMs: 140,
+      ),
+      model: _model,
     );
   }
 
   @override
-  Future<List<CalendarEvent>> apply(
+  Future<ScheduleApplyResult> apply(
     String suggestionId, {
     List<int>? blockIndexes,
     bool syncToGoogle = false,
   }) async {
     await delay();
     final indexes = blockIndexes ?? List.generate(_blocks.length, (i) => i);
-    return [
-      for (final i in indexes)
-        _event(
-          newId(),
-          _blocks[i].title,
-          _blocks[i].startAt,
-          _blocks[i].endAt,
-          source: EventSource.scheduler,
-          todoId: _blocks[i].todoId,
-          syncStatus: syncToGoogle ? SyncStatus.synced : SyncStatus.notSynced,
-        ),
-    ];
+    return ScheduleApplyResult(
+      events: [
+        for (final i in indexes)
+          _event(
+            newId(),
+            _blocks[i].title,
+            _blocks[i].startAt,
+            _blocks[i].endAt,
+            source: EventSource.scheduler,
+            kind: _blocks[i].kind,
+            todoId: _blocks[i].todoId,
+            syncStatus: syncToGoogle ? SyncStatus.synced : SyncStatus.notSynced,
+          ),
+      ],
+      sync: syncToGoogle
+          ? SyncResult(
+              pushed: indexes.length,
+              pulled: 0,
+              failed: 0,
+              conflicts: 0,
+            )
+          : null,
+    );
   }
 }
 
@@ -808,23 +968,61 @@ class MockCalendarSyncRepository extends _Mock
   MockCalendarSyncRepository({Duration latency = Duration.zero})
     : super(latency);
 
+  late CalendarStatus _status = CalendarStatus(
+    connected: true,
+    googleEmail: _user.email,
+    calendarId: 'primary',
+    twoWaySync: true,
+    lastSyncedAt: DateTime.now().subtract(const Duration(hours: 3)),
+    pendingCount: 1,
+    conflictCount: 1,
+  );
+
   @override
   Future<CalendarStatus> getStatus() async {
     await delay();
-    return CalendarStatus(
-      connected: true,
-      calendarId: 'primary',
-      twoWaySync: true,
-      lastSyncedAt: DateTime.now().subtract(const Duration(hours: 3)),
-      pendingCount: 1,
-      conflictCount: 1,
-    );
+    return _status;
   }
 
   @override
-  Future<SyncResult> sync() async {
+  Future<CalendarStatus> connect(String serverAuthCode) async {
     await delay();
-    return const SyncResult(pushed: 1, failed: 0, conflicts: 1);
+    return _status = CalendarStatus.fromJson({
+      ..._status.toJson(),
+      'connected': true,
+      'google_email': _user.email,
+      'calendar_id': 'primary',
+    });
+  }
+
+  @override
+  Future<void> disconnect() async {
+    await delay();
+    _status = CalendarStatus.fromJson({
+      ..._status.toJson(),
+      'connected': false,
+      'google_email': null,
+      'calendar_id': null,
+    });
+  }
+
+  @override
+  Future<CalendarStatus> updateSettings({
+    String? calendarId,
+    bool? twoWaySync,
+  }) async {
+    await delay();
+    return _status = CalendarStatus.fromJson({
+      ..._status.toJson(),
+      'calendar_id': ?calendarId,
+      'two_way_sync': ?twoWaySync,
+    });
+  }
+
+  @override
+  Future<SyncResult> sync({List<String>? eventIds}) async {
+    await delay();
+    return const SyncResult(pushed: 1, pulled: 0, failed: 0, conflicts: 1);
   }
 
   @override
@@ -845,8 +1043,10 @@ class MockCalendarSyncRepository extends _Mock
         local: local,
         google: GoogleEventSnapshot(
           title: 'Họp CLB Tin học (dời giờ)',
+          location: 'Hội trường E',
           startAt: _thisWeek(6, 10),
           endAt: _thisWeek(6, 12),
+          updatedAt: DateTime.now().subtract(const Duration(hours: 2)),
         ),
         detectedAt: DateTime.now().subtract(const Duration(hours: 1)),
       ),
@@ -883,8 +1083,12 @@ class MockReminderRepository extends _Mock implements ReminderRepository {
     bedtimeReminderMinutesBefore: 30,
     deadlineReminderEnabled: true,
     deadlineReminderHoursBefore: [24, 2],
+    kssPromptEnabled: true,
+    kssPromptsPerDay: 4,
+    kssPromptWindow: ClockWindow(start: ClockTime(8, 0), end: ClockTime(23, 0)),
+    sleepConfirmEnabled: true,
     motivationEnabled: true,
-    quietHours: QuietHours(start: ClockTime(23, 0), end: ClockTime(7, 0)),
+    quietHours: ClockWindow(start: ClockTime(23, 0), end: ClockTime(7, 0)),
   );
 
   @override
@@ -900,8 +1104,10 @@ class MockReminderRepository extends _Mock implements ReminderRepository {
   }
 
   @override
-  Future<void> registerDevice(String fcmToken, {String platform = 'android'}) =>
-      delay();
+  Future<void> registerDevice(
+    String fcmToken, {
+    DevicePlatform platform = DevicePlatform.android,
+  }) => delay();
 
   @override
   Future<void> unregisterDevice(String fcmToken) => delay();
@@ -911,9 +1117,60 @@ class MockReminderRepository extends _Mock implements ReminderRepository {
     QuoteContext context = QuoteContext.general,
   }) async {
     await delay();
-    return const Quote(
+    return Quote(
       text: 'Mỗi ngày tiến một chút là đủ rồi.',
       source: QuoteSource.fallback,
+      context: context,
+    );
+  }
+}
+
+class MockHomeRepository extends _Mock implements HomeRepository {
+  MockHomeRepository({Duration latency = Duration.zero}) : super(latency);
+
+  final _sleep = MockSleepRepository();
+  final _events = MockEventRepository();
+  final _todos = MockTodoRepository();
+
+  @override
+  Future<HomeOverview> getOverview() async {
+    await delay();
+    final bio = await _sleep.getBiorhythm();
+    final now = DateTime.now();
+    final point = bio.points.lastWhere(
+      (p) => !p.time.isAfter(now),
+      orElse: () => bio.points.first,
+    );
+    final todos =
+        (await _todos.listTodos(
+            query: const TodoQuery(
+              statuses: [TodoStatus.todo, TodoStatus.inProgress],
+            ),
+          )).items.where((t) => t.deadlineAt != null).toList()
+          ..sort((a, b) => a.deadlineAt!.compareTo(b.deadlineAt!));
+    return HomeOverview(
+      date: _today,
+      now: NowState(
+        time: now,
+        asleep: point.asleep,
+        processS: point.processS,
+        processC: point.processC,
+        kssPred: point.kssPred,
+        kssLo: point.kssLo,
+        kssHi: point.kssHi,
+        alertnessScore: point.alertnessScore,
+      ),
+      nextPeakWindow: bio.peakWindows
+          .where((w) => w.end.isAfter(now))
+          .firstOrNull,
+      tonight: bio.projectedSleep.first,
+      todayEvents: await _events.listEvents(from: _today, to: _at(1, 0)),
+      upcomingTodos: todos.take(3).toList(),
+      sleepDebt7dMinutes: (await _sleep.getSleepDebt()).totalDebtMinutes,
+      lastNight: (await _sleep.listSleepLogs()).first,
+      needsSleepConfirmation: false,
+      kssCheckinDue: false,
+      model: _model,
     );
   }
 }

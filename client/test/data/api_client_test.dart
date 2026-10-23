@@ -29,13 +29,18 @@ void main() {
   test('builds URL, query and headers', () async {
     await client.get(
       'todos',
-      query: {'status': 'todo', 'category': null, 'limit': 20},
+      query: {
+        'status': ['todo', 'in_progress'],
+        'category': null,
+        'sort': <String>[],
+        'limit': 20,
+      },
     );
     final req = transport.last;
     expect(req.method, 'GET');
     expect(
       req.uri.toString(),
-      'http://localhost:8765/api/v1/todos?status=todo&limit=20',
+      'http://localhost:8765/api/v1/todos?status=todo&status=in_progress&limit=20',
     );
     expect(req.headers['authorization'], 'Bearer old');
     expect(req.body, isNull);
@@ -110,13 +115,19 @@ void main() {
       field: 'image',
       bytes: Uint8List.fromList([1, 2, 3]),
       filename: 'tkb.jpg',
+      fields: {'note': 'x'},
     );
     final req = transport.last;
     final contentType = req.headers['content-type']!;
     expect(contentType, startsWith('multipart/form-data; boundary='));
     final boundary = contentType.split('boundary=').last;
     final body = latin1.decode(req.body!);
-    expect(body, startsWith('--$boundary\r\n'));
+    expect(
+      body,
+      startsWith(
+        '--$boundary\r\nContent-Disposition: form-data; name="note"\r\n\r\nx\r\n',
+      ),
+    );
     expect(body, contains('name="image"; filename="tkb.jpg"'));
     expect(body, contains('Content-Type: image/jpeg\r\n\r\n\x01\x02\x03\r\n'));
     expect(body, endsWith('--$boundary--\r\n'));
@@ -151,21 +162,44 @@ void main() {
       '/api/v1/health-profile' => jsonResponse(404, {
         'code': 'HEALTH_PROFILE_NOT_FOUND',
       }),
-      '/api/v1/schedule/apply' => jsonResponse(201, {'events': []}),
+      '/api/v1/schedule/apply' => jsonResponse(201, {
+        'events': [],
+        'sync': null,
+      }),
+      '/api/v1/sleep-logs' => jsonResponse(200, {'items': []}),
+      '/api/v1/calendar/settings' => jsonResponse(200, {
+        'connected': true,
+        'google_email': null,
+        'calendar_id': 'primary',
+        'two_way_sync': false,
+        'last_synced_at': null,
+        'pending_count': 0,
+        'conflict_count': 0,
+      }),
       _ => jsonResponse(204, null),
     };
 
     final page = await repos.todos.listTodos(
       query: TodoQuery(
-        status: TodoStatus.inProgress,
+        statuses: const [TodoStatus.todo, TodoStatus.inProgress],
         dueBefore: DateTime.utc(2026, 11, 1),
+        sort: TodoSort.priorityDesc,
       ),
     );
     expect(page.items, isEmpty);
-    expect(transport.last.uri.queryParameters, {
-      'status': 'in_progress',
-      'due_before': '2026-11-01T00:00:00.000Z',
+    expect(transport.last.uri.queryParametersAll, {
+      'status': ['todo', 'in_progress'],
+      'due_before': ['2026-11-01T00:00:00.000Z'],
+      'sort': ['-priority'],
     });
+
+    final logs = await repos.sleep.listSleepLogs(confirmed: false);
+    expect(logs, isEmpty);
+    expect(transport.last.uri.query, 'confirmed=false');
+
+    final status = await repos.calendarSync.updateSettings(twoWaySync: false);
+    expect(status.twoWaySync, isFalse);
+    expect(transport.lastJsonBody, {'two_way_sync': false});
 
     final job = await repos.timetable.uploadTimetablePhoto(
       Uint8List(1),
@@ -175,7 +209,8 @@ void main() {
 
     expect(await repos.sleep.getHealthProfile(), isNull);
 
-    await repos.schedule.apply('s', syncToGoogle: true);
+    final applied = await repos.schedule.apply('s', syncToGoogle: true);
+    expect(applied.sync, isNull);
     expect(transport.lastJsonBody, {
       'suggestion_id': 's',
       'block_indexes': null,
@@ -197,6 +232,7 @@ void main() {
       'display_name': 'n',
       'timezone': 'Asia/Ho_Chi_Minh',
       'google_calendar_connected': false,
+      'onboarding_completed': false,
       'created_at': '2026-10-19T08:00:00+07:00',
     };
     transport.handler = (req) => req.uri.path.endsWith('users/me')
