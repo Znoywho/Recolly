@@ -6,8 +6,9 @@ Either way it is kept within MIN_NEED_HOURS..MAX_NEED_HOURS: adults need at leas
 7 h (Watson et al. 2015), whatever they believe.
 
 Debt is plain arithmetic (need - slept, summed over the last nights), not the 2PM,
-because the 2PM under-estimates chronic sleep restriction. A long night pays back
-part of the debt, but the total never goes below zero.
+because the 2PM under-estimates chronic sleep restriction. Extra sleep on any night
+in the window counts against the debt, and the total never goes below zero
+(`total_debt_minutes = max(0, Σ debt_minutes)` in docs/openapi.yaml).
 """
 
 from collections.abc import Sequence
@@ -44,13 +45,10 @@ def sleep_debt(nights: Sequence[Night], need_hours: float) -> SleepDebt:
     """`nights` oldest first; only the last WINDOW_NIGHTS are counted."""
     recent = list(nights)[-WINDOW_NIGHTS:]
     per_night = [need_hours - n.duration for n in recent]
-    debt = 0.0
-    for d in per_night:
-        debt = max(0.0, debt + d)
     return SleepDebt(
         need_hours=need_hours,
         nights=len(recent),
         average_sleep_hours=sum(n.duration for n in recent) / len(recent) if recent else None,
-        debt_hours=debt,
+        debt_hours=max(0.0, sum(per_night)),
         per_night=per_night,
     )

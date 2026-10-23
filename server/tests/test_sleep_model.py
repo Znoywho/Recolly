@@ -110,7 +110,8 @@ def test_sleep_debt_adds_up_and_long_nights_pay_back():
     assert d.debt_hours == pytest.approx(10.0)
     assert d.average_sleep_hours == pytest.approx(5.5)
     assert sleep_debt([short] * 4 + [long], 8.0).debt_hours == pytest.approx(8.0)
-    assert sleep_debt([long, short], 8.0).debt_hours == pytest.approx(2.5)  # no credit in advance
+    assert sleep_debt([long, short], 8.0).debt_hours == pytest.approx(0.5)  # earlier extra sleep counts too
+    assert sleep_debt([long] * 3, 8.0).debt_hours == 0.0
 
 
 def test_same_nights_different_need():
