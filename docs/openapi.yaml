@@ -22,7 +22,7 @@ info:
     | IDs | UUID v4 |
     | Naming | `snake_case` fields, kebab-case paths |
     | Pagination | `?limit=&cursor=` → `{ "items": [...], "next_cursor": "..." \| null }` |
-    | Partial update | `PATCH` sends only the fields to change (at least one) |
+    | Partial update | `PATCH` sends only the fields to change (at least one). An omitted field is unchanged; `null` on a nullable field clears it |
     | Nullable | Response fields are always present; "nullable" means the value may be `null` |
 
     ## Errors
@@ -742,7 +742,7 @@ paths:
       tags: [OCR]
       operationId: getOcrJob
       summary: T2 · OCR job status and parsed timetable
-      description: When `status = failed`, `error` holds a code and Flutter shows the scan-failed screen (R62).
+      description: When `status = failed`, `error` holds a code and Flutter shows the scan-failed screen (R62). Jobs are kept for 24 h, then this returns `404 OCR_JOB_NOT_FOUND`.
       x-task-ids: [R10, R11]
       responses:
         '200':

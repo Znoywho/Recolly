@@ -12,8 +12,8 @@ class SubjectDraft {
     required this.dayOfWeek,
     required this.startTime,
     required this.endTime,
-    this.startDate,
-    this.endDate,
+    required this.startDate,
+    required this.endDate,
     this.color,
     this.confidence,
   });
@@ -26,8 +26,8 @@ class SubjectDraft {
     dayOfWeek: json['day_of_week'] as int,
     startTime: ClockTime.fromJson(json['start_time']),
     endTime: ClockTime.fromJson(json['end_time']),
-    startDate: parseDateOrNull(json['start_date']),
-    endDate: parseDateOrNull(json['end_date']),
+    startDate: parseDate(json['start_date']),
+    endDate: parseDate(json['end_date']),
     color: json['color'] as String?,
     confidence: (json['confidence'] as num?)?.toDouble(),
   );
@@ -41,8 +41,10 @@ class SubjectDraft {
   final int dayOfWeek;
   final ClockTime startTime;
   final ClockTime endTime;
-  final DateTime? startDate;
-  final DateTime? endDate;
+
+  /// First and last week of the course.
+  final DateTime startDate;
+  final DateTime endDate;
 
   /// Hex color such as `#FFD23F`.
   final String? color;
@@ -59,8 +61,8 @@ class SubjectDraft {
     'day_of_week': dayOfWeek,
     'start_time': startTime.toJson(),
     'end_time': endTime.toJson(),
-    'start_date': formatDateOrNull(startDate),
-    'end_date': formatDateOrNull(endDate),
+    'start_date': formatDate(startDate),
+    'end_date': formatDate(endDate),
     'color': color,
   };
 }
@@ -76,9 +78,11 @@ class Subject {
     required this.dayOfWeek,
     required this.startTime,
     required this.endTime,
-    this.startDate,
-    this.endDate,
+    required this.startDate,
+    required this.endDate,
     this.color,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
   factory Subject.fromJson(Json json) => Subject(
@@ -90,9 +94,11 @@ class Subject {
     dayOfWeek: json['day_of_week'] as int,
     startTime: ClockTime.fromJson(json['start_time']),
     endTime: ClockTime.fromJson(json['end_time']),
-    startDate: parseDateOrNull(json['start_date']),
-    endDate: parseDateOrNull(json['end_date']),
+    startDate: parseDate(json['start_date']),
+    endDate: parseDate(json['end_date']),
     color: json['color'] as String?,
+    createdAt: parseDateTime(json['created_at']),
+    updatedAt: parseDateTime(json['updated_at']),
   );
 
   final String id;
@@ -105,9 +111,11 @@ class Subject {
   final int dayOfWeek;
   final ClockTime startTime;
   final ClockTime endTime;
-  final DateTime? startDate;
-  final DateTime? endDate;
+  final DateTime startDate;
+  final DateTime endDate;
   final String? color;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   Json toJson() => {
     'id': id,
@@ -118,13 +126,16 @@ class Subject {
     'day_of_week': dayOfWeek,
     'start_time': startTime.toJson(),
     'end_time': endTime.toJson(),
-    'start_date': formatDateOrNull(startDate),
-    'end_date': formatDateOrNull(endDate),
+    'start_date': formatDate(startDate),
+    'end_date': formatDate(endDate),
     'color': color,
+    'created_at': formatDateTime(createdAt),
+    'updated_at': formatDateTime(updatedAt),
   };
 }
 
-/// T5 `PATCH /timetable/{id}` body.
+/// T5 `PATCH /timetable/{id}` body. The server also updates the subject's
+/// recurring class event.
 class SubjectUpdate {
   const SubjectUpdate({
     this.name,
@@ -146,8 +157,8 @@ class SubjectUpdate {
   final int? dayOfWeek;
   final ClockTime? startTime;
   final ClockTime? endTime;
-  final Nullable<DateTime>? startDate;
-  final Nullable<DateTime>? endDate;
+  final DateTime? startDate;
+  final DateTime? endDate;
   final Nullable<String>? color;
 
   Json toJson() {
@@ -156,12 +167,12 @@ class SubjectUpdate {
       'day_of_week': ?dayOfWeek,
       'start_time': ?startTime?.toJson(),
       'end_time': ?endTime?.toJson(),
+      'start_date': ?formatDateOrNull(startDate),
+      'end_date': ?formatDateOrNull(endDate),
     };
     putNullable(json, 'code', code);
     putNullable(json, 'room', room);
     putNullable(json, 'lecturer', lecturer);
-    putNullable(json, 'start_date', startDate, formatDate);
-    putNullable(json, 'end_date', endDate, formatDate);
     putNullable(json, 'color', color);
     return json;
   }
@@ -174,6 +185,7 @@ class OcrJob {
     required this.status,
     this.error,
     this.subjects = const [],
+    this.createdAt,
   });
 
   factory OcrJob.fromJson(Json json) {
@@ -185,17 +197,22 @@ class OcrJob {
       subjects: result == null
           ? const []
           : parseList(result['subjects'], SubjectDraft.fromJson),
+      createdAt: parseDateTimeOrNull(json['created_at']),
     );
   }
 
   final String jobId;
   final JobStatus status;
 
-  /// Error code when [status] is failed, e.g. `OCR_NO_TABLE_FOUND` (R62).
+  /// Error code when [status] is failed: `OCR_NO_TABLE_FOUND`,
+  /// `OCR_LOW_QUALITY` or `OCR_MODEL_ERROR` (scan-failed screen, R62).
   final String? error;
 
   /// Parsed rows when [status] is succeeded.
   final List<SubjectDraft> subjects;
+
+  /// `null` in the T1 upload response.
+  final DateTime? createdAt;
 
   Json toJson() => {
     'job_id': jobId,
@@ -209,5 +226,6 @@ class OcrJob {
             ],
           }
         : null,
+    'created_at': formatDateTimeOrNull(createdAt),
   };
 }

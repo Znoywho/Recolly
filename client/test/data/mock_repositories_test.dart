@@ -13,10 +13,20 @@ void main() {
     expect((await repos.user.getMe()).email, isNotEmpty);
     expect(await repos.sleep.getHealthProfile(), isNotNull);
     expect((await repos.sleep.getSleepDebt()).daily, hasLength(7));
-    expect((await repos.sleep.getBiorhythm(DateTime.now())).points, isNotEmpty);
+    expect((await repos.sleep.getBiorhythm()).points, isNotEmpty);
+    final card = await repos.sleep.assessChronotype(
+      const ChronotypeAssessmentRequest(rmeqScore: 14),
+    );
+    expect(card.typicalWeek.days, hasLength(7));
+    expect((await repos.home.getOverview()).upcomingTodos, hasLength(3));
     expect((await repos.calendarSync.getStatus()).connected, isTrue);
     expect(await repos.calendarSync.listConflicts(), hasLength(1));
-    expect((await repos.reminders.randomQuote()).text, isNotEmpty);
+    expect(
+      (await repos.reminders.randomQuote(context: QuoteContext.sleep)).context,
+      QuoteContext.sleep,
+    );
+    await repos.calendarSync.disconnect();
+    expect((await repos.calendarSync.getStatus()).connected, isFalse);
     final voice = await repos.voice.transcribe(Uint8List(1), filename: 'a.m4a');
     expect(voice.todoDraft, isNotNull);
   });
@@ -28,12 +38,12 @@ void main() {
       from: monday,
       to: monday.add(const Duration(days: 7)),
     );
-    expect(events.where((e) => e.source == EventSource.ocr), hasLength(4));
+    expect(events.where((e) => e.kind == EventKind.classSession), hasLength(4));
   });
 
   test('todo CRUD and filters', () async {
     final open = await repos.todos.listTodos(
-      query: const TodoQuery(status: TodoStatus.todo),
+      query: const TodoQuery(statuses: [TodoStatus.todo]),
     );
     expect(open.items.every((t) => t.status == TodoStatus.todo), isTrue);
 
@@ -45,6 +55,7 @@ void main() {
       const TodoUpdate(status: TodoStatus.done, description: Nullable(null)),
     );
     expect(done.status, TodoStatus.done);
+    expect(done.completedAt, isNotNull);
     expect(done.title, 'Làm lab 4');
 
     await repos.todos.deleteTodo(created.id);
@@ -98,10 +109,11 @@ void main() {
     final suggestion = await repos.schedule.generate(
       ScheduleRequest(from: DateTime.now(), to: DateTime.now()),
     );
-    final events = await repos.schedule.apply(
+    final result = await repos.schedule.apply(
       suggestion.suggestionId,
       blockIndexes: [0],
     );
-    expect(events.single.title, suggestion.blocks.first.title);
+    expect(result.events.single.title, suggestion.blocks.first.title);
+    expect(result.sync, isNull);
   });
 }

@@ -19,7 +19,7 @@
 | IDs | UUID v4 strings |
 | Field naming | `snake_case` |
 | Pagination | Query `?limit=20&cursor=<opaque>` → response `{ "items": [...], "next_cursor": "..." \| null }` |
-| Partial update | `PATCH` sends only the fields to change |
+| Partial update | `PATCH` sends only the fields to change. An omitted field is unchanged; `null` on a nullable field clears it |
 
 ### Error format
 
@@ -465,7 +465,7 @@ OCR runs asynchronously (Vintern is slow). Flutter uploads, then polls T2 every 
 }
 ```
 
-`day_of_week`: 1 = Monday … 7 = Sunday. If `status = failed`, `error` holds a code like `OCR_NO_TABLE_FOUND` (Flutter shows the scan-failed screen, R62).
+`day_of_week`: 1 = Monday … 7 = Sunday. If `status = failed`, `error` holds a code like `OCR_NO_TABLE_FOUND` (Flutter shows the scan-failed screen, R62). Jobs are kept for 24 h, then T2 returns `404 OCR_JOB_NOT_FOUND`.
 
 **Subject object** (T3–T6): same fields as an OCR subject without `confidence`, plus `id`, `color` (hex, optional), `created_at`, `updated_at`.
 

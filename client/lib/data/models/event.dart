@@ -13,6 +13,7 @@ class CalendarEvent {
     required this.endAt,
     this.allDay = false,
     this.rrule,
+    this.kind = EventKind.other,
     required this.source,
     this.subjectId,
     this.todoId,
@@ -30,15 +31,14 @@ class CalendarEvent {
     location: json['location'] as String?,
     startAt: parseDateTime(json['start_at']),
     endAt: parseDateTime(json['end_at']),
-    allDay: json['all_day'] as bool? ?? false,
+    allDay: json['all_day'] as bool,
     rrule: json['rrule'] as String?,
+    kind: EventKind.fromJson(json['kind']),
     source: EventSource.fromJson(json['source']),
     subjectId: json['subject_id'] as String?,
     todoId: json['todo_id'] as String?,
     googleEventId: json['google_event_id'] as String?,
-    syncStatus: json['sync_status'] == null
-        ? SyncStatus.notSynced
-        : SyncStatus.fromJson(json['sync_status']),
+    syncStatus: SyncStatus.fromJson(json['sync_status']),
     occurrenceStart: parseDateTimeOrNull(json['occurrence_start']),
     createdAt: parseDateTime(json['created_at']),
     updatedAt: parseDateTime(json['updated_at']),
@@ -54,13 +54,15 @@ class CalendarEvent {
 
   /// RFC 5545 RRULE, e.g. `FREQ=WEEKLY;BYDAY=MO`.
   final String? rrule;
+  final EventKind kind;
   final EventSource source;
   final String? subjectId;
   final String? todoId;
   final String? googleEventId;
   final SyncStatus syncStatus;
 
-  /// Set on instances of a recurring event expanded by E1.
+  /// Set on instances of a recurring event expanded by E1. Edits and
+  /// deletes through [id] act on the whole series.
   final DateTime? occurrenceStart;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -74,13 +76,13 @@ class CalendarEvent {
     'end_at': formatDateTime(endAt),
     'all_day': allDay,
     'rrule': rrule,
+    'kind': kind.toJson(),
     'source': source.toJson(),
     'subject_id': subjectId,
     'todo_id': todoId,
     'google_event_id': googleEventId,
     'sync_status': syncStatus.toJson(),
-    if (occurrenceStart != null)
-      'occurrence_start': formatDateTime(occurrenceStart!),
+    'occurrence_start': formatDateTimeOrNull(occurrenceStart),
     'created_at': formatDateTime(createdAt),
     'updated_at': formatDateTime(updatedAt),
   };
@@ -96,6 +98,7 @@ class EventCreate {
     required this.endAt,
     this.allDay = false,
     this.rrule,
+    this.kind = EventKind.other,
     this.todoId,
   });
 
@@ -106,6 +109,9 @@ class EventCreate {
   final DateTime endAt;
   final bool allDay;
   final String? rrule;
+
+  /// `class` is reserved for timetable events.
+  final EventKind kind;
   final String? todoId;
 
   Json toJson() => {
@@ -116,11 +122,12 @@ class EventCreate {
     'end_at': formatDateTime(endAt),
     'all_day': allDay,
     'rrule': rrule,
+    'kind': kind.toJson(),
     'todo_id': todoId,
   };
 }
 
-/// E4 `PATCH /events/{id}` body.
+/// E4 `PATCH /events/{id}` body. A synced event goes back to `pending`.
 class EventUpdate {
   const EventUpdate({
     this.title,
@@ -130,6 +137,7 @@ class EventUpdate {
     this.endAt,
     this.allDay,
     this.rrule,
+    this.kind,
     this.todoId,
   });
 
@@ -140,6 +148,7 @@ class EventUpdate {
   final DateTime? endAt;
   final bool? allDay;
   final Nullable<String>? rrule;
+  final EventKind? kind;
   final Nullable<String>? todoId;
 
   Json toJson() {
@@ -148,6 +157,7 @@ class EventUpdate {
       'start_at': ?formatDateTimeOrNull(startAt),
       'end_at': ?formatDateTimeOrNull(endAt),
       'all_day': ?allDay,
+      'kind': ?kind?.toJson(),
     };
     putNullable(json, 'description', description);
     putNullable(json, 'location', location);

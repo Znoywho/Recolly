@@ -4,11 +4,12 @@ class User {
   const User({
     required this.id,
     required this.email,
-    required this.displayName,
+    this.displayName,
     this.avatarUrl,
     this.dateOfBirth,
     required this.timezone,
     required this.googleCalendarConnected,
+    required this.onboardingCompleted,
     required this.createdAt,
     this.lastLoginAt,
   });
@@ -16,24 +17,28 @@ class User {
   factory User.fromJson(Json json) => User(
     id: json['id'] as String,
     email: json['email'] as String,
-    displayName: json['display_name'] as String,
+    displayName: json['display_name'] as String?,
     avatarUrl: json['avatar_url'] as String?,
     dateOfBirth: parseDateOrNull(json['date_of_birth']),
     timezone: json['timezone'] as String,
     googleCalendarConnected: json['google_calendar_connected'] as bool,
+    onboardingCompleted: json['onboarding_completed'] as bool,
     createdAt: parseDateTime(json['created_at']),
     lastLoginAt: parseDateTimeOrNull(json['last_login_at']),
   );
 
   final String id;
   final String email;
-  final String displayName;
+  final String? displayName;
   final String? avatarUrl;
   final DateTime? dateOfBirth;
 
   /// IANA name, e.g. `Asia/Ho_Chi_Minh`.
   final String timezone;
   final bool googleCalendarConnected;
+
+  /// `false` → splash routes to onboarding even if `is_new_user` was false.
+  final bool onboardingCompleted;
   final DateTime createdAt;
   final DateTime? lastLoginAt;
 
@@ -45,6 +50,7 @@ class User {
     'date_of_birth': formatDateOrNull(dateOfBirth),
     'timezone': timezone,
     'google_calendar_connected': googleCalendarConnected,
+    'onboarding_completed': onboardingCompleted,
     'created_at': formatDateTime(createdAt),
     'last_login_at': formatDateTimeOrNull(lastLoginAt),
   };
@@ -54,15 +60,13 @@ class User {
 class UserUpdate {
   const UserUpdate({this.displayName, this.dateOfBirth, this.timezone});
 
-  final String? displayName;
+  final Nullable<String>? displayName;
   final Nullable<DateTime>? dateOfBirth;
   final String? timezone;
 
   Json toJson() {
-    final json = <String, Object?>{
-      'display_name': ?displayName,
-      'timezone': ?timezone,
-    };
+    final json = <String, Object?>{'timezone': ?timezone};
+    putNullable(json, 'display_name', displayName);
     putNullable(json, 'date_of_birth', dateOfBirth, formatDate);
     return json;
   }
