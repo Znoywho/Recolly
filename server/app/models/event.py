@@ -1,15 +1,19 @@
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, SystemTimeStamp, UUIDPrimaryKey
-from app.models.enums import ConflictResolution, EventKind, EventSource, SyncStatus, str_enum, su
+from app.models.enums import ConflictResolution, EventKind, EventSource, SyncStatus, str_enum
 
-from app.models.user import User
-from app.models.timetable import Subject
+if TYPE_CHECKING:
+    from app.models.timetable import Subject
+    from app.models.todo import Todo
+    from app.models.user import User
+
 
 class Event(UUIDPrimaryKey, SystemTimeStamp, Base):
     """A calendar block: class, study session, or anything synced with Google Calendar."""
