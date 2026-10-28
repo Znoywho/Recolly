@@ -5,8 +5,15 @@ from sqlalchemy import Date, DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, SystemTimeStamp, UUIDPrimaryKey
-from app.models.health import HealthProfile
+from app.models.health import HealthProfile, SleepLog
+from app.models.event import Event
 from app.models.timetable import Subject
+from app.models.todo import Todo
+from app.models.ocr import OcrJob
+from app.models.notification import ReminderSettings, Device
+from app.models.auth import RefreshToken
+from app.models.calendar import CalendarConnection
+
 
 
 class User(UUIDPrimaryKey, SystemTimeStamp, Base):

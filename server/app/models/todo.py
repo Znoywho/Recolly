@@ -15,6 +15,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, SystemTimeStamp, UUIDPrimaryKey
 from app.models.enums import Priority, TodoCategory, TodoStatus, str_enum
+from app.models.event import Event
+from app.models.user import User
 
 
 class Todo(UUIDPrimaryKey, SystemTimeStamp, Base):
