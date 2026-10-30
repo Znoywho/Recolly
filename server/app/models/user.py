@@ -5,8 +5,16 @@ from sqlalchemy import Date, DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, SystemTimeStamp, UUIDPrimaryKey
-from app.models.health import HealthProfile
-from app.models.timetable import Subject
+
+if TYPE_CHECKING:
+    from app.models.auth import RefreshToken
+    from app.models.calendar import CalendarConnection, CalendarDeletion
+    from app.models.event import Event
+    from app.models.health import HealthProfile, SleepLog
+    from app.models.notification import Device, ReminderSettings
+    from app.models.ocr import OcrJob
+    from app.models.timetable import Subject
+    from app.models.todo import Todo
 
 
 class User(UUIDPrimaryKey, SystemTimeStamp, Base):
@@ -49,6 +57,9 @@ class User(UUIDPrimaryKey, SystemTimeStamp, Base):
         back_populates="user", cascade="all, delete-orphan"
     )
     calendar_connection: Mapped["CalendarConnection | None"] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    calendar_deletions: Mapped[list["CalendarDeletion"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
 
