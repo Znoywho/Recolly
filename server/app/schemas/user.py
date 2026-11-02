@@ -1,37 +1,56 @@
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field, field_validator
 
-from app.schemas.common import ORMModel
+from app.core.timeutil import is_valid_timezone
+from app.schemas.common import ORMModel, PatchModel
 
-# {
-#   "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-#   "email": "user@example.com",
-#   "display_name": "string",
-#   "avatar_url": "https://example.com/",
-#   "date_of_birth": "2026-10-23",
-#   "timezone": "Asia/Ho_Chi_Minh",
-#   "google_calendar_connected": true,
-#   "onboarding_completed": true,
-#   "created_at": "2026-10-23T16:12:10.100Z",
-#   "last_login_at": "2026-10-23T16:12:10.100Z"
-# }
 
 class UserRead(ORMModel):
     id: UUID
-    email: EmailStr
+    email: str
     display_name: str | None
     avatar_url: str | None
     date_of_birth: date | None
     timezone: str
-    google_calendar_connected: bool | None
-    onboarding_completed: bool | None
+    google_calendar_connected: bool
+    onboarding_completed: bool
     created_at: datetime
     last_login_at: datetime | None
 
 
-class UserUpdate(BaseModel):
+class UserUpdate(PatchModel):
+    non_nullable = frozenset({"timezone"})
+
     display_name: str | None = Field(default=None, max_length=100)
     date_of_birth: date | None = None
-    timezone: str | None = Field(default=None, max_length=64)
+    timezone: str | None = Field(default=None, max_length=64, description="IANA name.")
+
+    @field_validator("timezone")
+    @classmethod
+    def _known_timezone(cls, value: str | None) -> str | None:
+        if value is not None and not is_valid_timezone(value):
+            raise ValueError("unknown IANA timezone")
+        return value
+
+
+class GoogleSignInRequest(BaseModel):
+    server_auth_code: str = Field(min_length=1)
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str = Field(min_length=1)
+
+
+class TokenPair(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: Literal["bearer"] = "bearer"
+    expires_in: int
+
+
+class AuthResponse(TokenPair):
+    user: UserRead
+    is_new_user: bool

@@ -34,3 +34,20 @@ class CalendarConnection(UUIDPrimaryKey, SystemTimeStamp, Base):
     channel_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     user: Mapped["User"] = relationship(back_populates="calendar_connection")
+
+
+class CalendarDeletion(UUIDPrimaryKey, SystemTimeStamp, Base):
+    """Google copy of a deleted event, removed from Google on the next sync (E5, T6).
+
+    Needed because the local Event row (and its google_event_id) is gone after the delete.
+    """
+
+    __tablename__ = "calendar_deletions"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    calendar_id: Mapped[str] = mapped_column(String(1024))
+    google_event_id: Mapped[str] = mapped_column(String(1024))
+
+    user: Mapped["User"] = relationship(back_populates="calendar_deletions")

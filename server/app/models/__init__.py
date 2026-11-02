@@ -2,7 +2,7 @@
 
 from app.db.base import Base
 from app.models.auth import RefreshToken
-from app.models.calendar import CalendarConnection
+from app.models.calendar import CalendarConnection, CalendarDeletion
 from app.models.event import Event, SyncConflict
 from app.models.health import HealthProfile, SleepLog
 from app.models.notification import Device, ReminderSettings
@@ -14,6 +14,7 @@ from app.models.user import User
 __all__ = [
     "Base",
     "CalendarConnection",
+    "CalendarDeletion",
     "Device",
     "Event",
     "HealthProfile",
