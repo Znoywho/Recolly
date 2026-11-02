@@ -102,6 +102,11 @@ def circular_mean_hours(hours: Sequence[float], weights: Sequence[float] | None 
     return (math.atan2(sin, cos) * 24 / (2 * math.pi)) % 24
 
 
+def circular_diff_hours(a: float, b: float) -> float:
+    """a - b on a 24 h clock, in [-12, 12)."""
+    return (a - b + 12) % 24 - 12
+
+
 @lru_cache
 def mid_sleep_offset(p: Params = Params(), dt: float = STEP_HOURS) -> float:
     """phi minus the mean mid-sleep of free-running sleep.

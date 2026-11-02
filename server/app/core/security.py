@@ -29,8 +29,12 @@ def create_access_token(user_id: uuid.UUID) -> str:
 def decode_access_token(token: str) -> uuid.UUID:
     invalid = ApiError(401, "TOKEN_INVALID", "Invalid token", headers=BEARER_CHALLENGE)
     try:
-        payload = jwt.decode(token, Config.JWT_SECRET, algorithms=[ALGORITHM],
-                             options={"require": ["sub", "exp"]})
+        payload = jwt.decode(
+            token, 
+            Config.JWT_SECRET, 
+            algorithms=[ALGORITHM],
+            options={"require": ["sub", "exp"]}
+        )
     except jwt.ExpiredSignatureError:
         raise ApiError(401, "TOKEN_EXPIRED", "Token expired", headers=BEARER_CHALLENGE) from None
     except jwt.PyJWTError:

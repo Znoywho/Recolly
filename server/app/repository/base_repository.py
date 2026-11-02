@@ -15,6 +15,13 @@ class BaseRepository[T]:
     def get_by_id(self, id: uuid.UUID) -> T | None:
         return self.session.get(self.model, id)
 
+    def get_owned(self, id: uuid.UUID, user_id: uuid.UUID) -> T | None:
+        """Row by id, or None if it belongs to another user (callers answer 404, not 403)."""
+        instance = self.session.get(self.model, id)
+        if instance is None or instance.user_id != user_id:
+            return None
+        return instance
+
     def get_all(self, limit: int = 100, offset: int = 0) -> Sequence[T]:
         statement = select(self.model).limit(limit).offset(offset)
         return self.session.scalars(statement).all()
