@@ -3,61 +3,73 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
 abstract final class AppTypography {
+  static const String fontFamily = 'Be Vietnam Pro';
+
+  static const FontWeight regular = FontWeight.w400;
+  static const FontWeight semiBold = FontWeight.w600;
+  static const FontWeight extraBold = FontWeight.w800;
+
   static const TextStyle display = TextStyle(
+    fontFamily: fontFamily,
     fontSize: 40,
-    height: 1.05,
-    fontWeight: FontWeight.w900,
+    height: 1.1,
+    fontWeight: extraBold,
     letterSpacing: -1,
     color: AppColors.ink,
   );
-  static const TextStyle headline = TextStyle(
-    fontSize: 26,
-    height: 1.15,
-    fontWeight: FontWeight.w900,
+  static const TextStyle title = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 28,
+    height: 1.2,
+    fontWeight: extraBold,
     letterSpacing: -0.5,
     color: AppColors.ink,
   );
-  static const TextStyle title = TextStyle(
+  static const TextStyle subtitle = TextStyle(
+    fontFamily: fontFamily,
     fontSize: 18,
-    height: 1.25,
-    fontWeight: FontWeight.w800,
+    height: 1.3,
+    fontWeight: extraBold,
     color: AppColors.ink,
   );
   static const TextStyle body = TextStyle(
+    fontFamily: fontFamily,
     fontSize: 15,
-    height: 1.4,
-    fontWeight: FontWeight.w500,
+    height: 1.45,
+    fontWeight: regular,
     color: AppColors.ink,
   );
   static const TextStyle label = TextStyle(
+    fontFamily: fontFamily,
     fontSize: 13,
-    height: 1.2,
-    fontWeight: FontWeight.w800,
-    letterSpacing: 0.2,
+    height: 1.3,
+    fontWeight: semiBold,
     color: AppColors.ink,
   );
   static const TextStyle caption = TextStyle(
+    fontFamily: fontFamily,
     fontSize: 12,
-    height: 1.35,
-    fontWeight: FontWeight.w500,
+    height: 1.4,
+    fontWeight: regular,
     color: AppColors.inkMuted,
   );
   static const TextStyle button = TextStyle(
+    fontFamily: fontFamily,
     fontSize: 15,
     height: 1.2,
-    fontWeight: FontWeight.w800,
+    fontWeight: extraBold,
     color: AppColors.ink,
   );
 
   static const TextTheme textTheme = TextTheme(
     displayLarge: display,
     displayMedium: display,
-    displaySmall: headline,
-    headlineLarge: headline,
-    headlineMedium: headline,
-    headlineSmall: title,
-    titleLarge: title,
-    titleMedium: title,
+    displaySmall: title,
+    headlineLarge: title,
+    headlineMedium: title,
+    headlineSmall: subtitle,
+    titleLarge: subtitle,
+    titleMedium: subtitle,
     titleSmall: label,
     bodyLarge: body,
     bodyMedium: body,

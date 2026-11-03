@@ -1,11 +1,12 @@
 import 'package:client/data/data.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/theme/theme.dart';
-import '../../core/widgets/widgets.dart';
-import 'widgets/alertness_score_card.dart';
+import '../../core/theme/app_theme.dart';
+import '../../widgets/widgets.dart';
+import '../today/widgets/alertness_score_card.dart';
+import '../today/widgets/live_alertness_card.dart';
+import 'navigation_preview_page.dart';
 import 'widgets/gallery_section.dart';
-import 'widgets/live_alertness_card.dart';
 
 class ThemeGalleryPage extends StatelessWidget {
   const ThemeGalleryPage({super.key});
@@ -13,11 +14,11 @@ class ThemeGalleryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Recolly · Design system')),
+      appBar: AppBar(title: const Text('Design system')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.md,
-          AppSpacing.lg,
+          AppSpacing.md,
           AppSpacing.md,
           AppSpacing.xxl,
         ),
@@ -36,14 +37,12 @@ class ThemeGalleryPage extends StatelessWidget {
               AlertnessScoreCard(snapshot: AlertnessUnavailable()),
             ],
           ),
+          GallerySection(title: 'Thanh điều hướng', children: [_NavSamples()]),
           GallerySection(title: 'Màu', children: [_ColorPalette()]),
           GallerySection(title: 'Chữ', children: [_TypeScale()]),
           GallerySection(title: 'Thẻ', children: [_CardSamples()]),
           GallerySection(title: 'Nút', children: [_ButtonSamples()]),
-          GallerySection(
-            title: 'Badge chronotype',
-            children: [_BadgeSamples()],
-          ),
+          GallerySection(title: 'Badge', children: [_BadgeSamples()]),
           GallerySection(
             title: 'Widget Material theo theme',
             children: [_MaterialSamples()],
@@ -54,20 +53,58 @@ class ThemeGalleryPage extends StatelessWidget {
   }
 }
 
+class _NavSamples extends StatefulWidget {
+  const _NavSamples();
+
+  @override
+  State<_NavSamples> createState() => _NavSamplesState();
+}
+
+class _NavSamplesState extends State<_NavSamples> {
+  BrutalNavTab _currentTab = BrutalNavTab.today;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        MediaQuery.removePadding(
+          context: context,
+          removeBottom: true,
+          child: BrutalBottomNavBar(
+            currentTab: _currentTab,
+            onTabSelected: (tab) => setState(() => _currentTab = tab),
+          ),
+        ),
+        BrutalButton(
+          label: 'Mở khung 4 tab',
+          icon: Icons.open_in_new_rounded,
+          color: AppColors.white,
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const NavigationPreviewPage(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _ColorPalette extends StatelessWidget {
   const _ColorPalette();
 
   static const List<(String, Color)> _swatches = [
-    ('ink', AppColors.ink),
-    ('canvas', AppColors.canvas),
-    ('paper', AppColors.paper),
-    ('lagoon', AppColors.lagoon),
-    ('lime', AppColors.lime),
-    ('sunflower', AppColors.sunflower),
+    ('cream', AppColors.cream),
+    ('teal', AppColors.teal),
+    ('green', AppColors.green),
     ('coral', AppColors.coral),
+    ('yellow', AppColors.yellow),
+    ('white', AppColors.white),
+    ('ink', AppColors.ink),
     ('slate', AppColors.slate),
-    ('disabled', AppColors.disabled),
     ('inkMuted', AppColors.inkMuted),
+    ('disabled', AppColors.disabled),
   ];
 
   static String _hexOf(Color color) =>
@@ -95,9 +132,11 @@ class _ColorPalette extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: color,
                           borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(AppRadii.md - 2),
+                            top: Radius.circular(
+                              AppRadii.card - AppBorders.width,
+                            ),
                           ),
-                          border: const Border(bottom: AppBorders.regular),
+                          border: const Border(bottom: AppBorders.side),
                         ),
                       ),
                       Padding(
@@ -125,16 +164,16 @@ class _TypeScale extends StatelessWidget {
   const _TypeScale();
 
   static const List<(String, TextStyle, String)> _samples = [
-    ('display', AppTypography.display, '72%'),
-    ('headline', AppTypography.headline, 'Chào buổi sáng'),
-    ('title', AppTypography.title, 'Kiểm tra lại lịch học'),
+    ('display · ExtraBold', AppTypography.display, '72%'),
+    ('title · ExtraBold', AppTypography.title, 'Chào buổi sáng'),
+    ('subtitle · ExtraBold', AppTypography.subtitle, 'Kiểm tra lại lịch học'),
     (
-      'body',
+      'body · Regular',
       AppTypography.body,
       'Nên ôn bài khó lúc 9:00 – 11:00 khi bạn tỉnh táo nhất.',
     ),
-    ('label', AppTypography.label, 'Giờ vàng 9:00 – 11:30'),
-    ('caption', AppTypography.caption, 'Cập nhật lúc 07:30'),
+    ('label · SemiBold', AppTypography.label, 'Giờ vàng 9:00 – 11:30'),
+    ('caption · Regular', AppTypography.caption, 'Cập nhật lúc 07:30'),
   ];
 
   @override
@@ -172,25 +211,26 @@ class _CardSamples extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         BrutalCard(
+          color: AppColors.teal,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Giải tích 1', style: AppTypography.title),
+              Text('Giải tích 1', style: AppTypography.subtitle),
               SizedBox(height: AppSpacing.xxs),
               Text(
                 'Phòng B3 · 201 · Thứ Hai 07:30 – 09:30',
-                style: AppTypography.caption,
+                style: AppTypography.body,
               ),
             ],
           ),
         ),
         SizedBox(height: AppSpacing.md),
         BrutalCard(
-          color: AppColors.sunflower,
+          color: AppColors.yellow,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Lập trình Python', style: AppTypography.title),
+              Text('Lập trình Python', style: AppTypography.subtitle),
               SizedBox(height: AppSpacing.xxs),
               Text(
                 'Phòng C5 · 302 · Thứ Tư 09:30 – 11:30',
@@ -201,20 +241,17 @@ class _CardSamples extends StatelessWidget {
         ),
         SizedBox(height: AppSpacing.md),
         BrutalCard(
-          color: AppColors.slate,
-          child: Row(
+          color: AppColors.cream,
+          borderStyle: BrutalBorderStyle.dashed,
+          hasShadow: false,
+          child: Column(
             children: [
-              Icon(Icons.bedtime_rounded, color: AppColors.onSlate),
-              SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  'Giấc ngủ 23:30 – 06:30',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.onSlate,
-                  ),
-                ),
+              Icon(Icons.photo_camera_outlined, size: 32),
+              SizedBox(height: AppSpacing.xs),
+              Text(
+                'Chụp ảnh thời khóa biểu của bạn',
+                textAlign: TextAlign.center,
+                style: AppTypography.label,
               ),
             ],
           ),
@@ -247,20 +284,21 @@ class _ButtonSamples extends StatelessWidget {
         BrutalButton(
           label: 'Chọn từ thư viện',
           icon: Icons.photo_library_outlined,
-          variant: BrutalButtonVariant.secondary,
+          color: AppColors.white,
           onPressed: () => _announce(context, 'Chọn từ thư viện'),
         ),
         const SizedBox(height: AppSpacing.md),
         BrutalButton(
-          label: 'Hủy',
-          variant: BrutalButtonVariant.ghost,
-          onPressed: () => _announce(context, 'Hủy'),
+          label: 'Nhập bằng giọng nói',
+          icon: Icons.mic_none_rounded,
+          color: AppColors.yellow,
+          onPressed: () => _announce(context, 'Nhập bằng giọng nói'),
         ),
         const SizedBox(height: AppSpacing.md),
         BrutalButton(
           label: 'Xóa',
           icon: Icons.delete_outline_rounded,
-          variant: BrutalButtonVariant.danger,
+          color: AppColors.coral,
           onPressed: () => _announce(context, 'Xóa'),
         ),
         const SizedBox(height: AppSpacing.md),
@@ -281,7 +319,8 @@ class _BadgeSamples extends StatelessWidget {
       children: [
         for (final chronotype in Chronotype.values)
           ChronotypeBadge(chronotype: chronotype),
-        const BrutalBadge(label: 'Giờ vàng', color: AppColors.lime),
+        const BrutalBadge(label: 'Giờ vàng', color: AppColors.green),
+        const BrutalBadge(label: 'AI xếp', color: AppColors.teal),
         const BrutalBadge(label: 'Trễ hạn', color: AppColors.coral),
       ],
     );
@@ -314,7 +353,7 @@ class _MaterialSamplesState extends State<_MaterialSamples> {
         Row(
           children: [
             const Expanded(
-              child: Text('Nhắc đi ngủ', style: AppTypography.title),
+              child: Text('Nhắc đi ngủ', style: AppTypography.subtitle),
             ),
             Switch(
               value: _isReminderEnabled,

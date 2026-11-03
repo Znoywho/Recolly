@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-import '../../../core/theme/theme.dart';
+import '../../../core/theme/app_theme.dart';
 
 class GallerySection extends StatelessWidget {
   const GallerySection({
@@ -19,7 +19,7 @@ class GallerySection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(title, style: AppTypography.title),
+          Text(title, style: AppTypography.subtitle),
           const SizedBox(height: AppSpacing.sm),
           for (final (index, child) in children.indexed) ...[
             if (index > 0) const SizedBox(height: AppSpacing.md),
