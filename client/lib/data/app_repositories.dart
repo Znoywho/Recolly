@@ -1,4 +1,5 @@
 import 'api/api_client.dart';
+import 'api/auth_token_store.dart';
 import 'api/api_config.dart';
 import 'mock/mock_repositories.dart';
 import 'repositories/auth_repository.dart';
@@ -33,6 +34,7 @@ class AppRepositories {
     required this.calendarSync,
     required this.reminders,
     required this.home,
+    required this.tokenStore,
   });
 
   factory AppRepositories.api(ApiClient client) => AppRepositories(
@@ -47,6 +49,7 @@ class AppRepositories {
     calendarSync: ApiCalendarSyncRepository(client),
     reminders: ApiReminderRepository(client),
     home: ApiHomeRepository(client),
+    tokenStore: client.tokenStore,
   );
 
   /// [latency] simulates network delay so loading states can be seen.
@@ -63,6 +66,7 @@ class AppRepositories {
         calendarSync: MockCalendarSyncRepository(latency: latency),
         reminders: MockReminderRepository(latency: latency),
         home: MockHomeRepository(latency: latency),
+        tokenStore: AuthTokenStore(),
       );
 
   /// Mock unless built with `--dart-define=USE_MOCK_API=false`.
@@ -81,4 +85,7 @@ class AppRepositories {
   final CalendarSyncRepository calendarSync;
   final ReminderRepository reminders;
   final HomeRepository home;
+
+  /// Same store the [ApiClient] reads the bearer token from.
+  final AuthTokenStore tokenStore;
 }

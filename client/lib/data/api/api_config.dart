@@ -18,4 +18,9 @@ class ApiConfig {
     'USE_MOCK_API',
     defaultValue: true,
   );
+
+  /// Web client ID from Google Cloud (the one the backend uses).
+  static const googleServerClientId = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+  );
 }
