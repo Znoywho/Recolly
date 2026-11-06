@@ -132,3 +132,10 @@ def test_week_has_seven_days_of_points():
     assert len(w.points) == 7 * 288
     assert [d.day for d in w.days] == list(range(7))
     assert all(p.kss is None for p in w.points if p.asleep)
+
+
+def test_very_late_sleeper_is_a_wolf_not_a_lion():
+    r = assess(MctqAnswers(1.0, 7.0, 9.0, 17.0))  # free days 09:00-17:00: MSFsc 12:17
+    assert r.mctq.msf_sc == pytest.approx(12.29, abs=0.01)
+    assert r.animal is Animal.WOLF
+    assert r.spectrum is Spectrum.LATE

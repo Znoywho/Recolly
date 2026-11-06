@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import pytest
 
 from app.service.sleep import Animal, Night, ScreenEvent, day_energy, estimate, guess_sleep, sleep_debt, sleep_need
+from app.service.sleep.chronotype import animal_from_mid_sleep
 from app.service.sleep.two_process import mid_sleep_offset
 
 # Free-day sleep from the quiz.
@@ -132,3 +133,13 @@ def test_screen_guess_feeds_sleep_debt():
     t = datetime(2026, 10, 19, 23, 30)
     g = guess_sleep([ScreenEvent(t, False), ScreenEvent(t + timedelta(hours=6), True)])
     assert sleep_debt([g[0].to_night()], 8.0).debt_hours == pytest.approx(2.0)
+
+
+@pytest.mark.parametrize("quiz", [Night(8.0, 17.0), Night(9.0, 17.0), Night(10.0, 18.0)])
+def test_very_late_sleepers_are_wolves_not_lions(quiz):
+    assert estimate(quiz).animal is Animal.WOLF
+
+
+def test_early_mid_sleep_starts_at_18_00():
+    assert animal_from_mid_sleep(17.99) is Animal.WOLF
+    assert animal_from_mid_sleep(18.0) is Animal.LION
