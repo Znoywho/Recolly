@@ -55,8 +55,10 @@ Người dùng chỉ cần chụp ảnh thời khóa biểu; Recolly trích xu�
 ### 🗓️ Module 1: Đồng bộ lịch trình
 Tích hợp Google Calendar để đồng bộ thời khóa biểu và các sự kiện.
 
-### 😴 Module 2: Sleep Debt – Theo dõi nhịp sinh học
-Ước lượng khả năng nhận thức, mức độ tập trung và tỉnh táo của người dùng suốt cả ngày dựa trên **Two-Process Model of Sleep Regulation** (Process S – áp lực ngủ, Process C – nhịp sinh học) của Borbély.
+### 😴 Module 2: Chronotype & nợ ngủ
+- Từ giờ ngủ ngày học và ngày nghỉ, xếp người dùng vào 1 trong 3 nhóm: 🦁 Sư tử, 🐻 Gấu, 🐺 Sói. Các nhóm này chỉ giúp dễ hiển thị, không phải chẩn đoán.
+- Tính nợ ngủ 7 ngày gần nhất: `max(0, tổng của (số giờ cần ngủ − số giờ ngủ thật))`.
+- Ước lượng mức tỉnh táo trong ngày bằng **Two-Process Model of Sleep Regulation** (Process S – áp lực ngủ, Process C – nhịp sinh học) của Borbély để làm cơ sở xếp lịch.
 
 ### 🔔 Module 3: Giao diện trực quan, nhắc nhở & động lực
 - Nhắc giờ ngủ và các deadline sắp tới.
@@ -81,6 +83,8 @@ Tích hợp Google Calendar để đồng bộ thời khóa biểu và các sự
 | Nhận diện giọng nói (ASR) | PhoWhisper |
 | LLM | Google Gemini |
 
+Vintern, PhoWhisper và Gemini nằm trong kế hoạch, chưa được tích hợp vào server.
+
 ---
 
 ## 🏗️ Kiến trúc hệ thống
@@ -90,31 +94,47 @@ flowchart LR
     A[📱 Flutter App] -->|REST API| B[⚙️ FastAPI Backend]
     B --> C[(🐘 PostgreSQL)]
     B --> D[📅 Google Calendar API]
-    B --> E[🖼️ Vintern - OCR]
-    B --> F[🎙️ PhoWhisper - ASR]
-    B --> G[🤖 Google Gemini - LLM]
+    B -.-> E[🖼️ Vintern - OCR]
+    B -.-> F[🎙️ PhoWhisper - ASR]
+    B -.-> G[🤖 Google Gemini - LLM]
     B --> H[🧮 OR-Tools CP-SAT]
     B --> I[😴 Two-Process Model S/C]
 ```
+
+Nét đứt là phần chưa tích hợp. Hợp đồng API nằm ở [`docs/openapi.yaml`](docs/openapi.yaml).
 
 ---
 
 ## 🗺️ Lộ trình triển khai
 
+Bảng dưới đây chỉ nói về backend.
+
 ### Giai đoạn 1 – Lõi hệ thống
-- [ ] Xếp giờ ôn thi và giờ nghỉ bằng CP-SAT, dựa trên mô hình Process S/C đơn giản.
-- [ ] Đẩy lịch lên Google Calendar (một chiều).
-- [ ] Giải quyết ràng buộc khi đặt todo-list vào "thời gian vàng" và đối chiếu với thời khóa biểu.
-- [ ] Chụp ảnh thời khóa biểu và trích xuất dữ liệu.
-- [ ] Người dùng kiểm tra, chỉnh sửa kết quả trích xuất.
+
+| Tính năng | Backend |
+|---|---|
+| Xếp 3 con vật, đường năng lượng trong ngày | Đã có: `/chronotype/assess`, `/biorhythm` |
+| Nhật ký ngủ và nợ ngủ | Đã có: `/sleep-logs`, `/sleep-debt` |
+| Xếp giờ ôn thi và giờ nghỉ bằng CP-SAT, tránh thời khóa biểu và deadline | Đã có: `/schedule/generate`, `/schedule/apply` |
+| Đẩy lịch lên Google Calendar | Đã có: `/calendar/sync` |
+| Nhập và sửa thời khóa biểu thủ công | Đã có: `/timetable` |
+| Chụp ảnh thời khóa biểu và trích xuất dữ liệu | Chưa có |
 
 ### Giai đoạn 2 – Mở rộng
-- [ ] Thông báo nhắc giờ ngủ và deadline.
-- [ ] Đồng bộ hai chiều với Google Calendar.
-- [ ] Nhập bằng giọng nói (PhoWhisper).
+
+| Tính năng | Backend |
+|---|---|
+| Thông báo nhắc giờ ngủ và deadline | Một phần: đã lưu cài đặt và thiết bị, chưa gửi thông báo |
+| Đồng bộ hai chiều với Google Calendar | Đã có: `/calendar/sync`, `/calendar/conflicts`, `/calendar/webhook` |
+| Nhập bằng giọng nói (PhoWhisper) | Chưa có |
 
 ### Giai đoạn 3 – Hoàn thiện
-- [ ] Quote khích lệ bằng LLM (hoặc bộ câu có sẵn).
+
+| Tính năng | Backend |
+|---|---|
+| Quote khích lệ | Một phần: `/quotes/random` dùng bộ câu có sẵn, chưa dùng LLM |
+
+**Về app Flutter:** nhánh `main` đã có API client và model, nhưng `client/lib/main.dart` vẫn là màn hình mẫu của Flutter. Các màn hình đang nằm ở nhánh riêng như `UI-Rework` và `feature/r07-sign-in`.
 
 ---
 
@@ -122,37 +142,55 @@ flowchart LR
 
 ### Yêu cầu
 
-- Flutter SDK `>= 3.x`
-- Python `>= 3.10`
-- PostgreSQL `>= 14`
-- Tài khoản Google Cloud (bật Calendar API, tạo OAuth 2.0 Client ID)
-- API key Google Gemini
+- Flutter SDK có Dart `^3.13.5`
+- Python `>= 3.14`
+- Docker, dùng để chạy PostgreSQL 18
+- Tài khoản Google Cloud (bật Calendar API, tạo OAuth 2.0 Client ID), chỉ cần cho đăng nhập và Calendar
 
 ### 1. Clone dự án
 
 ```bash
-git clone https://github.com/<username>/recolly.git
-cd recolly
+git clone https://github.com/Znoywho/Recolly.git
+cd Recolly
 ```
 
-### 2. Chạy Backend
+### 2. Chạy database
 
 ```bash
-cd backend
+cp .env.example .env            # điền POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
+docker compose up -d db         # PostgreSQL ở cổng 5433 trên máy
+```
+
+### 3. Chạy Backend
+
+```bash
+cd server
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-cp .env.example .env            # điền DATABASE_URL, GEMINI_API_KEY, GOOGLE_CLIENT_ID...
-uvicorn app.main:app --reload
+pip install -r requirements-dev.txt
 ```
 
-API docs: `http://localhost:8000/docs`
-
-### 3. Chạy Mobile
+Tạo file `server/.env` và không commit file này:
 
 ```bash
-cd mobile
+POSTGRES_DATABASE_URL=postgresql+psycopg2://<user>:<password>@localhost:5433/<db>
+JWT_SECRET=<chuỗi ngẫu nhiên, ít nhất 32 ký tự>
+TOKEN_ENCRYPTION_KEY=<kết quả của lệnh bên dưới>
+GOOGLE_CLIENT_ID=<OAuth client ID>
+GOOGLE_CLIENT_SECRET=<OAuth client secret>
+```
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+uvicorn app.main:app --reload --port 8765
+```
+
+API docs: `http://localhost:8765/docs`. Cách chạy test xem ở [`server/README.md`](server/README.md).
+
+### 4. Chạy Mobile
+
+```bash
+cd client
 flutter pub get
 flutter run
 ```

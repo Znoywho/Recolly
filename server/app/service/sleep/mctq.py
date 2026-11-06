@@ -13,7 +13,7 @@ Ported from the research branch (feat/chronotype-2pm); the simpler 2-question qu
 from dataclasses import dataclass
 from enum import StrEnum
 
-from app.service.sleep.chronotype import Animal
+from app.service.sleep.chronotype import Animal, hours_after_midnight
 from app.service.sleep.two_process import circular_diff_hours, phi_from_mid_sleep
 
 # Animal cut-offs on MSFsc, placed around the assumed student mean (MSFsc ~05:00).
@@ -134,13 +134,8 @@ def score_mctq(a: MctqAnswers) -> MctqResult:
     return MctqResult(sd_w, sd_f, sd_week, msw, msf, msf_sc, corrected, sjl)
 
 
-def _hours_after_midnight(clock_hour: float) -> float:
-    """23:30 -> -0.5, so very early mid-sleeps sort before 00:00."""
-    return clock_hour - 24 if clock_hour > 12 else clock_hour
-
-
 def animal_from_msf_sc(msf_sc: float) -> Animal:
-    h = _hours_after_midnight(msf_sc)
+    h = hours_after_midnight(msf_sc)
     if h < LION_BEFORE_MSF_SC:
         return Animal.LION
     if h >= WOLF_FROM_MSF_SC:
@@ -149,7 +144,7 @@ def animal_from_msf_sc(msf_sc: float) -> Animal:
 
 
 def spectrum_from_msf_sc(msf_sc: float) -> Spectrum:
-    h = _hours_after_midnight(msf_sc)
+    h = hours_after_midnight(msf_sc)
     if h < 3:
         return Spectrum.EARLY
     if h < 4.5:
