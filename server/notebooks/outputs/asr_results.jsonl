@@ -1,0 +1,2 @@
+{"asr_model": "vinai/PhoWhisper-small", "id": "a001", "transcript": "cặc lịch mời học trong trường lúc sáu giờ sáng.", "processing_seconds": 9.409, "audio_seconds": 4.693}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a002", "transcript": "đặc lịch mời học giải tích lúc mười bảy giờ.", "processing_seconds": 9.076, "audio_seconds": 5.163}
