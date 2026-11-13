@@ -1,4 +1,3 @@
-import 'package:client/core/theme/app_colors.dart';
 import 'package:client/features/welcome_screens/startscreen.dart';
 import 'package:client/widgets/brutal_button.dart';
 import 'package:flutter/material.dart';

@@ -1,7 +1,22 @@
+import 'package:client/data/data.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/widgets.dart';
+import '../today_format.dart';
+
+AlertnessSnapshot alertnessSnapshotOf(HomeOverview overview) {
+  final score = overview.now.alertnessScore;
+  if (score == null) return const AlertnessUnavailable();
+  final peak = overview.nextPeakWindow;
+  return AlertnessReady(
+    score: score,
+    goldenWindowLabel: peak == null
+        ? null
+        : TodayFormat.window(peak.start, peak.end),
+    isAsleep: overview.now.asleep,
+  );
+}
 
 sealed class AlertnessSnapshot {
   const AlertnessSnapshot();
@@ -24,23 +39,44 @@ final class AlertnessUnavailable extends AlertnessSnapshot {
 final class AlertnessReady extends AlertnessSnapshot {
   const AlertnessReady({
     required this.score,
-    this.predictedKss,
+    this.goldenWindowLabel,
     this.isAsleep = false,
   });
 
   final int score;
-  final double? predictedKss;
+  final String? goldenWindowLabel;
   final bool isAsleep;
 }
 
 class AlertnessScoreCard extends StatelessWidget {
-  const AlertnessScoreCard({super.key, required this.snapshot, this.onRetry});
+  const AlertnessScoreCard({
+    super.key,
+    required this.snapshot,
+    this.onRetry,
+    this.onTap,
+  });
 
   final AlertnessSnapshot snapshot;
   final VoidCallback? onRetry;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final card = _buildCard();
+    final onTap = this.onTap;
+    if (onTap == null) return card;
+    return Semantics(
+      button: true,
+      hint: 'Xem nhịp sinh học hôm nay',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: card,
+      ),
+    );
+  }
+
+  Widget _buildCard() {
     return BrutalCard(
       color: AppColors.teal,
       child: Column(
@@ -133,26 +169,32 @@ class _ReadyContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final predictedKss = snapshot.predictedKss;
+    final goldenWindowLabel = snapshot.goldenWindowLabel;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('${snapshot.score}%', style: AppTypography.display),
-        const SizedBox(height: AppSpacing.sm),
-        BrutalProgressBar(
-          value: snapshot.score / 100,
-          fillColor: AppColors.yellow,
+        Row(
+          children: [
+            Expanded(
+              child: Text('${snapshot.score}%', style: AppTypography.display),
+            ),
+            Icon(
+              snapshot.isAsleep
+                  ? Icons.bedtime_outlined
+                  : Icons.wb_sunny_outlined,
+              size: 30,
+            ),
+          ],
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.sm),
+        BrutalProgressBar(value: snapshot.score / 100),
+        const SizedBox(height: AppSpacing.sm),
         Wrap(
           spacing: AppSpacing.xs,
           runSpacing: AppSpacing.xs,
           children: [
-            if (predictedKss != null)
-              BrutalBadge(
-                label: 'KSS ${predictedKss.toStringAsFixed(1)}',
-                color: AppColors.white,
-              ),
+            if (goldenWindowLabel != null)
+              BrutalBadge(label: 'Giờ vàng: $goldenWindowLabel'),
             if (snapshot.isAsleep)
               const BrutalBadge(
                 label: 'Đang ngủ',

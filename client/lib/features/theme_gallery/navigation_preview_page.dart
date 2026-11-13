@@ -16,8 +16,12 @@ class NavigationPreviewPage extends StatefulWidget {
 class _NavigationPreviewPageState extends State<NavigationPreviewPage> {
   BrutalNavTab _currentTab = BrutalNavTab.today;
 
-  static Widget _pageFor(BrutalNavTab tab) => switch (tab) {
-    BrutalNavTab.today => const TodayPage(),
+  void _selectTab(BrutalNavTab tab) => setState(() => _currentTab = tab);
+
+  Widget _pageFor(BrutalNavTab tab) => switch (tab) {
+    BrutalNavTab.today => TodayPage(
+      onProfilePressed: () => _selectTab(BrutalNavTab.personal),
+    ),
     BrutalNavTab.calendar => const CalendarPage(),
     BrutalNavTab.sleep => const SleepPage(),
     BrutalNavTab.personal => const PersonalPage(),
@@ -33,7 +37,7 @@ class _NavigationPreviewPageState extends State<NavigationPreviewPage> {
       ),
       bottomNavigationBar: BrutalBottomNavBar(
         currentTab: _currentTab,
-        onTabSelected: (tab) => setState(() => _currentTab = tab),
+        onTabSelected: _selectTab,
       ),
     );
   }

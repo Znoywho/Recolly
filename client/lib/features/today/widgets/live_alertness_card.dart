@@ -31,14 +31,7 @@ class _LiveAlertnessCardState extends State<LiveAlertnessCard> {
     }
     final error = result.error;
     if (error != null) return AlertnessFailed(_describeError(error));
-    final now = result.requireData.now;
-    final score = now.alertnessScore;
-    if (score == null) return const AlertnessUnavailable();
-    return AlertnessReady(
-      score: score,
-      predictedKss: now.kssPred,
-      isAsleep: now.asleep,
-    );
+    return alertnessSnapshotOf(result.requireData);
   }
 
   static String _describeError(Object error) => switch (error) {

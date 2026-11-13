@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../widgets/widgets.dart';
 import '../welcome_screens/startscreen.dart';
@@ -58,11 +57,33 @@ class AddScheduleScreen extends StatelessWidget {
               ),
             ),
             SizedBox(height: AppSpacing.lg),
-            BrutalButton(
+            /* BrutalButton(
               label: "Chụp ảnh",
               onPressed: () {},
               icon: Icons.camera_alt_outlined,
               leadingIcon: true,
+            ),
+            SizedBox(height: AppSpacing.md),*/
+            BrutalButton(
+              label: "Chọn từ thư viện",
+              onPressed: () {},
+              icon: Icons.photo_library_outlined,
+              leadingIcon: true,
+              color: AppColors.white,
+            ),
+            SizedBox(height: AppSpacing.md),
+            BrutalButton(
+              label: "Nhập bằng giọng nói",
+              onPressed: () {},
+              icon: Icons.mic_none,
+              leadingIcon: true,
+              color: AppColors.yellow,
+            ),
+            SizedBox(height: AppSpacing.md),
+            Text(
+              "Bạn có thể chỉnh lại kết quả sau khi quét.",
+              textAlign: .center,
+              style: AppTypography.body,
             ),
           ],
         ),
