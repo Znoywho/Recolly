@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     CheckConstraint,
@@ -17,6 +18,10 @@ from app.db.base import Base, SystemTimeStamp, UUIDPrimaryKey
 from app.models.enums import Priority, TodoCategory, TodoStatus, str_enum
 from app.models.event import Event
 from app.models.user import User
+
+if TYPE_CHECKING:
+    from app.models.event import Event
+    from app.models.user import User
 
 
 class Todo(UUIDPrimaryKey, SystemTimeStamp, Base):

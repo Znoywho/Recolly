@@ -3,7 +3,10 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 
-import app.models.user  # noqa: F401  register tables on Base.metadata
+import app.models  # noqa: F401  register every table on Base.metadata
+from app.api import api_router
+from app.config import Config
+from app.core.errors import install_error_handlers
 from app.db.base import Base
 from app.db.session import engine
 
@@ -15,7 +18,9 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="Recolly API", lifespan=lifespan)
+app = FastAPI(title="Recolly API", version=Config.APP_VERSION, lifespan=lifespan)
+install_error_handlers(app)
+app.include_router(api_router)
 
 
 @app.get("/")

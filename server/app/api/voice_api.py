@@ -13,6 +13,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
+from app.core.deps import CurrentUser
 from app.service.llm.ollama_client import OllamaError
 from app.service.voice.time_parser import VIETNAM_TIMEZONE, VietnameseTimeParser
 from app.service.voice.todo_parser import TodoDraft, VoiceTodoParser
@@ -25,7 +26,7 @@ MAX_AUDIO_BYTES = 25 * 1024 * 1024  # contract: max 25 MB
 TodoCategory = Literal["study", "assignment", "exam", "personal", "other"]
 Priority = Literal["low", "medium", "high"]
 
-router = APIRouter(prefix="/api/v1/voice", tags=["voice"])
+router = APIRouter(prefix="/voice", tags=["Voice"])  # mounted under /api/v1 by app.api.api_router
 
 
 class TodoDraftResponse(BaseModel):
@@ -67,6 +68,7 @@ def to_response_draft(draft: TodoDraft) -> TodoDraftResponse:
 
 @router.post("/transcribe", response_model=TranscribeResponse)
 async def transcribe_audio(
+    _user: CurrentUser,
     audio: UploadFile = File(...),
     reference_time: datetime | None = Form(default=None, description="Device 'now' for relative dates"),
 ) -> TranscribeResponse:

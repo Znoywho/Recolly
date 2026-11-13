@@ -7,6 +7,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api import voice_api
+from app.core.deps import get_current_user
+from app.core.errors import install_error_handlers
 from app.service.llm.ollama_client import OllamaError
 from app.service.voice.time_parser import VIETNAM_TIMEZONE
 from app.service.voice.todo_parser import TodoDraft
@@ -31,7 +33,8 @@ class FakeTranscriber:
 def client(monkeypatch):
     """Test app with only the voice router; the transcriber is faked per test via `set_transcript`."""
     app = FastAPI()
-    app.include_router(voice_api.router)
+    app.include_router(voice_api.router, prefix="/api/v1")  # same mount point as app.api.api_router
+    app.dependency_overrides[get_current_user] = lambda: object()  # auth is tested elsewhere; skip the DB
     holder = {}
     monkeypatch.setattr(voice_api.PhoWhisperTranscriber, "get_instance", classmethod(lambda cls: holder["t"]))
     test_client = TestClient(app)
@@ -73,6 +76,14 @@ def test_falls_back_to_rules_when_ollama_is_down(client, monkeypatch):
     assert body["todo_draft"]["deadline_at"] == "2026-11-13T20:00:00+07:00"
     assert body["todo_draft"]["category"] == "other"
     assert body["corrected_transcript"] is None
+
+
+def test_requires_login():
+    app = FastAPI()
+    install_error_handlers(app)  # turns ApiError(401) into a response, as in app.main
+    app.include_router(voice_api.router, prefix="/api/v1")
+    response = TestClient(app).post("/api/v1/voice/transcribe", files={"audio": ("clip.m4a", b"x", "audio/mp4")})
+    assert response.status_code == 401
 
 
 def test_rejects_empty_upload(client):
