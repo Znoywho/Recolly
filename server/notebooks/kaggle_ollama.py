@@ -31,7 +31,7 @@
 # %%
 # Models to pull. The first one is the main (large) model.
 # Add a second, smaller one for JSON extraction, e.g. "qwen2.5:7b".
-MODEL_NAMES = ["gemma3:12b"]
+MODEL_NAMES = ["qwen2.5:14b"]  # chosen in kaggle_voice_eval.ipynb: best TSR on real audio with A2a repair
 
 OLLAMA_PORT = 11434
 OLLAMA_URL = f"http://localhost:{OLLAMA_PORT}"

@@ -69,9 +69,23 @@ set and inside the LLM prompt: `exam` (a named test) → `assignment` (produce a
 `notebooks/data/voice_eval.jsonl`, 68 sentences (62 with audio, 3 speakers, recording script in
 `notebooks/data/recording_script.md`). Results are cached in `notebooks/outputs/*.jsonl`.
 
-Best configuration so far (2026-11-13): PhoWhisper-medium → qwen2.5:7b with the `cal21_cat2` prompt → rule
-deadline. TSR 0.90 on clean transcripts, 0.66 end-to-end on real audio (n = 62, CI ≈ ±0.11); the remaining
-end-to-end losses are ASR errors on English terms that corrupt the title.
+### Decision (2026-11-13)
+
+`app/service/voice/todo_parser.py` implements the chosen pipeline. Two modes, switched by environment variables:
+
+| mode | `VOICE_LLM_MODEL` | `VOICE_REPAIR_TRANSCRIPT` | TSR clean | TSR real audio (medium) | where Ollama runs |
+|---|---|---|---|---|---|
+| **demo** (default) | `qwen2.5:14b` | `1` (A2a: LLM repairs mishearings first) | 0.87 | **0.73** | Kaggle GPU via `notebooks/kaggle_ollama.ipynb` + tunnel |
+| light | `qwen2.5:7b` | `0` | 0.90 | 0.66 | a local Ollama |
+
+n = 62 clips, CI ≈ ±0.11. Measured facts behind the choice:
+- Transcript repair only works from 14b up: 7b makes transcripts *worse* (WER 0.166 → 0.197), 14b better (→ 0.135).
+- qwen2.5:14b ≈ 7b on category/title with clean text (0.912 vs 0.897), so the extra cost buys only the repair step.
+- Few-shot examples hurt every model (copied into titles). gemma3 4b/12b break on long prompts.
+- A separate spelling-correction model (`bmd1905/vietnamese-correction-v2`) fixes typos, not mishearings: WER 0.166 → 0.165, and it deletes English words. Rejected.
+- PhoWhisper on this CPU: small RTF 2.7, medium RTF 10.4 → ASR also needs the GPU for anything but small.
+
+The remaining end-to-end losses are ASR errors on English terms (`GitHub`, `Flutter`) that corrupt the title.
 
 ## Common commands
 
