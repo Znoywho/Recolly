@@ -14,9 +14,10 @@ from app.api import (
     timetable_api,
     todo_api,
     user_api,
+    voice_api,
 )
 
 api_router = APIRouter(prefix="/api/v1")
 for module in (auth_api, user_api, health_profile_api, sleep_api, biorhythm_api, timetable_api,
-               event_api, todo_api, schedule_api, calendar_api, reminder_api, home_api, system_api):
+               event_api, todo_api, schedule_api, calendar_api, reminder_api, home_api, voice_api, system_api):
     api_router.include_router(module.router)

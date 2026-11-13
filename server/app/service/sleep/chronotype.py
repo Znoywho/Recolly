@@ -20,6 +20,10 @@ from app.service.sleep.two_process import circular_mean_hours, phi_from_mid_slee
 LION_BEFORE_MID_SLEEP = 4.0
 WOLF_FROM_MID_SLEEP = 6.0
 
+# On a 24 h clock, a mid-sleep from this hour on counts as before midnight (an early sleeper).
+# A mid-sleep from noon up to here belongs to a very late sleeper, e.g. asleep 09:00-17:00.
+EARLY_MID_SLEEP_FROM = 18.0
+
 PRIOR_NIGHTS = 7
 
 
@@ -53,8 +57,13 @@ class Chronotype:
     nights_used: int   # real nights behind the estimate (0 = quiz only)
 
 
+def hours_after_midnight(clock_hour: float) -> float:
+    """Signed hours from midnight: 23:30 -> -0.5, while 12:17 stays 12.28 (a very late sleeper)."""
+    return clock_hour - 24 if clock_hour >= EARLY_MID_SLEEP_FROM else clock_hour
+
+
 def animal_from_mid_sleep(mid_sleep: float) -> Animal:
-    h = mid_sleep - 24 if mid_sleep > 12 else mid_sleep  # 23:30 -> -0.5
+    h = hours_after_midnight(mid_sleep)
     if h < LION_BEFORE_MID_SLEEP:
         return Animal.LION
     if h >= WOLF_FROM_MID_SLEEP:

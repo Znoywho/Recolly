@@ -1,0 +1,744 @@
+{"asr_model": "vinai/PhoWhisper-small", "id": "a001", "noise_type": "white", "snr_db": 20, "transcript": "cặc luật mời học trong trường lúc sáu giờ sáng.", "processing_seconds": 0.484}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a001", "noise_type": "white", "snr_db": 10, "transcript": "đặc luật mời học trong trường lúc sáu giờ sáng.", "processing_seconds": 0.533}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a001", "noise_type": "white", "snr_db": 5, "transcript": "đặc luật mời học trong trường lúc sáu giờ sáng.", "processing_seconds": 0.584}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a001", "noise_type": "white", "snr_db": 0, "transcript": "đặc luật mời học tùng trường lúc sáu giờ sáng.", "processing_seconds": 0.55}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a001", "noise_type": "pink", "snr_db": 20, "transcript": "các lịch mời học trong trường lúc sáu giờ sáng.", "processing_seconds": 0.479}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a001", "noise_type": "pink", "snr_db": 10, "transcript": "các lịch mời học trong trường lúc sáu giờ sáng.", "processing_seconds": 0.503}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a001", "noise_type": "pink", "snr_db": 5, "transcript": "các lịch mời học trong trường lúc sáu giờ sáng.", "processing_seconds": 0.509}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a001", "noise_type": "pink", "snr_db": 0, "transcript": "lật lịch mời học trong trường lúc sáu giờ sáng tới.", "processing_seconds": 0.543}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a001", "noise_type": "babble", "snr_db": 20, "transcript": "cặc lịch mời học trong trường lúc sáu giờ sáng.", "processing_seconds": 0.477}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a001", "noise_type": "babble", "snr_db": 10, "transcript": "cặc lịch mời học trong trường lúc sáu giờ sáng.", "processing_seconds": 0.503}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a001", "noise_type": "babble", "snr_db": 5, "transcript": "các lịch mời học trong trường lúc bị sáu giờ sáng.", "processing_seconds": 0.54}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a001", "noise_type": "babble", "snr_db": 0, "transcript": "các cầu thủ mới học trong trường lúc thêm thì sao mới sáng tạo.", "processing_seconds": 0.716}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a002", "noise_type": "white", "snr_db": 20, "transcript": "đặt lịch mời học giải thích lúc mười bảy giờ.", "processing_seconds": 0.503}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a002", "noise_type": "white", "snr_db": 10, "transcript": "đặc lịch mời học giải thích lúc mười bảy giờ.", "processing_seconds": 0.503}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a002", "noise_type": "white", "snr_db": 5, "transcript": "đặc lịch mời học giải thích lúc mười bảy giờ.", "processing_seconds": 0.505}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a002", "noise_type": "white", "snr_db": 0, "transcript": "đặc lịch mời học giải thích nước mười tẩy giờ.", "processing_seconds": 0.489}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a002", "noise_type": "pink", "snr_db": 20, "transcript": "đặt lịch mời học giải thích lúc mười bảy giờ.", "processing_seconds": 0.5}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a002", "noise_type": "pink", "snr_db": 10, "transcript": "đặc lịch mời học giải thích lúc mười bảy giờ.", "processing_seconds": 0.552}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a002", "noise_type": "pink", "snr_db": 5, "transcript": "đặc lịch mời học giải thích lúc mười bảy giờ.", "processing_seconds": 0.502}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a002", "noise_type": "pink", "snr_db": 0, "transcript": "đặc lịch mời học giáo kết lúc mười bảy giờ.", "processing_seconds": 0.487}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a002", "noise_type": "babble", "snr_db": 20, "transcript": "đặc lịch mời học giải tích lúc mười bảy giờ.", "processing_seconds": 0.487}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a002", "noise_type": "babble", "snr_db": 10, "transcript": "đặc lịch mời học giả tích lúc mười bảy giờ.", "processing_seconds": 0.52}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a002", "noise_type": "babble", "snr_db": 5, "transcript": "đặc luật mời hạn giải tích lúc mười bảy giờ vụ trách chính trị.", "processing_seconds": 0.703}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a002", "noise_type": "babble", "snr_db": 0, "transcript": "tổ này tạc lập chứng minh rồi tôi lại phải nghĩ tới thi công ô nhiễm bí nhập cho lũ trác chính.", "processing_seconds": 0.929}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a003", "noise_type": "white", "snr_db": 20, "transcript": "đặt lịch mới học xác suất lúc bảy giờ tối.", "processing_seconds": 0.498}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a003", "noise_type": "white", "snr_db": 10, "transcript": "đặc định mới học xác suất lúc bảy giờ tối.", "processing_seconds": 0.487}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a003", "noise_type": "white", "snr_db": 5, "transcript": "đặc định mới học xác suất lúc bảy giờ tối.", "processing_seconds": 0.47}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a003", "noise_type": "white", "snr_db": 0, "transcript": "đặc định mới học xác suất lúc bảy ngày tối.", "processing_seconds": 0.47}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a003", "noise_type": "pink", "snr_db": 20, "transcript": "đặc lịch mới học xác suất lúc bảy giờ tối.", "processing_seconds": 0.483}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a003", "noise_type": "pink", "snr_db": 10, "transcript": "đặc lịch mới học xác suất lúc bảy giờ tối.", "processing_seconds": 0.498}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a003", "noise_type": "pink", "snr_db": 5, "transcript": "đặc lịch mới học xác suất lúc bảy giờ tôi.", "processing_seconds": 0.474}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a003", "noise_type": "pink", "snr_db": 0, "transcript": "đặc luật mới học xác suất đức bảy nhà toán.", "processing_seconds": 0.471}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a003", "noise_type": "babble", "snr_db": 20, "transcript": "đặc lịch mới học xác suất lúc bảy giờ tối.", "processing_seconds": 0.484}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a003", "noise_type": "babble", "snr_db": 10, "transcript": "đặc lịch mới học xác suất lúc bảy giờ tới.", "processing_seconds": 0.51}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a003", "noise_type": "babble", "snr_db": 5, "transcript": "đặc lịch mới học xác suất lúc bảy giờ tới.", "processing_seconds": 0.506}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a003", "noise_type": "babble", "snr_db": 0, "transcript": "đặc lịch mới học sát suất lúc bảy giờ tới.", "processing_seconds": 0.543}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a004", "noise_type": "white", "snr_db": 20, "transcript": "đợt nghịch mới chạy bộ lúc năm giờ rưỡi sáng.", "processing_seconds": 0.587}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a004", "noise_type": "white", "snr_db": 10, "transcript": "đợt nghịch mới chạy bộ lúc năm rưỡi sáng.", "processing_seconds": 0.541}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a004", "noise_type": "white", "snr_db": 5, "transcript": "đặc biệt mới trị bộ lúc năm rưỡi sáng.", "processing_seconds": 0.495}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a004", "noise_type": "white", "snr_db": 0, "transcript": "đặc biệt mới tự bộ lúc năm dự lễ sớm.", "processing_seconds": 0.486}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a004", "noise_type": "pink", "snr_db": 20, "transcript": "đợt lịch mới chạy bộ lúc năm rưỡi sáng.", "processing_seconds": 0.514}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a004", "noise_type": "pink", "snr_db": 10, "transcript": "đợt nghịch mới chạy bộ lúc năm rưỡi sáng.", "processing_seconds": 0.526}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a004", "noise_type": "pink", "snr_db": 5, "transcript": "đặc thị mới chạy bộ lúc năm rưỡi sáng.", "processing_seconds": 0.529}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a004", "noise_type": "pink", "snr_db": 0, "transcript": "đặc thị mới chạy bộ lúc năm rưỡi sen.", "processing_seconds": 0.504}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a004", "noise_type": "babble", "snr_db": 20, "transcript": "đợt lịch mới chạy bộ lúc năm giờ rưỡi sáng.", "processing_seconds": 0.524}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a004", "noise_type": "babble", "snr_db": 10, "transcript": "đợt mưa mới chạy bộ lúc đợt năm dù rưỡi sáng tạo.", "processing_seconds": 0.671}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a004", "noise_type": "babble", "snr_db": 5, "transcript": "đợt thoái chỉ bộ lúc đặt năm rưỡi sáng tạo.", "processing_seconds": 0.569}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a004", "noise_type": "babble", "snr_db": 0, "transcript": "tập thể thao chịu bộ lâu tập năm mươi sang tập.", "processing_seconds": 0.583}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a005", "noise_type": "white", "snr_db": 20, "transcript": "đặc lịch mới họp nhóm đồ án lúc bay rưỡi chiều.", "processing_seconds": 0.589}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a005", "noise_type": "white", "snr_db": 10, "transcript": "đặc luật mới họp nhóm đồ án lúc tai rưỡi chiều.", "processing_seconds": 0.563}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a005", "noise_type": "white", "snr_db": 5, "transcript": "độc lực mới họp nhóm đồ án lúc ai gửi trường.", "processing_seconds": 0.527}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a005", "noise_type": "white", "snr_db": 0, "transcript": "độc lực mới họp nhóm đồ án lúc tai gửi tiền.", "processing_seconds": 0.588}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a005", "noise_type": "pink", "snr_db": 20, "transcript": "đặc lịch mới họp nhóm đồ án lúp ai rưỡi chiều.", "processing_seconds": 0.576}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a005", "noise_type": "pink", "snr_db": 10, "transcript": "đặc luật mới họp nhóm đồ án lúc bay rưỡi chiều.", "processing_seconds": 0.545}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a005", "noise_type": "pink", "snr_db": 5, "transcript": "đặc luật mới họp nhóm đồ án lúc tai rưỡi chiều.", "processing_seconds": 0.586}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a005", "noise_type": "pink", "snr_db": 0, "transcript": "đặc lực mới hợp nhóm đồ án lúc tai nữ truyền.", "processing_seconds": 0.627}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a005", "noise_type": "babble", "snr_db": 20, "transcript": "đặc lịch mới họp nhóm đồ án lúc bay rưỡi chiều.", "processing_seconds": 0.584}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a005", "noise_type": "babble", "snr_db": 10, "transcript": "tập luyện mới hợp nhóm đồ án lúc bay rưỡi chiều.", "processing_seconds": 0.542}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a005", "noise_type": "babble", "snr_db": 5, "transcript": "tập tập mới hợp nhóm đồ án lúc bay rưỡi trò.", "processing_seconds": 0.56}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a005", "noise_type": "babble", "snr_db": 0, "transcript": "cặp giáo mới hợp nhóm tìm xe đồ ém lốt tay làm sao.", "processing_seconds": 0.653}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a006", "noise_type": "white", "snr_db": 20, "transcript": "đặc lịch mới ôm tiếng anh lúc chín giờ tối.", "processing_seconds": 0.524}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a006", "noise_type": "white", "snr_db": 10, "transcript": "đặc lịch mới ôm tiếng anh lúc chín giờ tối.", "processing_seconds": 0.491}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a006", "noise_type": "white", "snr_db": 5, "transcript": "đặc biệt mới ôm tiếng anh lúc chín giờ tối.", "processing_seconds": 0.492}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a006", "noise_type": "white", "snr_db": 0, "transcript": "đặc biệt mới ôm tiếng anh mất tiếng dạo tối.", "processing_seconds": 0.607}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a006", "noise_type": "pink", "snr_db": 20, "transcript": "đặc lịch mới ôm tiếng anh lúc chín giờ tối.", "processing_seconds": 0.528}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a006", "noise_type": "pink", "snr_db": 10, "transcript": "đặc lịch mới ôm tiếng anh lúc chín giờ tối.", "processing_seconds": 0.51}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a006", "noise_type": "pink", "snr_db": 5, "transcript": "đặc lịch mới ôm tiếng anh lúc chín giờ tối.", "processing_seconds": 0.496}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a006", "noise_type": "pink", "snr_db": 0, "transcript": "đặc biệt mới ôm tiếng anh lúc tính đến tối.", "processing_seconds": 0.551}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a006", "noise_type": "babble", "snr_db": 20, "transcript": "đặc lịch mới ôm tiếng anh lúc chín giờ tối.", "processing_seconds": 0.556}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a006", "noise_type": "babble", "snr_db": 10, "transcript": "đặc lịch mới ôm tiếng anh lúc chín giờ tối.", "processing_seconds": 0.512}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a006", "noise_type": "babble", "snr_db": 5, "transcript": "đặc lịch mới ôm tiếng anh lúc chính nhìn tối.", "processing_seconds": 0.507}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a006", "noise_type": "babble", "snr_db": 0, "transcript": "đậm lịch mới ôm thân thoải mái trong ngày tối về tuần.", "processing_seconds": 0.793}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a007", "noise_type": "white", "snr_db": 20, "transcript": "đặc tịch mới đi hư diện lúc tám giờ sáng.", "processing_seconds": 0.517}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a007", "noise_type": "white", "snr_db": 10, "transcript": "đặc trực mới đi hưu diễn lúc tám giờ sáng.", "processing_seconds": 0.516}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a007", "noise_type": "white", "snr_db": 5, "transcript": "đặc trực mới đi hưu diện lúc tám dập tới.", "processing_seconds": 0.552}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a007", "noise_type": "white", "snr_db": 0, "transcript": "đặc trực mới đi hưu truyện giúp tắm vật cháy.", "processing_seconds": 0.657}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a007", "noise_type": "pink", "snr_db": 20, "transcript": "đặc tịch mới đi hư diện lúc tám giờ sáng.", "processing_seconds": 0.483}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a007", "noise_type": "pink", "snr_db": 10, "transcript": "đặc biệt mới đi hư diện lúc tám giờ sáng.", "processing_seconds": 0.475}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a007", "noise_type": "pink", "snr_db": 5, "transcript": "đặc biệt mới đi hưu diện lúc tám giờ sáng.", "processing_seconds": 0.499}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a007", "noise_type": "pink", "snr_db": 0, "transcript": "đặc trị mới đi thu diện lúc tám giờ sáng tạo.", "processing_seconds": 0.59}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a007", "noise_type": "babble", "snr_db": 20, "transcript": "đặc thị mới đi hư diện lúc tám giờ sáng.", "processing_seconds": 0.475}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a007", "noise_type": "babble", "snr_db": 10, "transcript": "đặc tịch mới đi hư diện lúc tám giờ sáng.", "processing_seconds": 0.504}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a007", "noise_type": "babble", "snr_db": 5, "transcript": "đặc tịch mới đi hưu diễn lúc tám giờ sáng.", "processing_seconds": 0.519}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a007", "noise_type": "babble", "snr_db": 0, "transcript": "lịch sạch hỏi màn xe đặc trưng mới đi hướng dẫn nồm tắm dịch sạch của đại học.", "processing_seconds": 0.928}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a008", "noise_type": "white", "snr_db": 20, "transcript": "đặt nịch mới học tập lập trình lúc mười chín giờ ba mươi.", "processing_seconds": 0.624}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a008", "noise_type": "white", "snr_db": 10, "transcript": "đặc thị mới học tập lập trình lúc mười chín giờ ba mươi.", "processing_seconds": 0.607}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a008", "noise_type": "white", "snr_db": 5, "transcript": "đặc thị mới học tập lập trình lúc mười chín giờ ba mươi.", "processing_seconds": 0.663}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a008", "noise_type": "white", "snr_db": 0, "transcript": "đặc thị mới học tập lập trình dưới mười chín giờ ba mươi.", "processing_seconds": 0.631}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a008", "noise_type": "pink", "snr_db": 20, "transcript": "đặt nịch mới học tập lập trình lúc mười chín giờ ba mươi.", "processing_seconds": 0.665}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a008", "noise_type": "pink", "snr_db": 10, "transcript": "đặc thị mới học tập lập trình lúc mười chín giờ ba mươi.", "processing_seconds": 0.635}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a008", "noise_type": "pink", "snr_db": 5, "transcript": "đặc lịch mới học tập lập trình lúc mười chín giờ ba mươi.", "processing_seconds": 0.639}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a008", "noise_type": "pink", "snr_db": 0, "transcript": "đặc thị mới học tập lập trình lúc mười chín giờ ba mươi.", "processing_seconds": 0.636}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a008", "noise_type": "babble", "snr_db": 20, "transcript": "đặt nịch mới học tập lập trình lúc mười chín giờ ba mươi.", "processing_seconds": 0.633}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a008", "noise_type": "babble", "snr_db": 10, "transcript": "đặc định mới học tập lập trình lúc mười chín giờ ba mươi.", "processing_seconds": 0.659}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a008", "noise_type": "babble", "snr_db": 5, "transcript": "đặc định mới học tập lập trình lúc mười chín giờ ba mươi nhiệt.", "processing_seconds": 0.699}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a008", "noise_type": "babble", "snr_db": 0, "transcript": "tập trung học lúc tại mười tập giờ tạm dưỡng con đến.", "processing_seconds": 0.877}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a009", "noise_type": "white", "snr_db": 20, "transcript": "đặc lịch mới làm bài tập toán rời rạc lúc mười giờ đêm.", "processing_seconds": 0.65}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a009", "noise_type": "white", "snr_db": 10, "transcript": "đặc định mới làm bài tập toán rời rạc lúc mười giờ đêm.", "processing_seconds": 0.642}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a009", "noise_type": "white", "snr_db": 5, "transcript": "đặc biệt mới làm bài tập toán rời rạc lúc mười giờ đêm.", "processing_seconds": 0.657}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a009", "noise_type": "white", "snr_db": 0, "transcript": "đặc biệt mới làm bài tập toán rời rạc mức mười giờ đêm.", "processing_seconds": 0.701}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a009", "noise_type": "pink", "snr_db": 20, "transcript": "đặc lịch mới làm bài tập toán rời rạc lúc mười giờ đêm.", "processing_seconds": 0.68}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a009", "noise_type": "pink", "snr_db": 10, "transcript": "đặc lịch mới làm bài tập toán rời rạc lúc mười giờ đêm.", "processing_seconds": 0.64}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a009", "noise_type": "pink", "snr_db": 5, "transcript": "đặc lịch mới làm bài tập toán rời rạc lúc mười giờ đêm.", "processing_seconds": 0.616}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a009", "noise_type": "pink", "snr_db": 0, "transcript": "đặc biệt mới làm bài tập toán rời rạc mất mười giờ đêm.", "processing_seconds": 0.688}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a009", "noise_type": "babble", "snr_db": 20, "transcript": "đặc lịch mới làm bài tập toán rời rạc lúc mười giờ đêm.", "processing_seconds": 0.608}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a009", "noise_type": "babble", "snr_db": 10, "transcript": "đặc luật mới làm bài tập sức toán rời rạc lúc mười giờ đêm.", "processing_seconds": 0.651}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a009", "noise_type": "babble", "snr_db": 5, "transcript": "đặc lực mới làm bài tập xét táng rời rạc lúc mười giờ đêm.", "processing_seconds": 0.699}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a009", "noise_type": "babble", "snr_db": 0, "transcript": "đặt lời cảm ơn người mới ở bẫy cháy sưu tấn rời rạc lớp mười giờ năm mười.", "processing_seconds": 0.851}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a010", "noise_type": "white", "snr_db": 20, "transcript": "đặc định mới gọi điện cho mẹ lúc tám giờ kém mười năm tối.", "processing_seconds": 0.604}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a010", "noise_type": "white", "snr_db": 10, "transcript": "đặc định mới gọi điện cho mẹ lúc tám giờ kém mười năm tối.", "processing_seconds": 0.649}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a010", "noise_type": "white", "snr_db": 5, "transcript": "đặc biệt mới gọi điện cho mẹ lúc tám giờ kém mười năm tối.", "processing_seconds": 0.608}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a010", "noise_type": "white", "snr_db": 0, "transcript": "đặc biệt mới gọi điện cho mẹ lúc sáng giờ kém mùa năm tối.", "processing_seconds": 0.607}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a010", "noise_type": "pink", "snr_db": 20, "transcript": "đặc định mới gọi điện cho mẹ lúc tám giờ kém mười năm tối.", "processing_seconds": 0.64}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a010", "noise_type": "pink", "snr_db": 10, "transcript": "đặc định mới gọi điện cho mẹ lúc tám giờ kém mười năm tối.", "processing_seconds": 0.645}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a010", "noise_type": "pink", "snr_db": 5, "transcript": "đặc định mới gọi điện cho mẹ lúc tám giờ kém mười năm tối.", "processing_seconds": 0.604}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a010", "noise_type": "pink", "snr_db": 0, "transcript": "đặc định mới gọi điện cho mẹ lúc tám giờ kém mười năm tối.", "processing_seconds": 0.654}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a010", "noise_type": "babble", "snr_db": 20, "transcript": "đặc định mới gọi điện cho mẹ lúc tám giờ kém mười năm tối.", "processing_seconds": 0.639}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a010", "noise_type": "babble", "snr_db": 10, "transcript": "đặc định mới gọi điện cho mẹ lúc tám giờ kém mười năm tối.", "processing_seconds": 0.605}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a010", "noise_type": "babble", "snr_db": 5, "transcript": "đặc định mới gọi điện cho mẹ rút tám giờ kém người thăm tôi.", "processing_seconds": 0.713}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a010", "noise_type": "babble", "snr_db": 0, "transcript": "đặc biệt mới sẽ gọi điện cho mẹ lúc tám giờ kem nhà làm rau.", "processing_seconds": 0.722}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a011", "noise_type": "white", "snr_db": 20, "transcript": "đặc định mới ngủ chưa lúc mười hai giờ rưỡi.", "processing_seconds": 0.491}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a011", "noise_type": "white", "snr_db": 10, "transcript": "đặc định mới ngủ chưa lúc mười hai giờ rưỡi.", "processing_seconds": 0.491}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a011", "noise_type": "white", "snr_db": 5, "transcript": "đặc định mới ngủ trưa lúc mười hai giờ rủi.", "processing_seconds": 0.493}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a011", "noise_type": "white", "snr_db": 0, "transcript": "đặc định mới ngủ trưa lúc mười hai giờ nghỉ.", "processing_seconds": 0.498}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a011", "noise_type": "pink", "snr_db": 20, "transcript": "đặc lịch mới ngủ chưa lúc mười hai giờ rưỡi.", "processing_seconds": 0.505}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a011", "noise_type": "pink", "snr_db": 10, "transcript": "đặc biệt mới ngủ trưa lúc mười hai giờ rưỡi.", "processing_seconds": 0.486}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a011", "noise_type": "pink", "snr_db": 5, "transcript": "đặc biệt mới ngủ chưa lúc mười hai giờ rưỡi.", "processing_seconds": 0.479}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a011", "noise_type": "pink", "snr_db": 0, "transcript": "đặc biệt mới ngủ chưa lúc mười hai giờ rủ.", "processing_seconds": 0.464}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a011", "noise_type": "babble", "snr_db": 20, "transcript": "đặc lịch mới ngủ chưa lúc mười hai giờ rưỡi.", "processing_seconds": 0.52}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a011", "noise_type": "babble", "snr_db": 10, "transcript": "cặc lịch mới ngủ chưa lúc mười hai giờ rượu hay.", "processing_seconds": 0.446}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a011", "noise_type": "babble", "snr_db": 5, "transcript": "cặc lực mới ngủ chưa lúc mười hai giờ rời hoa.", "processing_seconds": 0.506}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a011", "noise_type": "babble", "snr_db": 0, "transcript": "thớm sao liêm tạng thật mới mùa chưa lúc mọi người nghe là liêm tạng thật sâu.", "processing_seconds": 0.835}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a012", "noise_type": "white", "snr_db": 20, "transcript": "nhắc tôi học bài lúc bốn giờ chiều.", "processing_seconds": 0.394}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a012", "noise_type": "white", "snr_db": 10, "transcript": "nhắc tôi học bài lúc bốn giờ chiều.", "processing_seconds": 0.398}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a012", "noise_type": "white", "snr_db": 5, "transcript": "nhắc tôi học bài lúc bốn giờ chiều.", "processing_seconds": 0.401}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a012", "noise_type": "white", "snr_db": 0, "transcript": "nhắc tôi học bài lúc bốn giờ chiều.", "processing_seconds": 0.391}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a012", "noise_type": "pink", "snr_db": 20, "transcript": "nhắc tôi học bài lúc bốn giờ chiều.", "processing_seconds": 0.418}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a012", "noise_type": "pink", "snr_db": 10, "transcript": "nhắc tôi học bài lúc bốn giờ chiều.", "processing_seconds": 0.409}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a012", "noise_type": "pink", "snr_db": 5, "transcript": "nhắc tôi học bài lúc bốn giờ chiều.", "processing_seconds": 0.404}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a012", "noise_type": "pink", "snr_db": 0, "transcript": "nhắc tôi học bài lúc bốn giờ chiều.", "processing_seconds": 0.403}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a012", "noise_type": "babble", "snr_db": 20, "transcript": "nhắc tôi học bài lúc bốn giờ chiều.", "processing_seconds": 0.391}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a012", "noise_type": "babble", "snr_db": 10, "transcript": "nhắc tôi học bài lúc bốn giờ chiều.", "processing_seconds": 0.405}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a012", "noise_type": "babble", "snr_db": 5, "transcript": "nhắc tôi học bài lúc bốn giờ chiều.", "processing_seconds": 0.491}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a012", "noise_type": "babble", "snr_db": 0, "transcript": "tao từ cổ vũ gia bậc nhất tôi học bài lúc bốn giờ chịu đánh diễn mới.", "processing_seconds": 0.752}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a013", "noise_type": "white", "snr_db": 20, "transcript": "mười một giờ trưa đi ăn cơm với nhóm.", "processing_seconds": 0.401}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a013", "noise_type": "white", "snr_db": 10, "transcript": "mười một giờ trưa đi ăn cơm với nhóm.", "processing_seconds": 0.41}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a013", "noise_type": "white", "snr_db": 5, "transcript": "mười một giờ trưa đi ăn cơm với nhóm.", "processing_seconds": 0.426}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a013", "noise_type": "white", "snr_db": 0, "transcript": "mười một giờ trưa đi ăn cơm với nhóm.", "processing_seconds": 0.394}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a013", "noise_type": "pink", "snr_db": 20, "transcript": "mười một giờ trưa đi ăn cơm với nhóm.", "processing_seconds": 0.415}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a013", "noise_type": "pink", "snr_db": 10, "transcript": "mười một giờ trưa đi ăn cơm với nhóm.", "processing_seconds": 0.393}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a013", "noise_type": "pink", "snr_db": 5, "transcript": "mười một giờ trưa đi ăn cơm với nhóm.", "processing_seconds": 0.389}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a013", "noise_type": "pink", "snr_db": 0, "transcript": "vì một giờ trưa đi ăn cơm với nhóm.", "processing_seconds": 0.407}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a013", "noise_type": "babble", "snr_db": 20, "transcript": "mười một giờ trưa đi ăn cơm với nhóm.", "processing_seconds": 0.393}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a013", "noise_type": "babble", "snr_db": 10, "transcript": "vì một giờ trưa đi ăn cơm với nhóm.", "processing_seconds": 0.372}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a013", "noise_type": "babble", "snr_db": 5, "transcript": "vì một giờ trưa đi ăn cơm với nhóm.", "processing_seconds": 0.407}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a013", "noise_type": "babble", "snr_db": 0, "transcript": "tôi học bài mười một giờ chưa đi ăn cơm với nhau đặt.", "processing_seconds": 0.524}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a014", "noise_type": "white", "snr_db": 20, "transcript": "sáu giờ chiều đi đá bóng.", "processing_seconds": 0.339}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a014", "noise_type": "white", "snr_db": 10, "transcript": "sáu giờ chiều đi đá bóng.", "processing_seconds": 0.339}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a014", "noise_type": "white", "snr_db": 5, "transcript": "sáu dậy chiều đi ra bóng.", "processing_seconds": 0.354}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a014", "noise_type": "white", "snr_db": 0, "transcript": "sáu dậy chiều như rá bó.", "processing_seconds": 0.316}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a014", "noise_type": "pink", "snr_db": 20, "transcript": "sáu giờ chiều đi đá bóng.", "processing_seconds": 0.319}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a014", "noise_type": "pink", "snr_db": 10, "transcript": "sáu giờ chiều đi đá bóng.", "processing_seconds": 0.383}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a014", "noise_type": "pink", "snr_db": 5, "transcript": "sáu dậy chiều đi đa bóng.", "processing_seconds": 0.414}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a014", "noise_type": "pink", "snr_db": 0, "transcript": "táo dậy chiều đi ra bóng.", "processing_seconds": 0.365}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a014", "noise_type": "babble", "snr_db": 20, "transcript": "sáu giờ chiều đi đá bóng.", "processing_seconds": 0.391}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a014", "noise_type": "babble", "snr_db": 10, "transcript": "sáu giờ chiều đi ra bóng đá.", "processing_seconds": 0.35}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a014", "noise_type": "babble", "snr_db": 5, "transcript": "sáu giờ chiều đi ra bóng rối.", "processing_seconds": 0.359}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a014", "noise_type": "babble", "snr_db": 0, "transcript": "sáu giờ chiều đi ra bóng váy.", "processing_seconds": 0.443}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a015", "noise_type": "white", "snr_db": 20, "transcript": "thêm việc giặt đồ lúc chín giờ sáng.", "processing_seconds": 0.382}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a015", "noise_type": "white", "snr_db": 10, "transcript": "thêm việc giặt đồ lúc chín giờ sáng.", "processing_seconds": 0.349}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a015", "noise_type": "white", "snr_db": 5, "transcript": "thêm việc giặt đồ lúc chín giờ sáng.", "processing_seconds": 0.362}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a015", "noise_type": "white", "snr_db": 0, "transcript": "thêm việc giặt đồ lúc kín giờ sáng.", "processing_seconds": 0.366}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a015", "noise_type": "pink", "snr_db": 20, "transcript": "thêm việc giặt đồ lúc chín giờ sáng.", "processing_seconds": 0.369}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a015", "noise_type": "pink", "snr_db": 10, "transcript": "thêm việc giặt đồ lúc chín giờ sáng.", "processing_seconds": 0.38}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a015", "noise_type": "pink", "snr_db": 5, "transcript": "thêm việc giặt đồ lúc chín giờ sáng.", "processing_seconds": 0.42}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a015", "noise_type": "pink", "snr_db": 0, "transcript": "thêm việc chặt đồ giúp tính giờ sáng.", "processing_seconds": 0.386}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a015", "noise_type": "babble", "snr_db": 20, "transcript": "thêm việc giặt đồ lúc chín giờ sáng.", "processing_seconds": 0.361}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a015", "noise_type": "babble", "snr_db": 10, "transcript": "thêm việc giặt đồ lúc chín giờ sáng.", "processing_seconds": 0.353}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a015", "noise_type": "babble", "snr_db": 5, "transcript": "thêm việc giặt đồ lúc chín giờ sáng.", "processing_seconds": 0.411}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a015", "noise_type": "babble", "snr_db": 0, "transcript": "thêm việc nhập đoàn giữ sáng tạo lịch mới.", "processing_seconds": 0.499}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a016", "noise_type": "white", "snr_db": 20, "transcript": "tạo lịch học sáng lúc mười lăm giờ tối.", "processing_seconds": 0.426}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a016", "noise_type": "white", "snr_db": 10, "transcript": "tạo lịch học sáng lúc mười lăm giờ tối.", "processing_seconds": 0.428}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a016", "noise_type": "white", "snr_db": 5, "transcript": "tạo lịch học sáng lúc mười lăm giờ tối.", "processing_seconds": 0.424}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a016", "noise_type": "white", "snr_db": 0, "transcript": "tạo lịch học sáng lúc mười lăm giờ tối.", "processing_seconds": 0.468}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a016", "noise_type": "pink", "snr_db": 20, "transcript": "tạo lịch học sáng lúc mười lăm giờ tối.", "processing_seconds": 0.458}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a016", "noise_type": "pink", "snr_db": 10, "transcript": "tạo lịch học sáng lúc mười lăm giờ tối.", "processing_seconds": 0.414}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a016", "noise_type": "pink", "snr_db": 5, "transcript": "tạo định học sáng lúc mười lăm giờ tối.", "processing_seconds": 0.426}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a016", "noise_type": "pink", "snr_db": 0, "transcript": "tạo đực học sáng lúc mười lăm giờ tối.", "processing_seconds": 0.462}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a016", "noise_type": "babble", "snr_db": 20, "transcript": "tạo lịch học sáng lúc mười lăm giờ tối.", "processing_seconds": 0.444}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a016", "noise_type": "babble", "snr_db": 10, "transcript": "tạo lịch học sáng lúc mười năm giờ tối.", "processing_seconds": 0.421}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a016", "noise_type": "babble", "snr_db": 5, "transcript": "tạo lịch học sáng lúc mười năm giờ tối.", "processing_seconds": 0.506}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a016", "noise_type": "babble", "snr_db": 0, "transcript": "đức tạo lịch học sáng đúng mười năm giờ chọn dàn cơm.", "processing_seconds": 0.583}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a017", "noise_type": "white", "snr_db": 20, "transcript": "ba giờ chiều linh văn phòng khoa nợ đơn.", "processing_seconds": 0.43}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a017", "noise_type": "white", "snr_db": 10, "transcript": "ba giờ chiều dân văn phòng khoa nợ cơ.", "processing_seconds": 0.434}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a017", "noise_type": "white", "snr_db": 5, "transcript": "ba giờ chiều dân văn phòng khoa nhật tơn.", "processing_seconds": 0.437}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a017", "noise_type": "white", "snr_db": 0, "transcript": "tây giờ chiều gần văn phòng khoa nhật tân.", "processing_seconds": 0.488}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a017", "noise_type": "pink", "snr_db": 20, "transcript": "ba giờ chiều lên văn phòng khoa nộp đơn.", "processing_seconds": 0.41}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a017", "noise_type": "pink", "snr_db": 10, "transcript": "ba giờ chiều dân văn phòng khoa nợ đơn.", "processing_seconds": 0.463}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a017", "noise_type": "pink", "snr_db": 5, "transcript": "ba giờ chiều dân văn phòng khoa lập tơ.", "processing_seconds": 0.429}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a017", "noise_type": "pink", "snr_db": 0, "transcript": "tại giờ chiều dân văn phòng khoa nhật chơi.", "processing_seconds": 0.438}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a017", "noise_type": "babble", "snr_db": 20, "transcript": "ba giờ chiều lên văn phòng khoa nộp đơn.", "processing_seconds": 0.413}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a017", "noise_type": "babble", "snr_db": 10, "transcript": "ba giờ chiều lên văn phòng bác qua nấm đơn.", "processing_seconds": 0.458}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a017", "noise_type": "babble", "snr_db": 5, "transcript": "ta giờ chiều lên văn phòng đẹp qua nỗi đau.", "processing_seconds": 0.47}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a017", "noise_type": "babble", "snr_db": 0, "transcript": "người mẫu ta giờ chiều lên văn phòng đẹp ba mọi nơi.", "processing_seconds": 0.573}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a018", "noise_type": "white", "snr_db": 20, "transcript": "đặc lịch mới ngày mai nộp báo cáo thực hành.", "processing_seconds": 0.475}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a018", "noise_type": "white", "snr_db": 10, "transcript": "đặc luật mới ngày mai nộp báo cáo thực hành.", "processing_seconds": 0.471}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a018", "noise_type": "white", "snr_db": 5, "transcript": "đặc lực mới ngày mai là báo cáo thực hành.", "processing_seconds": 0.484}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a018", "noise_type": "white", "snr_db": 0, "transcript": "đặc lực mới hiện nay là báo cáo việc làm.", "processing_seconds": 0.42}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a018", "noise_type": "pink", "snr_db": 20, "transcript": "đặc lịch mới ngày mai nộp báo cáo thực hành.", "processing_seconds": 0.505}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a018", "noise_type": "pink", "snr_db": 10, "transcript": "đặc lực mới hiện nay nộp báo cáo thực hành.", "processing_seconds": 0.466}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a018", "noise_type": "pink", "snr_db": 5, "transcript": "đặc luật mới hiện nay được báo cáo thực hành.", "processing_seconds": 0.495}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a018", "noise_type": "pink", "snr_db": 0, "transcript": "đặc luật mới ngày mai được báo cáo thực hành.", "processing_seconds": 0.473}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a018", "noise_type": "babble", "snr_db": 20, "transcript": "đặc lịch mới ngày mai nộp báo cáo thực hành.", "processing_seconds": 0.493}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a018", "noise_type": "babble", "snr_db": 10, "transcript": "đặc lịch mới ngày mai nợ báo cáo thực hành.", "processing_seconds": 0.471}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a018", "noise_type": "babble", "snr_db": 5, "transcript": "đặc lực mới mà may nợ báo cáo hoạt động.", "processing_seconds": 0.484}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a018", "noise_type": "babble", "snr_db": 0, "transcript": "đặt người tao mới mà may nhờ táo cáo tạo hướng.", "processing_seconds": 0.64}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a019", "noise_type": "white", "snr_db": 20, "transcript": "đặc định mới thứ năm tuần sau khi giữ kỳ vật lý.", "processing_seconds": 0.568}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a019", "noise_type": "white", "snr_db": 10, "transcript": "đặc định mới thứ năm tuần sau khi giữ kỳ vật lý.", "processing_seconds": 0.556}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a019", "noise_type": "white", "snr_db": 5, "transcript": "đặc biệt mới thứ năm tuần sau khi giữ kỳ vật lý.", "processing_seconds": 0.555}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a019", "noise_type": "white", "snr_db": 0, "transcript": "đặc biệt mới thứ năm tuần sau khi giữ kỳ vật lý.", "processing_seconds": 0.608}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a019", "noise_type": "pink", "snr_db": 20, "transcript": "đặc định mới thứ năm tuần sau khi giữ kỳ vật lý.", "processing_seconds": 0.576}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a019", "noise_type": "pink", "snr_db": 10, "transcript": "đặc định mới thứ năm tuần sau khi giữ kỳ vật lý.", "processing_seconds": 0.551}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a019", "noise_type": "pink", "snr_db": 5, "transcript": "đặc biệt mới thứ năm tuần sau khi giữ kỳ vật lý.", "processing_seconds": 0.555}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a019", "noise_type": "pink", "snr_db": 0, "transcript": "đặc biệt mới thứ năm tuần sau khi giữ kỳ vật lý.", "processing_seconds": 0.623}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a019", "noise_type": "babble", "snr_db": 20, "transcript": "đặc định mới thứ năm tuần sau khi giữ kỳ vật lý.", "processing_seconds": 0.576}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a019", "noise_type": "babble", "snr_db": 10, "transcript": "đặc định mới thứ năm tuần sau khi giữ kỳ vật lý.", "processing_seconds": 0.573}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a019", "noise_type": "babble", "snr_db": 5, "transcript": "đặc định mới thứ năm tuần sau huy giữ kỳ vật lý.", "processing_seconds": 0.623}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a019", "noise_type": "babble", "snr_db": 0, "transcript": "đặc định mới thứ năm tuần sau quy hoạch kỳ hoặc định mệnh.", "processing_seconds": 0.713}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a020", "noise_type": "white", "snr_db": 20, "transcript": "đặc định mới chủ nhật này đi học nhóm lúc chín giờ sáng.", "processing_seconds": 0.507}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a020", "noise_type": "white", "snr_db": 10, "transcript": "đạt được mới chủ nhật này đi học nhóm lúc chín giờ sáng.", "processing_seconds": 0.522}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a020", "noise_type": "white", "snr_db": 5, "transcript": "đạt được mới chủ nhật này đi học nhóm lúc chín giờ sáng.", "processing_seconds": 0.565}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a020", "noise_type": "white", "snr_db": 0, "transcript": "đặc biệt mới chủ nhật này đi học nhóm lớp chín giờ sáng.", "processing_seconds": 0.555}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a020", "noise_type": "pink", "snr_db": 20, "transcript": "đặc định mới chủ nhật này đi học nhóm lúc chín giờ sáng.", "processing_seconds": 0.523}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a020", "noise_type": "pink", "snr_db": 10, "transcript": "đặc biệt mới chủ nhật này đi học nhóm lúc chín giờ sáng.", "processing_seconds": 0.511}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a020", "noise_type": "pink", "snr_db": 5, "transcript": "đạt được mới chủ nhật này đi học nhóm lúc chín giờ sáng.", "processing_seconds": 0.584}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a020", "noise_type": "pink", "snr_db": 0, "transcript": "đạt được mới chủ nhật này đi học nhóm lúc chín giờ sáng.", "processing_seconds": 0.53}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a020", "noise_type": "babble", "snr_db": 20, "transcript": "đặc định mới chủ nhật này đi học nhóm lúc chín giờ sáng.", "processing_seconds": 0.508}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a020", "noise_type": "babble", "snr_db": 10, "transcript": "đặc định mới chủ nhật này đi học nhóm lúc chín giờ sáng.", "processing_seconds": 0.512}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a020", "noise_type": "babble", "snr_db": 5, "transcript": "đặc biệt mới chủ nhật này đi học nhóm lớp chín giờ sáng với hồi tuần sau.", "processing_seconds": 0.673}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a020", "noise_type": "babble", "snr_db": 0, "transcript": "đặt định mới chủ nhân ngày đi học nhóm tập trung mô mới hồi tuần sau.", "processing_seconds": 0.644}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a021", "noise_type": "white", "snr_db": 20, "transcript": "đặc định mới thứ hai tuần sau nộp trù án môn học.", "processing_seconds": 0.563}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a021", "noise_type": "white", "snr_db": 10, "transcript": "đặc biệt mới thứ hai tuần sau nọc trò án môn học.", "processing_seconds": 0.65}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a021", "noise_type": "white", "snr_db": 5, "transcript": "đặc biệt mới thứ hai tuần sau nọc trò án môn học.", "processing_seconds": 0.615}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a021", "noise_type": "white", "snr_db": 0, "transcript": "đặc biệt mới thứ hai tuần sau đọc trò ánh môn học.", "processing_seconds": 0.59}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a021", "noise_type": "pink", "snr_db": 20, "transcript": "đặc định mới thứ hai tuần sau nộp đồ án môn học.", "processing_seconds": 0.62}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a021", "noise_type": "pink", "snr_db": 10, "transcript": "đặc biệt mới thứ hai tuần sau nộp trộm án môn học.", "processing_seconds": 0.596}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a021", "noise_type": "pink", "snr_db": 5, "transcript": "đặc biệt mới thứ hai tuần sau nộp trộm án môn học.", "processing_seconds": 0.583}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a021", "noise_type": "pink", "snr_db": 0, "transcript": "đặc biệt mới thứ hai tuần sau đọc trồ án môn học.", "processing_seconds": 0.582}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a021", "noise_type": "babble", "snr_db": 20, "transcript": "đặc định mới thứ hai tuần sau nộp đồ án môn học.", "processing_seconds": 0.593}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a021", "noise_type": "babble", "snr_db": 10, "transcript": "đặc định mới thứ hai tuần sau nộp đồ án môn học.", "processing_seconds": 0.651}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a021", "noise_type": "babble", "snr_db": 5, "transcript": "đặc định mới thứ hai tuần sau nộp đồ án môn học đặc định mới.", "processing_seconds": 0.637}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a021", "noise_type": "babble", "snr_db": 0, "transcript": "đặc biệt của mới có ba mươi hai tuần sau đó được đồ án nguồn học đặc định mới.", "processing_seconds": 0.809}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a022", "noise_type": "white", "snr_db": 20, "transcript": "đặc định mới ngày mốt kiểm tra mười lăm phút đại số.", "processing_seconds": 0.501}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a022", "noise_type": "white", "snr_db": 10, "transcript": "đặc định mới ngày mốt kiểm tra mười lăm phút đại số.", "processing_seconds": 0.526}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a022", "noise_type": "white", "snr_db": 5, "transcript": "đặc định mới ngày mốt kiểm tra mười năm phút đại số.", "processing_seconds": 0.536}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a022", "noise_type": "white", "snr_db": 0, "transcript": "đặc biệt mới ngày mốt kiểm tra mười năm thuốc tẩy số.", "processing_seconds": 0.56}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a022", "noise_type": "pink", "snr_db": 20, "transcript": "đặc nịch mới ngày mốt kiểm tra mười lăm phút đại số.", "processing_seconds": 0.522}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a022", "noise_type": "pink", "snr_db": 10, "transcript": "đặc nịch mới ngày mốt kiểm tra mười lăm phút đại số.", "processing_seconds": 0.516}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a022", "noise_type": "pink", "snr_db": 5, "transcript": "đặc định mới ngày mốt kiểm tra mười lăm phút đại số.", "processing_seconds": 0.518}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a022", "noise_type": "pink", "snr_db": 0, "transcript": "đặc định mới ngày mốt kiểm tra mười năm phút tại số.", "processing_seconds": 0.511}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a022", "noise_type": "babble", "snr_db": 20, "transcript": "đặc định mới ngày mốt kiểm tra mười lăm phút đại số.", "processing_seconds": 0.521}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a022", "noise_type": "babble", "snr_db": 10, "transcript": "đặc định mới ngày mốt kiểm tra mười lăm phút đại số.", "processing_seconds": 0.519}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a022", "noise_type": "babble", "snr_db": 5, "transcript": "đặc lịch mới ngày mỗi mốt kiểm tra mười lăm phút đại số.", "processing_seconds": 0.531}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a022", "noise_type": "babble", "snr_db": 0, "transcript": "đặt liền mới hiện đầy nặng mối kiểm tra mười năm phút đại dương mở rộng và giải mới.", "processing_seconds": 0.791}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a023", "noise_type": "white", "snr_db": 20, "transcript": "đặt dịch mới tối nay làm xong bài tập về nhà.", "processing_seconds": 0.458}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a023", "noise_type": "white", "snr_db": 10, "transcript": "đặc định mới tối nay làm xong bài tập về nhà.", "processing_seconds": 0.49}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a023", "noise_type": "white", "snr_db": 5, "transcript": "đặc biệt mới tối nay làm xong bài tập về nhà.", "processing_seconds": 0.491}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a023", "noise_type": "white", "snr_db": 0, "transcript": "đạp dịch mới tối nay làm trong bài tập về nhà.", "processing_seconds": 0.504}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a023", "noise_type": "pink", "snr_db": 20, "transcript": "đặt vịt mới tối nay làm xong bài tập về nhà.", "processing_seconds": 0.466}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a023", "noise_type": "pink", "snr_db": 10, "transcript": "đặc định mới tối nay làm xong bài tập về nhà.", "processing_seconds": 0.476}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a023", "noise_type": "pink", "snr_db": 5, "transcript": "đặc trị mới tối nay làm xong bài tập về nhà.", "processing_seconds": 0.476}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a023", "noise_type": "pink", "snr_db": 0, "transcript": "đặc dịch mới tối nay làm xong bài tập về nhà.", "processing_seconds": 0.479}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a023", "noise_type": "babble", "snr_db": 20, "transcript": "đặc định mới tối nay làm xong bài tập về nhà.", "processing_seconds": 0.476}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a023", "noise_type": "babble", "snr_db": 10, "transcript": "đặc tịch mới tối nay làm xong bài tập về nhà.", "processing_seconds": 0.518}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a023", "noise_type": "babble", "snr_db": 5, "transcript": "đặc tình mới tối nay làm xong bài tập kỳ nhà.", "processing_seconds": 0.516}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a023", "noise_type": "babble", "snr_db": 0, "transcript": "đặt tiền mới tối ngày nào xong bài tập kỳ nhà.", "processing_seconds": 0.531}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a024", "noise_type": "white", "snr_db": 20, "transcript": "đặc luật mới sáng mời bảy giờ học thể dục.", "processing_seconds": 0.467}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a024", "noise_type": "white", "snr_db": 10, "transcript": "đặc biệt mới sáng mê bảy giờ học thể dục.", "processing_seconds": 0.478}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a024", "noise_type": "white", "snr_db": 5, "transcript": "đặc biệt mới sáng mơ tẩy giờ học thể dục.", "processing_seconds": 0.485}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a024", "noise_type": "white", "snr_db": 0, "transcript": "đặc định mới sáng mai bảy giờ học thể dục.", "processing_seconds": 0.466}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a024", "noise_type": "pink", "snr_db": 20, "transcript": "đặc luật mới sáng mê bảy giờ học hãy dục.", "processing_seconds": 0.471}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a024", "noise_type": "pink", "snr_db": 10, "transcript": "đặc biệt mới sáng mê bảy giờ học hãy dùng.", "processing_seconds": 0.475}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a024", "noise_type": "pink", "snr_db": 5, "transcript": "đặc biệt mới sáng mê bảy giờ học hãy dùng.", "processing_seconds": 0.464}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a024", "noise_type": "pink", "snr_db": 0, "transcript": "đặc biệt mới sáng mơ tẩy giờ học thể dục.", "processing_seconds": 0.481}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a024", "noise_type": "babble", "snr_db": 20, "transcript": "đặc luật mới sáng mê bảy giờ học thể dục.", "processing_seconds": 0.455}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a024", "noise_type": "babble", "snr_db": 10, "transcript": "đặc biệt mới sáng mê bảy giờ học thể dục.", "processing_seconds": 0.465}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a024", "noise_type": "babble", "snr_db": 5, "transcript": "đặc biệt mới sáng mê bảy giờ học thể dục.", "processing_seconds": 0.461}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a024", "noise_type": "babble", "snr_db": 0, "transcript": "đặc biệt mới sáng mai tại giờ học thẻ dục.", "processing_seconds": 0.598}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a025", "noise_type": "white", "snr_db": 20, "transcript": "đặc định mới thứ bảy tuần sau khi cuối kỳ triết học.", "processing_seconds": 0.599}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a025", "noise_type": "white", "snr_db": 10, "transcript": "đặc định mới thứ bảy tuần sau thi cuối kỳ triết học.", "processing_seconds": 0.621}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a025", "noise_type": "white", "snr_db": 5, "transcript": "đặc định mới thứ bảy tuần sau khi cuối kỳ triết học.", "processing_seconds": 0.637}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a025", "noise_type": "white", "snr_db": 0, "transcript": "đặc biệt mới thứ bảy tuần sau khi cuối kỳ triết học.", "processing_seconds": 0.621}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a025", "noise_type": "pink", "snr_db": 20, "transcript": "đặc định mới thứ bảy tuần sau khi cuối kỳ triết học.", "processing_seconds": 0.626}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a025", "noise_type": "pink", "snr_db": 10, "transcript": "đặc định mới thứ bảy tuần sau thi cuối kỳ triết học.", "processing_seconds": 0.625}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a025", "noise_type": "pink", "snr_db": 5, "transcript": "đặc định mới thứ bảy tuần sau thi cuối kỳ triết học.", "processing_seconds": 0.629}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a025", "noise_type": "pink", "snr_db": 0, "transcript": "đặc biệt mới thứ bảy tuần sau thi cũ kỳ triết học.", "processing_seconds": 0.621}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a025", "noise_type": "babble", "snr_db": 20, "transcript": "đặc định mới thứ bảy tuần sau khi cuối kỳ triết học.", "processing_seconds": 0.601}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a025", "noise_type": "babble", "snr_db": 10, "transcript": "đặc định mới thứ bảy tuần sau khi cuối kỳ triết học.", "processing_seconds": 0.594}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a025", "noise_type": "babble", "snr_db": 5, "transcript": "động tình mới thứ bảy tuần sau khi cuối kỳ thiết họp tay nữa.", "processing_seconds": 0.768}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a025", "noise_type": "babble", "snr_db": 0, "transcript": "các lúc mới thì mới thứ bảy rồi sao khi cuối kỳ này lại le đi.", "processing_seconds": 0.691}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a026", "noise_type": "white", "snr_db": 20, "transcript": "ba ngày nữa nộp bài tiểu luận.", "processing_seconds": 0.334}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a026", "noise_type": "white", "snr_db": 10, "transcript": "ba ngày nữa nộp vài tiểu luận.", "processing_seconds": 0.351}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a026", "noise_type": "white", "snr_db": 5, "transcript": "ba ngày nữa ngợp vài tiểu luận.", "processing_seconds": 0.339}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a026", "noise_type": "white", "snr_db": 0, "transcript": "ba ngày nữa ngập phải tiểu dạng.", "processing_seconds": 0.38}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a026", "noise_type": "pink", "snr_db": 20, "transcript": "ba ngày nữa nộp bài tiểu luận.", "processing_seconds": 0.33}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a026", "noise_type": "pink", "snr_db": 10, "transcript": "ba ngày nữa nộp vài tiểu luận.", "processing_seconds": 0.377}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a026", "noise_type": "pink", "snr_db": 5, "transcript": "ba ngày nữa nộp vài tiểu luận.", "processing_seconds": 0.359}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a026", "noise_type": "pink", "snr_db": 0, "transcript": "ba ngày nữa hợp phải tiểu dùng.", "processing_seconds": 0.377}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a026", "noise_type": "babble", "snr_db": 20, "transcript": "ba ngày nữa nộp bài tiểu luận.", "processing_seconds": 0.346}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a026", "noise_type": "babble", "snr_db": 10, "transcript": "ba ngày nữa nộp tài tiểu lại đạo lực.", "processing_seconds": 0.424}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a026", "noise_type": "babble", "snr_db": 5, "transcript": "ba ngày nữa nộp tài tiểu lại đạo luật.", "processing_seconds": 0.427}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a026", "noise_type": "babble", "snr_db": 0, "transcript": "các ba ngày nữa nhờ tài liệu tài đạo luật.", "processing_seconds": 0.463}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a027", "noise_type": "white", "snr_db": 20, "transcript": "cuối tuần này đoảng không chọn.", "processing_seconds": 0.352}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a027", "noise_type": "white", "snr_db": 10, "transcript": "cuối tuần này đoảng không chọn.", "processing_seconds": 0.346}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a027", "noise_type": "white", "snr_db": 5, "transcript": "cuối tuần này đoạn phòng trọ.", "processing_seconds": 0.347}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a027", "noise_type": "white", "snr_db": 0, "transcript": "cuối tuần này đoạn phòng trọ.", "processing_seconds": 0.346}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a027", "noise_type": "pink", "snr_db": 20, "transcript": "cuối tuần này đoạn phòng trọ.", "processing_seconds": 0.365}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a027", "noise_type": "pink", "snr_db": 10, "transcript": "cuối tuần này đoạn phòng trọ.", "processing_seconds": 0.361}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a027", "noise_type": "pink", "snr_db": 5, "transcript": "cuối tuần này đoạn phòng trọ.", "processing_seconds": 0.344}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a027", "noise_type": "pink", "snr_db": 0, "transcript": "cuối tuần này đoạn phòng trọ.", "processing_seconds": 0.351}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a027", "noise_type": "babble", "snr_db": 20, "transcript": "cuối tuần này đoạn phòng trọ.", "processing_seconds": 0.352}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a027", "noise_type": "babble", "snr_db": 10, "transcript": "cuối tuần này đoạn phòng trọ.", "processing_seconds": 0.342}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a027", "noise_type": "babble", "snr_db": 5, "transcript": "cuối tuần này đoạn phòng chọn mới.", "processing_seconds": 0.368}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a027", "noise_type": "babble", "snr_db": 0, "transcript": "cuối tuần này anh mời xa chợ mới.", "processing_seconds": 0.48}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a028", "noise_type": "white", "snr_db": 20, "transcript": "thứ tư tuần sau lúc hai giờ chiều huyết chỉnh nhóm.", "processing_seconds": 0.524}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a028", "noise_type": "white", "snr_db": 10, "transcript": "thứ tư tuần sau lúc hai giờ chiều phía triển nhóm.", "processing_seconds": 0.514}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a028", "noise_type": "white", "snr_db": 5, "transcript": "thứ tư tuần sau lúc hai giờ chiều hết trình nhớ.", "processing_seconds": 0.522}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a028", "noise_type": "white", "snr_db": 0, "transcript": "thứ tư trường cao lúc hai giờ chiều trước tình nhóm.", "processing_seconds": 0.576}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a028", "noise_type": "pink", "snr_db": 20, "transcript": "thứ tư tuần sau lúc hai giờ chiều huyết chỉnh nhóm.", "processing_seconds": 0.524}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a028", "noise_type": "pink", "snr_db": 10, "transcript": "thứ tư tuần sau lúc hai giờ chiều phía trị nhóm.", "processing_seconds": 0.512}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a028", "noise_type": "pink", "snr_db": 5, "transcript": "thứ tư tuần sau lúc hai giờ chiều tiếp tục nhấn.", "processing_seconds": 0.576}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a028", "noise_type": "pink", "snr_db": 0, "transcript": "thứ tư tuần sau lúc hai giờ chiều trước trung nhớ nhất.", "processing_seconds": 0.598}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a028", "noise_type": "babble", "snr_db": 20, "transcript": "thứ tư tuần sau lúc hai giờ chiều huyết trình nhớ.", "processing_seconds": 0.522}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a028", "noise_type": "babble", "snr_db": 10, "transcript": "thứ tư tuần sau lúc hai giờ chiều quyết trình nhớ.", "processing_seconds": 0.54}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a028", "noise_type": "babble", "snr_db": 5, "transcript": "thứ tư tuần sau lúc hai giờ chiều vẫn nhớ riêng tư.", "processing_seconds": 0.602}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a028", "noise_type": "babble", "snr_db": 0, "transcript": "thứ tư thuần sau hai vợ chồng chịu đảm bảo số điện thoại.", "processing_seconds": 0.74}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a029", "noise_type": "white", "snr_db": 20, "transcript": "hai tuần nữa hết hạn đăng ký học phần.", "processing_seconds": 0.391}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a029", "noise_type": "white", "snr_db": 10, "transcript": "hai tuần nữa hết hạn đăng ký học phần.", "processing_seconds": 0.389}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a029", "noise_type": "white", "snr_db": 5, "transcript": "hai tuần nữa hết hạn đăng ký học phần.", "processing_seconds": 0.383}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a029", "noise_type": "white", "snr_db": 0, "transcript": "hai tuần nữa hết hạn đăng ký hợp phòng.", "processing_seconds": 0.421}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a029", "noise_type": "pink", "snr_db": 20, "transcript": "hai tuần nữa hết hạn đăng ký học phần.", "processing_seconds": 0.41}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a029", "noise_type": "pink", "snr_db": 10, "transcript": "hai tuần nữa hết hạn đăng ký học phần.", "processing_seconds": 0.402}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a029", "noise_type": "pink", "snr_db": 5, "transcript": "hai tuần nữa hết hạn đăng ký học phần.", "processing_seconds": 0.414}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a029", "noise_type": "pink", "snr_db": 0, "transcript": "hai tuần nữa hết hệ năng khiếu học phần.", "processing_seconds": 0.452}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a029", "noise_type": "babble", "snr_db": 20, "transcript": "hai tuần nữa hết hạn đăng ký học phần.", "processing_seconds": 0.408}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a029", "noise_type": "babble", "snr_db": 10, "transcript": "hai tuần nữa hết hạn đăng ký học phần.", "processing_seconds": 0.37}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a029", "noise_type": "babble", "snr_db": 5, "transcript": "hai tuần nữa hết hạn đăng ký học phòng.", "processing_seconds": 0.455}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a029", "noise_type": "babble", "snr_db": 0, "transcript": "unk mới thứ hai hai tuần lại có thể hiện lại khí hậu phòng tự phát sau khi tết.", "processing_seconds": 0.711}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a030", "noise_type": "white", "snr_db": 20, "transcript": "chiều mai bốn giờ lên nhập hay hướng dẫn.", "processing_seconds": 0.401}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a030", "noise_type": "white", "snr_db": 10, "transcript": "chiều mai bốn giờ lên nhập thầy hướng dẫn.", "processing_seconds": 0.44}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a030", "noise_type": "white", "snr_db": 5, "transcript": "chiều mai bốn giờ lên nhật thầy hướng dẫn.", "processing_seconds": 0.424}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a030", "noise_type": "white", "snr_db": 0, "transcript": "chiều mai bốn giờ lên nhập hay hướng dẫn.", "processing_seconds": 0.418}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a030", "noise_type": "pink", "snr_db": 20, "transcript": "chiều mai bốn giờ lên nhập hay hướng dẫn.", "processing_seconds": 0.385}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a030", "noise_type": "pink", "snr_db": 10, "transcript": "chiều mai bốn giờ lên nhập hay hướng dẫn.", "processing_seconds": 0.444}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a030", "noise_type": "pink", "snr_db": 5, "transcript": "chiều mai bốn giờ lên nhập hay hướng dẫn.", "processing_seconds": 0.454}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a030", "noise_type": "pink", "snr_db": 0, "transcript": "chiều mai bốn giờ lên nhập thầy hướng dẫn.", "processing_seconds": 0.462}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a030", "noise_type": "babble", "snr_db": 20, "transcript": "chiều mai bốn giờ lên nhập hay hướng dẫn.", "processing_seconds": 0.386}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a030", "noise_type": "babble", "snr_db": 10, "transcript": "chiều mai bốn giờ lên nhập hay hướng dẫn.", "processing_seconds": 0.391}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a030", "noise_type": "babble", "snr_db": 5, "transcript": "triều mai bốn giờ lên nhập hướng dẫn quốc tế.", "processing_seconds": 0.474}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a030", "noise_type": "babble", "snr_db": 0, "transcript": "chiều mai bốn giờ lên nhập hình ảnh lượng mới thứ bảy.", "processing_seconds": 0.539}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a031", "noise_type": "white", "snr_db": 20, "transcript": "tuần sau hứ ba đóng học phí.", "processing_seconds": 0.318}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a031", "noise_type": "white", "snr_db": 10, "transcript": "tuần sau hứ ba đóng học phí.", "processing_seconds": 0.308}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a031", "noise_type": "white", "snr_db": 5, "transcript": "tuần sau thứ ba đóng học phí.", "processing_seconds": 0.333}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a031", "noise_type": "white", "snr_db": 0, "transcript": "tuần sau quý ba đóng hợp quốc.", "processing_seconds": 0.333}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a031", "noise_type": "pink", "snr_db": 20, "transcript": "tuần sau hứ ba đóng học phí.", "processing_seconds": 0.313}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a031", "noise_type": "pink", "snr_db": 10, "transcript": "tuần sau hứ ba đóng học phí.", "processing_seconds": 0.306}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a031", "noise_type": "pink", "snr_db": 5, "transcript": "tuần sau hứ ba đóng học phí.", "processing_seconds": 0.316}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a031", "noise_type": "pink", "snr_db": 0, "transcript": "tùng sao hữu ba đóng học quý.", "processing_seconds": 0.31}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a031", "noise_type": "babble", "snr_db": 20, "transcript": "tuần sau thứ ba đóng học phí.", "processing_seconds": 0.366}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a031", "noise_type": "babble", "snr_db": 10, "transcript": "tuần sau thứ ba đóng học phí.", "processing_seconds": 0.418}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a031", "noise_type": "babble", "snr_db": 5, "transcript": "tuần sau hứa ba đóng học phí tạm giữ.", "processing_seconds": 0.437}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a031", "noise_type": "babble", "snr_db": 0, "transcript": "tuần sau hướng ra đông hữu trắng người ta vậy.", "processing_seconds": 0.497}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a032", "noise_type": "white", "snr_db": 20, "transcript": "tối thứ sáu này tám giờ tối ông hi với bạn.", "processing_seconds": 0.492}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a032", "noise_type": "white", "snr_db": 10, "transcript": "tối thứ sáu này tám giờ tối ung thư với bạn.", "processing_seconds": 0.499}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a032", "noise_type": "white", "snr_db": 5, "transcript": "tối thứ sáu này tám giờ tối ung thư phê bệnh.", "processing_seconds": 0.592}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a032", "noise_type": "white", "snr_db": 0, "transcript": "tối hý sáu này tám giờ tối anh hi theo dõi.", "processing_seconds": 0.56}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a032", "noise_type": "pink", "snr_db": 20, "transcript": "tối thứ sáu này tám giờ tối ung hi với bạn.", "processing_seconds": 0.493}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a032", "noise_type": "pink", "snr_db": 10, "transcript": "tối thứ sáu này tám giờ tối ung hi với bạn.", "processing_seconds": 0.516}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a032", "noise_type": "pink", "snr_db": 5, "transcript": "tối thứ sáu này tám giờ tối ung thư với bạn.", "processing_seconds": 0.504}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a032", "noise_type": "pink", "snr_db": 0, "transcript": "tối huýt sáu này tám giờ tối tuần huy mới bày.", "processing_seconds": 0.551}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a032", "noise_type": "babble", "snr_db": 20, "transcript": "tối thứ sáu này tám giờ tối ung hi với bạn.", "processing_seconds": 0.494}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a032", "noise_type": "babble", "snr_db": 10, "transcript": "tối thứ sáu này tám giờ tối ung huy với vậy.", "processing_seconds": 0.505}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a032", "noise_type": "babble", "snr_db": 5, "transcript": "tối thứ sáu này tám giờ tối unk.", "processing_seconds": 0.618}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a032", "noise_type": "babble", "snr_db": 0, "transcript": "tối thứ sáu ngày rộng đến tối tháng tự nhiên mới làm tuyệt đối.", "processing_seconds": 0.746}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a033", "noise_type": "white", "snr_db": 20, "transcript": "đặt lịch mới mua sách giáo trình.", "processing_seconds": 0.367}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a033", "noise_type": "white", "snr_db": 10, "transcript": "đặt lực mới mua sách giáo trình.", "processing_seconds": 0.363}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a033", "noise_type": "white", "snr_db": 5, "transcript": "đặc luật mới mua sách giáo trình.", "processing_seconds": 0.366}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a033", "noise_type": "white", "snr_db": 0, "transcript": "đặt lịch mới mua sách giáo trình.", "processing_seconds": 0.372}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a033", "noise_type": "pink", "snr_db": 20, "transcript": "đặt lịch mới mua sách giáo trình.", "processing_seconds": 0.388}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a033", "noise_type": "pink", "snr_db": 10, "transcript": "đặt lịch mới mua sách giáo trình.", "processing_seconds": 0.376}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a033", "noise_type": "pink", "snr_db": 5, "transcript": "đặt lịch mới mua sách giáo trình.", "processing_seconds": 0.368}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a033", "noise_type": "pink", "snr_db": 0, "transcript": "đặt lịch mới mua sách giáo trình.", "processing_seconds": 0.366}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a033", "noise_type": "babble", "snr_db": 20, "transcript": "đặt lịch mới mua sách giáo trình.", "processing_seconds": 0.376}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a033", "noise_type": "babble", "snr_db": 10, "transcript": "đặc lực mới mua sách giáo trình.", "processing_seconds": 0.367}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a033", "noise_type": "babble", "snr_db": 5, "transcript": "đặc lực mới mua sách giáo trình.", "processing_seconds": 0.406}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a033", "noise_type": "babble", "snr_db": 0, "transcript": "nửa nợ đặt lịch mới táo mới vừa ra giới thiệu đón lúc.", "processing_seconds": 0.64}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a034", "noise_type": "white", "snr_db": 20, "transcript": "đặc nịch mới ôn lại chương ba giải thích.", "processing_seconds": 0.436}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a034", "noise_type": "white", "snr_db": 10, "transcript": "đặc nịch mới ôn lại chuyên ba giải thích.", "processing_seconds": 0.433}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a034", "noise_type": "white", "snr_db": 5, "transcript": "đặc nịch mới ôn lại chuyên bao giải thích.", "processing_seconds": 0.432}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a034", "noise_type": "white", "snr_db": 0, "transcript": "đặc định mới ôn lại chuyên bay giải thích.", "processing_seconds": 0.43}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a034", "noise_type": "pink", "snr_db": 20, "transcript": "đặc nịch mới ôn lại chương ba giải thích.", "processing_seconds": 0.429}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a034", "noise_type": "pink", "snr_db": 10, "transcript": "đặc nịch mới ôn lại chương ba giải thích.", "processing_seconds": 0.425}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a034", "noise_type": "pink", "snr_db": 5, "transcript": "đặc nghịch mới ôn lại chương ba giải thích.", "processing_seconds": 0.417}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a034", "noise_type": "pink", "snr_db": 0, "transcript": "đặc nghịch mới ôm lại chương ba giải thích.", "processing_seconds": 0.422}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a034", "noise_type": "babble", "snr_db": 20, "transcript": "đặc lịch mới ôn lại chương ba giải thích.", "processing_seconds": 0.405}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a034", "noise_type": "babble", "snr_db": 10, "transcript": "cặc mịch mới ôn lại chương ba giải thích.", "processing_seconds": 0.404}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a034", "noise_type": "babble", "snr_db": 5, "transcript": "các mịch mới ôn lại chương ba giải thích đặc.", "processing_seconds": 0.418}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a034", "noise_type": "babble", "snr_db": 0, "transcript": "các thịnh mới ôn lại chuyên bài giải thích đặc biệt.", "processing_seconds": 0.532}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a035", "noise_type": "white", "snr_db": 20, "transcript": "đặc định mới học tài liệu trí tuệ nhân tạo.", "processing_seconds": 0.499}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a035", "noise_type": "white", "snr_db": 10, "transcript": "đặc định mới học tài liệu trí tuệ nhân tạo.", "processing_seconds": 0.499}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a035", "noise_type": "white", "snr_db": 5, "transcript": "đặc định mới học tài liệu trí tuệ nhân tạo.", "processing_seconds": 0.552}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a035", "noise_type": "white", "snr_db": 0, "transcript": "đặc định mới hoặc tài liệu trí tuệ nhân tạo.", "processing_seconds": 0.555}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a035", "noise_type": "pink", "snr_db": 20, "transcript": "đặc lịch mới học tài liệu trí tuệ nhân tạo.", "processing_seconds": 0.522}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a035", "noise_type": "pink", "snr_db": 10, "transcript": "đặt nghịch mới học tài liệu trí tuệ nhân tạo.", "processing_seconds": 0.535}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a035", "noise_type": "pink", "snr_db": 5, "transcript": "đặc định mới học tài liệu trí tuệ nhân tạo.", "processing_seconds": 0.497}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a035", "noise_type": "pink", "snr_db": 0, "transcript": "đặc định mới học tài liệu trí tuệ nhân tạo.", "processing_seconds": 0.533}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a035", "noise_type": "babble", "snr_db": 20, "transcript": "đặc lịch mới học tài liệu trí tuệ nhân tạo.", "processing_seconds": 0.491}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a035", "noise_type": "babble", "snr_db": 10, "transcript": "đặc lịch mới học tài liệu trí tuệ nhân tạo.", "processing_seconds": 0.491}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a035", "noise_type": "babble", "snr_db": 5, "transcript": "đặc lịch mới học tài liệu trí tuệ nhân tạo.", "processing_seconds": 0.491}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a035", "noise_type": "babble", "snr_db": 0, "transcript": "đặt nịch mới học tài liệu chi tài môn trại học phổ thông.", "processing_seconds": 0.627}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a036", "noise_type": "white", "snr_db": 20, "transcript": "đặc lịch mới làm bài kiểm tra bị xài.", "processing_seconds": 0.385}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a036", "noise_type": "white", "snr_db": 10, "transcript": "đặc lịch mới làm bài kiểm tra bị xài.", "processing_seconds": 0.385}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a036", "noise_type": "white", "snr_db": 5, "transcript": "đặc lịch mới làm bài kiểm tra bị xài.", "processing_seconds": 0.387}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a036", "noise_type": "white", "snr_db": 0, "transcript": "đặc biệt mới làm bài kiểm tra bị sai.", "processing_seconds": 0.38}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a036", "noise_type": "pink", "snr_db": 20, "transcript": "đặc định mới làm bài kiểm tra bị sai.", "processing_seconds": 0.383}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a036", "noise_type": "pink", "snr_db": 10, "transcript": "đặc luật mới làm bài kiểm tra bị sai.", "processing_seconds": 0.359}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a036", "noise_type": "pink", "snr_db": 5, "transcript": "đặc luật mới làm bài kiểm tra bị sai.", "processing_seconds": 0.359}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a036", "noise_type": "pink", "snr_db": 0, "transcript": "lạp lực mới làm bài kiểm tra bị sai.", "processing_seconds": 0.361}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a036", "noise_type": "babble", "snr_db": 20, "transcript": "đặc định mới làm bài kiểm tra bị sai.", "processing_seconds": 0.361}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a036", "noise_type": "babble", "snr_db": 10, "transcript": "đặc định mới làm bài kiểm tra bị sai.", "processing_seconds": 0.357}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a036", "noise_type": "babble", "snr_db": 5, "transcript": "đặc định mới là màn ảnh cha đi xa đặc định.", "processing_seconds": 0.471}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a036", "noise_type": "babble", "snr_db": 0, "transcript": "đặc định mới làng mạn cảnh gia triều tiên bảo xa đặc định.", "processing_seconds": 0.598}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a037", "noise_type": "white", "snr_db": 20, "transcript": "đặc nịch mới học thuộc tư vấn tiếng nhật.", "processing_seconds": 0.583}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a037", "noise_type": "white", "snr_db": 10, "transcript": "đặc luật mới học thuộc tư vấn tiếng nhật.", "processing_seconds": 0.489}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a037", "noise_type": "white", "snr_db": 5, "transcript": "đặc luật mới học cuộc tự vững tiếng nhật.", "processing_seconds": 0.435}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a037", "noise_type": "white", "snr_db": 0, "transcript": "đặc biệt mới học cuộc từ vận chuyển nhật.", "processing_seconds": 0.435}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a037", "noise_type": "pink", "snr_db": 20, "transcript": "đặc nịch mới học thuộc tư vấn tiếng nhật.", "processing_seconds": 0.525}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a037", "noise_type": "pink", "snr_db": 10, "transcript": "đặc định mới hợp thuộc từ vận tiến nhật.", "processing_seconds": 0.54}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a037", "noise_type": "pink", "snr_db": 5, "transcript": "đặc luật mới hợp tục từ vững tiếng nhật.", "processing_seconds": 0.516}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a037", "noise_type": "pink", "snr_db": 0, "transcript": "đặc biệt mới họp phục từ vận chuyển nhật.", "processing_seconds": 0.474}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a037", "noise_type": "babble", "snr_db": 20, "transcript": "đặc nịch mới học thuộc tư vấn tiếng nhật.", "processing_seconds": 0.521}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a037", "noise_type": "babble", "snr_db": 10, "transcript": "đặc định mới họp buộc tư vấn tiếng nhật.", "processing_seconds": 0.489}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a037", "noise_type": "babble", "snr_db": 5, "transcript": "đặc định mới họp buộc từ quận tuyển nhật.", "processing_seconds": 0.471}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a037", "noise_type": "babble", "snr_db": 0, "transcript": "đặc điểm đặc lịch mới học thú từ vùng tuổi nhỏ thế giới.", "processing_seconds": 0.667}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a038", "noise_type": "white", "snr_db": 20, "transcript": "nhớ mua vở và búp bì.", "processing_seconds": 0.286}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a038", "noise_type": "white", "snr_db": 10, "transcript": "nhớ mua vở và bút bì.", "processing_seconds": 0.294}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a038", "noise_type": "white", "snr_db": 5, "transcript": "nhớ mua vợ và bút bì.", "processing_seconds": 0.286}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a038", "noise_type": "white", "snr_db": 0, "transcript": "nhớ mua vợ và bước tiên.", "processing_seconds": 0.303}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a038", "noise_type": "pink", "snr_db": 20, "transcript": "nhớ mua vở và bút bì.", "processing_seconds": 0.288}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a038", "noise_type": "pink", "snr_db": 10, "transcript": "nhớ mua vở và bút bì.", "processing_seconds": 0.305}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a038", "noise_type": "pink", "snr_db": 5, "transcript": "nhớ mua vợ và bút bì.", "processing_seconds": 0.289}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a038", "noise_type": "pink", "snr_db": 0, "transcript": "nhớ mua vợ và quốc tùy.", "processing_seconds": 0.343}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a038", "noise_type": "babble", "snr_db": 20, "transcript": "nhớ mua vở và bút bì.", "processing_seconds": 0.308}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a038", "noise_type": "babble", "snr_db": 10, "transcript": "nhớ mua vở và bút bì.", "processing_seconds": 0.289}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a038", "noise_type": "babble", "snr_db": 5, "transcript": "nhớ mua vở và bút bì.", "processing_seconds": 0.329}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a038", "noise_type": "babble", "snr_db": 0, "transcript": "nhóm mùa vở nguyện kỳ không nhờ bạc.", "processing_seconds": 0.489}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a039", "noise_type": "white", "snr_db": 20, "transcript": "cần hỏi hay về điểm dữ kỳ.", "processing_seconds": 0.378}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a039", "noise_type": "white", "snr_db": 10, "transcript": "cần hỏi hay về điểm dữ kỳ.", "processing_seconds": 0.347}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a039", "noise_type": "white", "snr_db": 5, "transcript": "cần hỏi hay về điểm dữ kỳ.", "processing_seconds": 0.381}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a039", "noise_type": "white", "snr_db": 0, "transcript": "cần hỏi hầy về điểm dữ tiền.", "processing_seconds": 0.381}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a039", "noise_type": "pink", "snr_db": 20, "transcript": "cần hỏi hay về điểm giữa kỳ.", "processing_seconds": 0.391}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a039", "noise_type": "pink", "snr_db": 10, "transcript": "cần hỏi hay về điểm giữa kỳ.", "processing_seconds": 0.387}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a039", "noise_type": "pink", "snr_db": 5, "transcript": "cần hỏi hay về điểm giữa kỳ.", "processing_seconds": 0.379}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a039", "noise_type": "pink", "snr_db": 0, "transcript": "cần hỏi hay về điểm giữa kỳ.", "processing_seconds": 0.395}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a039", "noise_type": "babble", "snr_db": 20, "transcript": "cần hỏi hay về điểm giữa kỳ.", "processing_seconds": 0.39}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a039", "noise_type": "babble", "snr_db": 10, "transcript": "cần hỏi thầy về điểm giữa kỳ.", "processing_seconds": 0.42}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a039", "noise_type": "babble", "snr_db": 5, "transcript": "cần hỏi thầy về điểm diễn kỳ.", "processing_seconds": 0.465}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a039", "noise_type": "babble", "snr_db": 0, "transcript": "cần đòi hỏi thầy thuê điểm diễn tiền từ nam mới.", "processing_seconds": 0.628}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a040", "noise_type": "white", "snr_db": 20, "transcript": "thêm việc đăng ký câu lạc bộ lập trình.", "processing_seconds": 0.467}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a040", "noise_type": "white", "snr_db": 10, "transcript": "thêm việc đăng ký câu lạc bộ lập trình.", "processing_seconds": 0.447}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a040", "noise_type": "white", "snr_db": 5, "transcript": "thêm việc đăng ký câu lạc bộ lập trình.", "processing_seconds": 0.46}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a040", "noise_type": "white", "snr_db": 0, "transcript": "thêm việc đăng ký câu lạc bộ luật dừng học.", "processing_seconds": 0.47}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a040", "noise_type": "pink", "snr_db": 20, "transcript": "thêm việc đăng ký câu lạc bộ lập trình.", "processing_seconds": 0.459}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a040", "noise_type": "pink", "snr_db": 10, "transcript": "thêm việc đăng ký câu lạc bộ lập trình.", "processing_seconds": 0.462}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a040", "noise_type": "pink", "snr_db": 5, "transcript": "thêm việc đăng ký câu lạc bộ lập trình.", "processing_seconds": 0.467}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a040", "noise_type": "pink", "snr_db": 0, "transcript": "thêm việc đăng ký câu lạc bộ lập trên.", "processing_seconds": 0.461}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a040", "noise_type": "babble", "snr_db": 20, "transcript": "thêm việc đăng ký câu lạc bộ lập trình.", "processing_seconds": 0.47}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a040", "noise_type": "babble", "snr_db": 10, "transcript": "thêm việc đăng ký câu lạc bộ lập trình.", "processing_seconds": 0.504}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a040", "noise_type": "babble", "snr_db": 5, "transcript": "thêm việc đăng ký câu lạc bộ luật diện tích giữa.", "processing_seconds": 0.629}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a040", "noise_type": "babble", "snr_db": 0, "transcript": "đặt thêm việc đăng ký từ bảo bộ nhận định di động.", "processing_seconds": 0.607}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a041", "noise_type": "white", "snr_db": 20, "transcript": "tìm tài liệu tham khảo cho tiểu luận.", "processing_seconds": 0.439}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a041", "noise_type": "white", "snr_db": 10, "transcript": "tìm tài liệu tham khảo cho tiểu dùng.", "processing_seconds": 0.458}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a041", "noise_type": "white", "snr_db": 5, "transcript": "tìm tờ giấy ham khảo cho tiểu dạng.", "processing_seconds": 0.434}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a041", "noise_type": "white", "snr_db": 0, "transcript": "tìm tài liệu hanh thảo cho tỉa dạng.", "processing_seconds": 0.477}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a041", "noise_type": "pink", "snr_db": 20, "transcript": "tìm tài liệu tham khảo cho tiểu luận.", "processing_seconds": 0.484}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a041", "noise_type": "pink", "snr_db": 10, "transcript": "tìm tài liệu tham khảo cho tiểu luận.", "processing_seconds": 0.451}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a041", "noise_type": "pink", "snr_db": 5, "transcript": "tìm tài liệu tham khảo cho tiểu dùng.", "processing_seconds": 0.455}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a041", "noise_type": "pink", "snr_db": 0, "transcript": "tìm tờ để tham khảo cho tỷ dụng.", "processing_seconds": 0.476}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a041", "noise_type": "babble", "snr_db": 20, "transcript": "tìm tài liệu tham khảo cho tiểu luật.", "processing_seconds": 0.49}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a041", "noise_type": "babble", "snr_db": 10, "transcript": "tìm tài liệu tham khảo cho tiểu luật.", "processing_seconds": 0.481}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a041", "noise_type": "babble", "snr_db": 5, "transcript": "tìm tài liệu tham khảo do triệu lượt đáp ứng.", "processing_seconds": 0.572}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a041", "noise_type": "babble", "snr_db": 0, "transcript": "tìm tài liệu ham cảm do truyền hình phạt giảm.", "processing_seconds": 0.521}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a042", "noise_type": "white", "snr_db": 20, "transcript": "sửa lại sở yếu lý lịch xin thực tập.", "processing_seconds": 0.533}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a042", "noise_type": "white", "snr_db": 10, "transcript": "sửa lại sở yêu dưới lịch xin thực tập.", "processing_seconds": 0.495}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a042", "noise_type": "white", "snr_db": 5, "transcript": "sửa lại cho yếu lực xin thực tập.", "processing_seconds": 0.456}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a042", "noise_type": "white", "snr_db": 0, "transcript": "sửa lại cho ý nghĩa lịch sinh học tập.", "processing_seconds": 0.428}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a042", "noise_type": "pink", "snr_db": 20, "transcript": "sửa lại sở yếu đến lịch xin thực tập.", "processing_seconds": 0.487}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a042", "noise_type": "pink", "snr_db": 10, "transcript": "sửa lại sở yêu lý lịch xin thực tập.", "processing_seconds": 0.509}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a042", "noise_type": "pink", "snr_db": 5, "transcript": "sửa lại sở yếu quyết định xin thực tập.", "processing_seconds": 0.509}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a042", "noise_type": "pink", "snr_db": 0, "transcript": "sửa lại sở yếu với nhật xin thực tập.", "processing_seconds": 0.511}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a042", "noise_type": "babble", "snr_db": 20, "transcript": "sửa lại sơ yếu đến lệnh xin thực tập.", "processing_seconds": 0.487}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a042", "noise_type": "babble", "snr_db": 10, "transcript": "sửa lại sơ yếu để lật lượng sinh thái tại bệnh sở.", "processing_seconds": 0.615}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a042", "noise_type": "babble", "snr_db": 5, "transcript": "sửa lại sơ yếu với lần đặt xin thử nghiệm ở phòng khách.", "processing_seconds": 0.645}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a042", "noise_type": "babble", "snr_db": 0, "transcript": "sửa lại sơ yếu với lệnh đặt sự trẻ vào vòng sau.", "processing_seconds": 0.608}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a043", "noise_type": "white", "snr_db": 20, "transcript": "đặc định mới trên đây đồ án web ngày thứ sáu.", "processing_seconds": 0.566}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a043", "noise_type": "white", "snr_db": 10, "transcript": "đặc định mới trên đây đồ án web ngày thứ sáu.", "processing_seconds": 0.526}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a043", "noise_type": "white", "snr_db": 5, "transcript": "đặc biệt mới trích đai đồ án web vài thứ sáu.", "processing_seconds": 0.558}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a043", "noise_type": "white", "snr_db": 0, "transcript": "đặc biệt mới tiếp đay đồ án vét và thiếu táo.", "processing_seconds": 0.595}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a043", "noise_type": "pink", "snr_db": 20, "transcript": "đặc định mới đến đây đồ án web ngày thứ sáu.", "processing_seconds": 0.499}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a043", "noise_type": "pink", "snr_db": 10, "transcript": "đặc định mới trên đây đồ án web ngày thứ sáu.", "processing_seconds": 0.531}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a043", "noise_type": "pink", "snr_db": 5, "transcript": "đặc định mới trên đây đồ án web ngày thứ sáu.", "processing_seconds": 0.521}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a043", "noise_type": "pink", "snr_db": 0, "transcript": "đặc biệt mới tức đây đồ án quét vào thứ sáu.", "processing_seconds": 0.585}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a043", "noise_type": "babble", "snr_db": 20, "transcript": "đặc định mới đến đây đồ án web ngày thứ sáu.", "processing_seconds": 0.554}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a043", "noise_type": "babble", "snr_db": 10, "transcript": "đặc định mới trích đai đồ án web bài thứ sáu.", "processing_seconds": 0.539}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a043", "noise_type": "babble", "snr_db": 5, "transcript": "đặc định mới trên đa đồ án web bài thứ sáu mãn định.", "processing_seconds": 0.672}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a043", "noise_type": "babble", "snr_db": 0, "transcript": "để cảm thấy mới trên đài đồ ăn web bà về đối sản hoàng lịch.", "processing_seconds": 0.668}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a044", "noise_type": "white", "snr_db": 20, "transcript": "đặc lịch mới mất tình với nhóm lúc tám giờ tối.", "processing_seconds": 0.548}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a044", "noise_type": "white", "snr_db": 10, "transcript": "đặc lịch mới mất tình với nhóm lúc tám giờ tối.", "processing_seconds": 0.52}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a044", "noise_type": "white", "snr_db": 5, "transcript": "đặc lịch mới mất tình với nhóm lúc tám giờ tối.", "processing_seconds": 0.521}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a044", "noise_type": "white", "snr_db": 0, "transcript": "đặc lịch mới mất tin với nhóm lúc tám dự án.", "processing_seconds": 0.558}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a044", "noise_type": "pink", "snr_db": 20, "transcript": "đặt lịch mới mít tinh với nhóm lúc tám giờ tối.", "processing_seconds": 0.519}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a044", "noise_type": "pink", "snr_db": 10, "transcript": "đặc lịch mới mất tình với nhóm lúc tám giờ tối.", "processing_seconds": 0.539}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a044", "noise_type": "pink", "snr_db": 5, "transcript": "đặc lịch mới mất tình với nhóm lúc tám giờ tối.", "processing_seconds": 0.523}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a044", "noise_type": "pink", "snr_db": 0, "transcript": "đặc luật mới mất tình với nhóm giúp tám điện thoại.", "processing_seconds": 0.569}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a044", "noise_type": "babble", "snr_db": 20, "transcript": "đặt lịch mới mít tinh với nhóm lúc tám giờ tối.", "processing_seconds": 0.56}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a044", "noise_type": "babble", "snr_db": 10, "transcript": "đặt lịch mới mít tinh với nhớ lúc tám giờ tối.", "processing_seconds": 0.518}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a044", "noise_type": "babble", "snr_db": 5, "transcript": "đặt lịch mới mức tình với nhóm lúc tám giờ tháng đặt.", "processing_seconds": 0.66}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a044", "noise_type": "babble", "snr_db": 0, "transcript": "unk lúc môn tán đặt lịch sử mới lúc tiền đổi sau lúc tang nhạc và đặt lịch.", "processing_seconds": 0.831}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a045", "noise_type": "white", "snr_db": 20, "transcript": "đặc lịch mới làm slide quyết trình cho môn marketing.", "processing_seconds": 0.48}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a045", "noise_type": "white", "snr_db": 10, "transcript": "đặc lịch mới làm sai huyết trình cho môn marketing.", "processing_seconds": 0.474}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a045", "noise_type": "white", "snr_db": 5, "transcript": "đặc lịch mới làm sai huyết trình cho môn marketing.", "processing_seconds": 0.462}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a045", "noise_type": "white", "snr_db": 0, "transcript": "đặc lực mới làm sai huyết trình trào môn marketing.", "processing_seconds": 0.516}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a045", "noise_type": "pink", "snr_db": 20, "transcript": "đặc lịch mới làm slide quyết trình cho môn marketing.", "processing_seconds": 0.501}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a045", "noise_type": "pink", "snr_db": 10, "transcript": "đặc lịch mới làm sai huyết trình cho môn marketing.", "processing_seconds": 0.485}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a045", "noise_type": "pink", "snr_db": 5, "transcript": "đặc lịch mới làm sai huyết trình cho môn marketing.", "processing_seconds": 0.495}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a045", "noise_type": "pink", "snr_db": 0, "transcript": "đặc lịch mới làm sai huyết trình cho môn mã tiếp tinh.", "processing_seconds": 0.575}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a045", "noise_type": "babble", "snr_db": 20, "transcript": "đặc lịch mới làm style quyết trình cho môn marketing.", "processing_seconds": 0.502}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a045", "noise_type": "babble", "snr_db": 10, "transcript": "họ đặt hoạt lệnh mới làm vai huyết trình cho môn marketing.", "processing_seconds": 0.506}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a045", "noise_type": "babble", "snr_db": 5, "transcript": "học đặt luật lệnh mới làm vai huy chương cho môn marketing thành lập.", "processing_seconds": 0.581}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a045", "noise_type": "babble", "snr_db": 0, "transcript": "lập đảng khảo lập mới lạc quan chương trình cho mô tả cái tiền thần.", "processing_seconds": 0.81}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a046", "noise_type": "white", "snr_db": 20, "transcript": "đặc lịch mới mô mít thùm môm ô bi phạm tối mai.", "processing_seconds": 0.661}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a046", "noise_type": "white", "snr_db": 10, "transcript": "đặc định mới môn mít trùm môn uống vi phạm tối mai.", "processing_seconds": 0.57}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a046", "noise_type": "white", "snr_db": 5, "transcript": "đặc biệt mới môn mít trùm môn pô phi tòm tối mai.", "processing_seconds": 0.599}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a046", "noise_type": "white", "snr_db": 0, "transcript": "đặc biệt mới môn bích thần môn pô thi toàn gói may.", "processing_seconds": 0.656}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a046", "noise_type": "pink", "snr_db": 20, "transcript": "đặc lịch mới mô mít thùm môm ô bi bòm tối mai.", "processing_seconds": 0.595}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a046", "noise_type": "pink", "snr_db": 10, "transcript": "đặc định mới môn mít thùm môn ô biên phòng tối mai.", "processing_seconds": 0.581}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a046", "noise_type": "pink", "snr_db": 5, "transcript": "đặc định mới môn mít thùm môn ô pin tầm đối mai.", "processing_seconds": 0.573}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a046", "noise_type": "pink", "snr_db": 0, "transcript": "đặc biệt mới môn mít thùm môn pô phiên toàn thỏi này.", "processing_seconds": 0.643}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a046", "noise_type": "babble", "snr_db": 20, "transcript": "đặc định mới môm mít tùm môm ô bi phẩm thói mai.", "processing_seconds": 0.647}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a046", "noise_type": "babble", "snr_db": 10, "transcript": "đặc định mới mô mít tầm môn bô biên phòng tối mai.", "processing_seconds": 0.594}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a046", "noise_type": "babble", "snr_db": 5, "transcript": "đặc định mới momy trump sẽ xác môn bồ binh học tập thói mài giữa.", "processing_seconds": 0.819}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a046", "noise_type": "babble", "snr_db": 0, "transcript": "đặc định mới môn thị trường mới lập sát môn bộ biên bản vào đình thoái mai trước.", "processing_seconds": 0.806}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a047", "noise_type": "white", "snr_db": 20, "transcript": "đặc định mới review có cho bạn lúc ba giờ chiều.", "processing_seconds": 0.385}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a047", "noise_type": "white", "snr_db": 10, "transcript": "khẳng định mới review có cho bạn lúc ba giờ chiều.", "processing_seconds": 0.409}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a047", "noise_type": "white", "snr_db": 5, "transcript": "khẳng định mới review có cho bạn lúc ba giờ chiều.", "processing_seconds": 0.485}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a047", "noise_type": "white", "snr_db": 0, "transcript": "đặc biệt mới huy chương có chơi bảo lúc bảy giờ chiều.", "processing_seconds": 0.556}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a047", "noise_type": "pink", "snr_db": 20, "transcript": "đặc định mới review có cho bạn lúc ba giờ chiều.", "processing_seconds": 0.436}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a047", "noise_type": "pink", "snr_db": 10, "transcript": "đặc định mới review có cho bạn lúc ba giờ chiều.", "processing_seconds": 0.41}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a047", "noise_type": "pink", "snr_db": 5, "transcript": "đặc biệt mới review có cho bạn lúc ba giờ chiều.", "processing_seconds": 0.411}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a047", "noise_type": "pink", "snr_db": 0, "transcript": "đặc biệt mới nguyên viên có cho bạn lúc bà dạ chiều.", "processing_seconds": 0.612}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a047", "noise_type": "babble", "snr_db": 20, "transcript": "đặc định mới review có cho bạn lúc ba giờ chiều.", "processing_seconds": 0.387}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a047", "noise_type": "babble", "snr_db": 10, "transcript": "đặc định mới review có cho bạn lúc ba giờ chiều.", "processing_seconds": 0.388}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a047", "noise_type": "babble", "snr_db": 5, "transcript": "đặc định mới review có cho bạn lúc ba giờ chiều rồi.", "processing_seconds": 0.421}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a047", "noise_type": "babble", "snr_db": 0, "transcript": "đặc trưng mới rủi myu có châu á ngày thích thú môn lao lên biên li.", "processing_seconds": 0.724}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a048", "noise_type": "white", "snr_db": 20, "transcript": "tối nay phết bất cho bầu trắc phích laser.", "processing_seconds": 0.53}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a048", "noise_type": "white", "snr_db": 10, "transcript": "tối nay tết bất cho bầu trắc khúc laser.", "processing_seconds": 0.442}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a048", "noise_type": "white", "snr_db": 5, "transcript": "tối nay tuyết bất cho bầu trắng flasher.", "processing_seconds": 0.545}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a048", "noise_type": "white", "snr_db": 0, "transcript": "tổ này tiếp bất cho rồi chiếc poster.", "processing_seconds": 0.504}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a048", "noise_type": "pink", "snr_db": 20, "transcript": "tối nay phết bất cho rượu trái khớp rất tàn.", "processing_seconds": 0.525}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a048", "noise_type": "pink", "snr_db": 10, "transcript": "tối nay phía bắc cho bầu trắc khúc laser.", "processing_seconds": 0.467}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a048", "noise_type": "pink", "snr_db": 5, "transcript": "tổ này thích bấc cho rồi trét khúc laser.", "processing_seconds": 0.478}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a048", "noise_type": "pink", "snr_db": 0, "transcript": "tổ này thuyết phục bác cho rồi chết rất dài.", "processing_seconds": 0.462}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a048", "noise_type": "babble", "snr_db": 20, "transcript": "tối nay phít bấc cho rùa trách rất thần.", "processing_seconds": 0.467}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a048", "noise_type": "babble", "snr_db": 10, "transcript": "tổ này viết bất cho rồi trách rất thời.", "processing_seconds": 0.465}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a048", "noise_type": "babble", "snr_db": 5, "transcript": "tổ này viết bất cho rồi chiếc đặt rách rưỡi.", "processing_seconds": 0.473}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a048", "noise_type": "babble", "snr_db": 0, "transcript": "tòa này được tiếp bất cho loài chất đặc rất tới.", "processing_seconds": 0.647}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a049", "noise_type": "white", "snr_db": 20, "transcript": "nhà mai smith bài giáp môn mở xin lưu niên.", "processing_seconds": 0.496}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a049", "noise_type": "white", "snr_db": 10, "transcript": "nhà mai xếp nhất bài lát môn mà suy dinh.", "processing_seconds": 0.489}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a049", "noise_type": "white", "snr_db": 5, "transcript": "nhà mai xấp nước bài lát môn mở chương trình.", "processing_seconds": 0.481}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a049", "noise_type": "white", "snr_db": 0, "transcript": "mẹ mai xuất nước đầy lát của bộ mền thiêng liêng.", "processing_seconds": 0.559}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a049", "noise_type": "pink", "snr_db": 20, "transcript": "ngày mai smith bài giáp mô mờ chile ninh.", "processing_seconds": 0.463}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a049", "noise_type": "pink", "snr_db": 10, "transcript": "nhà mai smith bài giáp môn mở trên london.", "processing_seconds": 0.493}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a049", "noise_type": "pink", "snr_db": 5, "transcript": "nhà mai smith bày lát mô mờ xuyên lên đêm.", "processing_seconds": 0.456}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a049", "noise_type": "pink", "snr_db": 0, "transcript": "nhà mai xếp núc bài lát mô mờ xin gia đình.", "processing_seconds": 0.498}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a049", "noise_type": "babble", "snr_db": 20, "transcript": "ngày mai smith bài giáp mô mờ chơi lê ninh.", "processing_seconds": 0.469}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a049", "noise_type": "babble", "snr_db": 10, "transcript": "nhà mai smith bài giáp môn mở trên địa linh.", "processing_seconds": 0.51}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a049", "noise_type": "babble", "snr_db": 5, "transcript": "nhà mai smith bài giác mùa mưa giữa những ngày ám ảnh.", "processing_seconds": 0.563}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a049", "noise_type": "babble", "snr_db": 0, "transcript": "những ngày mai xếp biến bãi rác đã không ngứa lại đó như mỗi năm nay.", "processing_seconds": 0.665}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a050", "noise_type": "white", "snr_db": 20, "transcript": "hứa năm này có quýt môn này ở bầy.", "processing_seconds": 0.4}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a050", "noise_type": "white", "snr_db": 10, "transcript": "thứ năm này có quýt mồm lì ở bẩy.", "processing_seconds": 0.455}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a050", "noise_type": "white", "snr_db": 5, "transcript": "thứ năm này có quyết môn đều ở bình.", "processing_seconds": 0.44}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a050", "noise_type": "white", "snr_db": 0, "transcript": "thứ năm này có viết môn đề ở bỉ.", "processing_seconds": 0.354}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a050", "noise_type": "pink", "snr_db": 20, "transcript": "hứa năm này có quyết môn này là vậy.", "processing_seconds": 0.389}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a050", "noise_type": "pink", "snr_db": 10, "transcript": "thứ năm này có quýt mô me là vậy.", "processing_seconds": 0.371}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a050", "noise_type": "pink", "snr_db": 5, "transcript": "thứ năm này có vít mùa mê ra bẫy.", "processing_seconds": 0.423}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a050", "noise_type": "pink", "snr_db": 0, "transcript": "thứ năm này có viết mùa mê ở đây.", "processing_seconds": 0.435}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a050", "noise_type": "babble", "snr_db": 20, "transcript": "thứ năm này có west môn đáy giá bày.", "processing_seconds": 0.399}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a050", "noise_type": "babble", "snr_db": 10, "transcript": "thứ năm này có west môn đây giá bảy.", "processing_seconds": 0.39}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a050", "noise_type": "babble", "snr_db": 5, "transcript": "thứ năm này có guýt môn này là bầy triệu lâm.", "processing_seconds": 0.523}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a050", "noise_type": "babble", "snr_db": 0, "transcript": "đến thứ năm của quýt môn này là bầy đặc triệu lâm.", "processing_seconds": 0.622}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a051", "noise_type": "white", "snr_db": 20, "transcript": "chiều mai bút scott lên kích thước năm giờ.", "processing_seconds": 0.445}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a051", "noise_type": "white", "snr_db": 10, "transcript": "chiều mai bush cốt lên tiếp thức tập trước năm giờ.", "processing_seconds": 0.528}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a051", "noise_type": "white", "snr_db": 5, "transcript": "chiều mai bruce scott lên tiếp thức trước năm nhờ.", "processing_seconds": 0.5}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a051", "noise_type": "white", "snr_db": 0, "transcript": "chiều mai bruce scott lên diễn thách trước nhầm nhầm.", "processing_seconds": 0.551}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a051", "noise_type": "pink", "snr_db": 20, "transcript": "chiều mai bút scott lên kích thước trước năm giờ.", "processing_seconds": 0.427}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a051", "noise_type": "pink", "snr_db": 10, "transcript": "chiều mai spurs lên kích thước năm giờ.", "processing_seconds": 0.387}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a051", "noise_type": "pink", "snr_db": 5, "transcript": "chiều mai hút scott lên tiếp thức trước năm giờ.", "processing_seconds": 0.468}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a051", "noise_type": "pink", "snr_db": 0, "transcript": "chiều mai hút scott lên chiến thuật trước năm nhật.", "processing_seconds": 0.527}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a051", "noise_type": "babble", "snr_db": 20, "transcript": "chiều mai spurs lên ký tốp trước năm giờ.", "processing_seconds": 0.447}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a051", "noise_type": "babble", "snr_db": 10, "transcript": "chiều mai spurs lên ký tốp trước năm giờ.", "processing_seconds": 0.459}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a051", "noise_type": "babble", "snr_db": 5, "transcript": "chiều mai mưu scott lên kích thước năm giờ.", "processing_seconds": 0.447}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a051", "noise_type": "babble", "snr_db": 0, "transcript": "mùa giới thiệu ngày non chiều mai xã scott mơ đón kết mạng trước khung tượng này đón nhận.", "processing_seconds": 0.926}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a052", "noise_type": "white", "snr_db": 20, "transcript": "cuối tuần này học online khóa bài thần.", "processing_seconds": 0.385}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a052", "noise_type": "white", "snr_db": 10, "transcript": "cuối tuần ngày học online khóa bài chần.", "processing_seconds": 0.405}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a052", "noise_type": "white", "snr_db": 5, "transcript": "cuối tuần ngày học online khóa bại thành.", "processing_seconds": 0.403}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a052", "noise_type": "white", "snr_db": 0, "transcript": "cuối tuần ngày học online khóa bài thành.", "processing_seconds": 0.418}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a052", "noise_type": "pink", "snr_db": 20, "transcript": "cuối tuần này học online khóa bài thần.", "processing_seconds": 0.431}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a052", "noise_type": "pink", "snr_db": 10, "transcript": "cuối tuần này học online khóa bài thiện.", "processing_seconds": 0.411}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a052", "noise_type": "pink", "snr_db": 5, "transcript": "cuối tuần này học online khóa bài thành.", "processing_seconds": 0.434}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a052", "noise_type": "pink", "snr_db": 0, "transcript": "cứu tượng đại học online khóa bài thành.", "processing_seconds": 0.442}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a052", "noise_type": "babble", "snr_db": 20, "transcript": "cuối tuần này học online khóa bài thành.", "processing_seconds": 0.41}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a052", "noise_type": "babble", "snr_db": 10, "transcript": "cuối tuần này học online của ông trung học khoá vài tuần.", "processing_seconds": 0.656}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a052", "noise_type": "babble", "snr_db": 5, "transcript": "cuối tuần này học online ôn chủ người ra ngoài thứ tư tường.", "processing_seconds": 0.671}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a052", "noise_type": "babble", "snr_db": 0, "transcript": "cuối tuần này học ban đầu mai ôm chủng quá bài thứ tư từ trên.", "processing_seconds": 0.745}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a053", "noise_type": "white", "snr_db": 20, "transcript": "đặc lịch mới học sản xuất không khí lúc bảy giờ sáng.", "processing_seconds": 0.545}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a053", "noise_type": "white", "snr_db": 10, "transcript": "đặc thịt mới học xác xuất không cơ lúc bảy giờ sáng.", "processing_seconds": 0.588}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a053", "noise_type": "white", "snr_db": 5, "transcript": "đặc thịt mới hợp sắc sẽ không kề lúc bảy giờ sáng.", "processing_seconds": 0.589}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a053", "noise_type": "white", "snr_db": 0, "transcript": "đặc thịt mới hợp tác với không khí giúp bẫy giờ sáng.", "processing_seconds": 0.661}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a053", "noise_type": "pink", "snr_db": 20, "transcript": "đặc lịch mới học xác suất không kề lúc bảy giờ sáng.", "processing_seconds": 0.526}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a053", "noise_type": "pink", "snr_db": 10, "transcript": "đặc thịt mới học xác sự không kề lúc bảy giờ sáng.", "processing_seconds": 0.565}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a053", "noise_type": "pink", "snr_db": 5, "transcript": "đặc thịt mới học xác sự không kề lúc bảy giờ sáng.", "processing_seconds": 0.598}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a053", "noise_type": "pink", "snr_db": 0, "transcript": "đặc thịt mới học sản xuất không khí lúc bảy giờ sáng.", "processing_seconds": 0.618}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a053", "noise_type": "babble", "snr_db": 20, "transcript": "đặt thịt mới học xác xuất không cơ lúc bảy giờ sáng.", "processing_seconds": 0.548}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a053", "noise_type": "babble", "snr_db": 10, "transcript": "đặt thịt mới học xác suất không kề lúc bảy giờ sáng lại.", "processing_seconds": 0.576}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a053", "noise_type": "babble", "snr_db": 5, "transcript": "đặc thịt mới hoặc xác suất không kề lúc bảy giữa sàn lại họ.", "processing_seconds": 0.673}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a053", "noise_type": "babble", "snr_db": 0, "transcript": "lạc thực mới xác sự không kề nên phải nhớ lại sao họ.", "processing_seconds": 0.486}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a054", "noise_type": "white", "snr_db": 20, "transcript": "đặc biệt mới học cấu trúc dữ liệu để học tối nay.", "processing_seconds": 0.552}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a054", "noise_type": "white", "snr_db": 10, "transcript": "đặc biệt mới học cấu trúc dữ liệu để học đổi này.", "processing_seconds": 0.496}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a054", "noise_type": "white", "snr_db": 5, "transcript": "đặc biệt mới học cấu trúc dữ liệu để học đổi này.", "processing_seconds": 0.553}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a054", "noise_type": "white", "snr_db": 0, "transcript": "đặc biệt mới hợp cấu trúc dữ liệu để hợp đỏ đau.", "processing_seconds": 0.597}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a054", "noise_type": "pink", "snr_db": 20, "transcript": "đặc biệt mới học cấu trúc dữ liệu dạy học tối nay.", "processing_seconds": 0.548}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a054", "noise_type": "pink", "snr_db": 10, "transcript": "đặc biệt mới học cấu trúc dữ liệu để học đổi này.", "processing_seconds": 0.531}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a054", "noise_type": "pink", "snr_db": 5, "transcript": "đặc biệt mới học cấu trúc dữ liệu để học đổi này.", "processing_seconds": 0.538}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a054", "noise_type": "pink", "snr_db": 0, "transcript": "đặc biệt mới học tấu chút dữ liệu để học đổi này.", "processing_seconds": 0.512}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a054", "noise_type": "babble", "snr_db": 20, "transcript": "đặc biệt mới học cấu trúc dữ liệu dạy học tối nay.", "processing_seconds": 0.534}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a054", "noise_type": "babble", "snr_db": 10, "transcript": "đặc biệt mới học cấu trúc dữ liệu dạy học tối nay.", "processing_seconds": 0.554}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a054", "noise_type": "babble", "snr_db": 5, "transcript": "đặc vịt mới có chút dữ liệu ở cổ này.", "processing_seconds": 0.665}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a054", "noise_type": "babble", "snr_db": 0, "transcript": "đặc biệt mới đã cấu trúc dữ liệu sàn cỏ này mới là vệt số lỗi lầm.", "processing_seconds": 0.769}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a055", "noise_type": "white", "snr_db": 20, "transcript": "đặc biệt mới làm bài tập đại số tiếng tín.", "processing_seconds": 0.512}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a055", "noise_type": "white", "snr_db": 10, "transcript": "đặc biệt mới làm bài tập đại số tính tính.", "processing_seconds": 0.567}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a055", "noise_type": "white", "snr_db": 5, "transcript": "đặc biệt mới làm bài tập đại số tính tính.", "processing_seconds": 0.531}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a055", "noise_type": "white", "snr_db": 0, "transcript": "đặc biệt mới là bài tập đại số tính tính.", "processing_seconds": 0.521}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a055", "noise_type": "pink", "snr_db": 20, "transcript": "đặc biệt mới làm bài tập đại số tuyến tính.", "processing_seconds": 0.524}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a055", "noise_type": "pink", "snr_db": 10, "transcript": "đặc biệt mới làm bài tập đại số tuyến tính.", "processing_seconds": 0.553}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a055", "noise_type": "pink", "snr_db": 5, "transcript": "đặc biệt mới là bài tập đại số tính tính.", "processing_seconds": 0.559}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a055", "noise_type": "pink", "snr_db": 0, "transcript": "đặc biệt mới là bài tập thể số tính tính.", "processing_seconds": 0.561}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a055", "noise_type": "babble", "snr_db": 20, "transcript": "đặc lịch mới làm bài tập đại số tuyến tính.", "processing_seconds": 0.509}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a055", "noise_type": "babble", "snr_db": 10, "transcript": "đặc định mới là bài tập đại số tuyến tính.", "processing_seconds": 0.559}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a055", "noise_type": "babble", "snr_db": 5, "transcript": "đặc thị mới là bài giặt đại số tiếng tính.", "processing_seconds": 0.502}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a055", "noise_type": "babble", "snr_db": 0, "transcript": "những trường mà nghề này mới làm rạng rỡ số tính tính đặt nịch mới.", "processing_seconds": 0.656}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a056", "noise_type": "white", "snr_db": 20, "transcript": "đặc lịch mới hữu thi kiến trúc máy tính.", "processing_seconds": 0.522}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a056", "noise_type": "white", "snr_db": 10, "transcript": "đặc biệt mới hữu thi kiến trúc máy tính.", "processing_seconds": 0.547}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a056", "noise_type": "white", "snr_db": 5, "transcript": "đặc biệt mới hữu thi kiến trúc mới tính.", "processing_seconds": 0.49}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a056", "noise_type": "white", "snr_db": 0, "transcript": "đặc biệt mới hữu thi kiến thức mới tính.", "processing_seconds": 0.5}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a056", "noise_type": "pink", "snr_db": 20, "transcript": "đặc định mới hữu thi kiến trúc máy tính.", "processing_seconds": 0.513}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a056", "noise_type": "pink", "snr_db": 10, "transcript": "đặc biệt mới hữu thi kiến trúc máy tính.", "processing_seconds": 0.6}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a056", "noise_type": "pink", "snr_db": 5, "transcript": "đặc biệt mới hữu thi kiến trúc máy tính.", "processing_seconds": 0.526}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a056", "noise_type": "pink", "snr_db": 0, "transcript": "đặc biệt mới thử thi kiến thức máy tính.", "processing_seconds": 0.511}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a056", "noise_type": "babble", "snr_db": 20, "transcript": "đặc định mới hữu thi kiến trúc máy tính.", "processing_seconds": 0.516}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a056", "noise_type": "babble", "snr_db": 10, "transcript": "đặc định mới hữu thi kiến trúc máy tính.", "processing_seconds": 0.611}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a056", "noise_type": "babble", "snr_db": 5, "transcript": "đặc định mới hữu thi kiến trúc mới tính mở lại.", "processing_seconds": 0.608}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a056", "noise_type": "babble", "snr_db": 0, "transcript": "tác lực mới thiếu chức năng sẽ trở lại.", "processing_seconds": 0.453}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a057", "noise_type": "white", "snr_db": 20, "transcript": "đặc lịch mới học nguyên lý hệ điều hành lúc một giờ chiều.", "processing_seconds": 0.559}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a057", "noise_type": "white", "snr_db": 10, "transcript": "đặc lực mới học nguyên lý hệ điều hành lúc một giờ chiều.", "processing_seconds": 0.544}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a057", "noise_type": "white", "snr_db": 5, "transcript": "đặc luật mới học nguyên lý hệ điều hành lúc một giờ chiều.", "processing_seconds": 0.545}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a057", "noise_type": "white", "snr_db": 0, "transcript": "đặc luật mới học nguyên lý thể điều hành lúc một về chiều.", "processing_seconds": 0.609}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a057", "noise_type": "pink", "snr_db": 20, "transcript": "đặc lịch mới học nguyên lý hệ điều hành lúc một giờ chiều.", "processing_seconds": 0.571}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a057", "noise_type": "pink", "snr_db": 10, "transcript": "đặc lịch mới học nguyên lý hệ điều hành lúc một giờ chiều.", "processing_seconds": 0.56}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a057", "noise_type": "pink", "snr_db": 5, "transcript": "đặc lịch mới học nguyên lý hệ điều hành lúc một giờ chiều.", "processing_seconds": 0.548}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a057", "noise_type": "pink", "snr_db": 0, "transcript": "đặc lịch mới học nguyên lý hệ điều hành lúc một giờ chiều.", "processing_seconds": 0.561}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a057", "noise_type": "babble", "snr_db": 20, "transcript": "đặc lịch mới học nguyên lý hệ điều hành lúc một giờ chiều.", "processing_seconds": 0.563}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a057", "noise_type": "babble", "snr_db": 10, "transcript": "đặc lịch mới học nguyên lý hệ điều hành lúc một giờ chiều.", "processing_seconds": 0.525}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a057", "noise_type": "babble", "snr_db": 5, "transcript": "đặc trực mới học nguyên lý khai điều hành lúc một giờ chiều.", "processing_seconds": 0.537}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a057", "noise_type": "babble", "snr_db": 0, "transcript": "lịch sát tăng báo cáo mới tính tới thời điểm hành lúc hai chục giờ chỉ là trào tới.", "processing_seconds": 0.922}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a058", "noise_type": "white", "snr_db": 20, "transcript": "ngày mai nộp bài tập lớn mạng máy tính.", "processing_seconds": 0.571}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a058", "noise_type": "white", "snr_db": 10, "transcript": "ngày mai nộp vài tập lớn mạng máy tính.", "processing_seconds": 0.506}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a058", "noise_type": "white", "snr_db": 5, "transcript": "ngày mai nộp vài tập lớn mạng máy tính.", "processing_seconds": 0.512}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a058", "noise_type": "white", "snr_db": 0, "transcript": "ngày mai nộp tài tập lớn mạng máy tính.", "processing_seconds": 0.521}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a058", "noise_type": "pink", "snr_db": 20, "transcript": "ngày mai nộp bài tập lớn mạng máy tính.", "processing_seconds": 0.567}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a058", "noise_type": "pink", "snr_db": 10, "transcript": "ngày mai nộp bài tập lớn mạng máy tính.", "processing_seconds": 0.531}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a058", "noise_type": "pink", "snr_db": 5, "transcript": "ngày mai nộp bài tập lớn mạng máy tính.", "processing_seconds": 0.531}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a058", "noise_type": "pink", "snr_db": 0, "transcript": "ngày mai nộp bài tập lớn mạng máy tính.", "processing_seconds": 0.5}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a058", "noise_type": "babble", "snr_db": 20, "transcript": "ngày mai nộp bài tập lớn mảng máy tính.", "processing_seconds": 0.555}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a058", "noise_type": "babble", "snr_db": 10, "transcript": "ngày mai nộp vài tập lớn mảng máy tính.", "processing_seconds": 0.505}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a058", "noise_type": "babble", "snr_db": 5, "transcript": "chắc nghiệm ngày mai nộp vài sạp lớn mảng máy tính.", "processing_seconds": 0.575}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a058", "noise_type": "babble", "snr_db": 0, "transcript": "chẳng hạn như ngày mai là bài sạp lớn mạng máy tính tải.", "processing_seconds": 0.644}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a059", "noise_type": "white", "snr_db": 20, "transcript": "thứ sáu kiểm tra tư tưởng hồ chí minh.", "processing_seconds": 0.521}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a059", "noise_type": "white", "snr_db": 10, "transcript": "thứ sáu chuyển trà tư tưởng hồ chí minh.", "processing_seconds": 0.552}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a059", "noise_type": "white", "snr_db": 5, "transcript": "thứ sáu kiểm tra tư tưởng hồ chí minh.", "processing_seconds": 0.518}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a059", "noise_type": "white", "snr_db": 0, "transcript": "thứ sáu kiểm tra tư tưởng hồ chí minh.", "processing_seconds": 0.49}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a059", "noise_type": "pink", "snr_db": 20, "transcript": "thứ sáu kiểm tra tư tưởng hồ chí minh.", "processing_seconds": 0.535}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a059", "noise_type": "pink", "snr_db": 10, "transcript": "thứ sáu kiểm tra tư tưởng hồ chí minh.", "processing_seconds": 0.526}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a059", "noise_type": "pink", "snr_db": 5, "transcript": "thứ sáu kiểm tra tư tưởng hồ chí minh.", "processing_seconds": 0.508}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a059", "noise_type": "pink", "snr_db": 0, "transcript": "thứ sáu kiểm tra tư tưởng hồ chí minh.", "processing_seconds": 0.506}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a059", "noise_type": "babble", "snr_db": 20, "transcript": "thứ sáu kiểm tra tư tưởng hồ chí minh.", "processing_seconds": 0.54}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a059", "noise_type": "babble", "snr_db": 10, "transcript": "thứ sáu kiểm tra tư tưởng hồ chí minh.", "processing_seconds": 0.512}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a059", "noise_type": "babble", "snr_db": 5, "transcript": "học sách thứ sáu kiểm tra tư tưởng hộ nghị.", "processing_seconds": 0.614}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a059", "noise_type": "babble", "snr_db": 0, "transcript": "học sát khứ sáo kiểm tra từ tượng hồn ầy.", "processing_seconds": 0.846}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a060", "noise_type": "white", "snr_db": 20, "transcript": "tối mai ôn chủ nghĩa xã hội khoa học.", "processing_seconds": 0.434}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a060", "noise_type": "white", "snr_db": 10, "transcript": "tối mai ôn chủ nghĩa xã hội khoa học.", "processing_seconds": 0.423}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a060", "noise_type": "white", "snr_db": 5, "transcript": "tối mai ôn chủ nghĩa xã hội khoa học.", "processing_seconds": 0.412}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a060", "noise_type": "white", "snr_db": 0, "transcript": "tối mai ôn chủ nghĩa xã hội khoa học.", "processing_seconds": 0.42}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a060", "noise_type": "pink", "snr_db": 20, "transcript": "tối mai ôn chủ nghĩa xã hội khoa học.", "processing_seconds": 0.415}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a060", "noise_type": "pink", "snr_db": 10, "transcript": "tối mai ôn chủ nghĩa xã hội khoa học.", "processing_seconds": 0.455}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a060", "noise_type": "pink", "snr_db": 5, "transcript": "tối mai ôn chủ nghĩa xã hội khoa học.", "processing_seconds": 0.396}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a060", "noise_type": "pink", "snr_db": 0, "transcript": "tối mai ôn chủ nghĩa xã hội khoa học.", "processing_seconds": 0.398}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a060", "noise_type": "babble", "snr_db": 20, "transcript": "tối mai ôn chủ nghĩa xã hội khoa học.", "processing_seconds": 0.393}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a060", "noise_type": "babble", "snr_db": 10, "transcript": "tối mai ôn chủ nghĩa xã hội khoa học.", "processing_seconds": 0.393}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a060", "noise_type": "babble", "snr_db": 5, "transcript": "tối mai ôm chủ nghĩa xã hội khoa học.", "processing_seconds": 0.607}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a060", "noise_type": "babble", "snr_db": 0, "transcript": "unk kinh tế mai hôm trung du xã hội quan hội nghị thành.", "processing_seconds": 0.596}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a061", "noise_type": "white", "snr_db": 20, "transcript": "làm báo cáo phân tích thích chới gây hóng.", "processing_seconds": 0.504}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a061", "noise_type": "white", "snr_db": 10, "transcript": "làm báo cáo phân tích thích chới gợi thống.", "processing_seconds": 0.548}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a061", "noise_type": "white", "snr_db": 5, "transcript": "làm báo cáo phân tích thiết chế gậy hấu.", "processing_seconds": 0.57}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a061", "noise_type": "white", "snr_db": 0, "transcript": "làm báo cáo phân tích thiết kế nghệ thống.", "processing_seconds": 0.528}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a061", "noise_type": "pink", "snr_db": 20, "transcript": "làm báo cáo phân tích thích chơi gậy hống.", "processing_seconds": 0.487}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a061", "noise_type": "pink", "snr_db": 10, "transcript": "làm báo cáo phân tích thích chới gây hóng.", "processing_seconds": 0.509}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a061", "noise_type": "pink", "snr_db": 5, "transcript": "làm báo cáo phân tích hình chế gợi thống.", "processing_seconds": 0.528}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a061", "noise_type": "pink", "snr_db": 0, "transcript": "làm báo cáo phân tích khích chế để hông.", "processing_seconds": 0.49}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a061", "noise_type": "babble", "snr_db": 20, "transcript": "làm báo cáo phân tích thích chơi gậy hông.", "processing_seconds": 0.492}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a061", "noise_type": "babble", "snr_db": 10, "transcript": "làm báo cáo phân tích thích chơi gậy hông.", "processing_seconds": 0.501}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a061", "noise_type": "babble", "snr_db": 5, "transcript": "làm báo cáo phân tích thích chơi gậy họ.", "processing_seconds": 0.532}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a061", "noise_type": "babble", "snr_db": 0, "transcript": "làm đào cao học thông thể định cơ thể mọi người là đọ.", "processing_seconds": 0.674}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a062", "noise_type": "white", "snr_db": 20, "transcript": "chín giờ sáng ngày mai học kinh tế chính trị marx lenin.", "processing_seconds": 0.526}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a062", "noise_type": "white", "snr_db": 10, "transcript": "chín giờ sáng ngày mai học kinh tế chính trị marx lenin.", "processing_seconds": 0.542}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a062", "noise_type": "white", "snr_db": 5, "transcript": "chín giờ sáng ngày mai học kinh tế chính trị marx lenin.", "processing_seconds": 0.552}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a062", "noise_type": "white", "snr_db": 0, "transcript": "chín giờ sáng ngày mai học kinh tế chính trị marx lenin.", "processing_seconds": 0.58}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a062", "noise_type": "pink", "snr_db": 20, "transcript": "chín giờ sáng ngày mai học kinh tế chính trị marx lenin.", "processing_seconds": 0.504}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a062", "noise_type": "pink", "snr_db": 10, "transcript": "chín giờ sáng ngày mai học kinh tế tiếng chị mát lê lin.", "processing_seconds": 0.561}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a062", "noise_type": "pink", "snr_db": 5, "transcript": "chín giờ sáng ngày mai học kinh tế tiếng trẻ marx lenin.", "processing_seconds": 0.608}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a062", "noise_type": "pink", "snr_db": 0, "transcript": "chín giờ sáng ngày mai học kinh tế tiếng trẻ marx lenin.", "processing_seconds": 0.615}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a062", "noise_type": "babble", "snr_db": 20, "transcript": "chín giờ sáng ngày mai học kinh tế chính trị marx lenin.", "processing_seconds": 0.526}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a062", "noise_type": "babble", "snr_db": 10, "transcript": "chín giờ sáng ngày mai học kinh tế chính trị marx lenin.", "processing_seconds": 0.523}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a062", "noise_type": "babble", "snr_db": 5, "transcript": "chín giờ sáng ngày mai học kinh tế chính trị mát lê mê.", "processing_seconds": 0.622}
+{"asr_model": "vinai/PhoWhisper-small", "id": "a062", "noise_type": "babble", "snr_db": 0, "transcript": "chín giờ sáng ngày mai mô kinh tế chính trị mát đi đam mê.", "processing_seconds": 0.735}
