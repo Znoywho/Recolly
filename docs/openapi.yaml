@@ -1037,8 +1037,9 @@ paths:
       operationId: transcribeVoice
       summary: V1 · Audio → transcript + todo draft
       description: |
-        PhoWhisper transcribes Vietnamese speech; Gemini extracts a todo draft (rule-based fallback
-        when Gemini is down). The draft is **not saved** — Flutter lets the user edit it, then calls D2.
+        PhoWhisper transcribes Vietnamese speech; an Ollama LLM (qwen2.5:14b, with ASR-error repair)
+        extracts title/category/priority and a rule-based parser computes `deadline_at` (rule-only
+        fallback when the LLM is down). The draft is **not saved** — Flutter lets the user edit it, then calls D2.
       x-task-ids: [R42, R43]
       requestBody:
         required: true
@@ -2624,7 +2625,10 @@ components:
         transcript: { type: string }
         todo_draft:
           anyOf: [{ $ref: '#/components/schemas/TodoDraft' }, { type: 'null' }]
-        parser: { type: string, enum: [gemini, rules], description: Which extractor produced the draft. }
+        parser: { type: string, enum: [ollama, gemini, rules], description: Which extractor produced the draft. }
+        corrected_transcript:
+          type: [string, 'null']
+          description: The transcript after the LLM repaired ASR mishearings (null when parser is rules).
       example:
         transcript: Thứ sáu nộp bài tập lớn cấu trúc dữ liệu
         todo_draft:
@@ -2635,7 +2639,8 @@ components:
           deadline_at: '2026-10-23T23:59:00+07:00'
           estimated_minutes: null
           difficulty: null
-        parser: gemini
+        parser: ollama
+        corrected_transcript: Thứ sáu nộp bài tập lớn cấu trúc dữ liệu
 
     # ─────────── Scheduler ───────────
     ScheduleOptions:
