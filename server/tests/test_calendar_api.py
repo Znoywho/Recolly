@@ -240,3 +240,39 @@ def test_webhook_triggers_a_pull(client, connected, google, monkeypatch):
 
     titles = [e["title"] for e in client.get(f"{API}/events", params=NOVEMBER, headers=connected).json()["items"]]
     assert titles == ["Từ Google"]
+
+
+def test_daily_job_pulls_for_users_without_a_live_channel(client, connected, google):
+    from app.jobs.calendar_maintenance import run_calendar_maintenance
+
+    two_way(client, connected)  # no WEBHOOK_BASE_URL: no channel, so the job must pull
+    google.add_on_google("Từ Google", datetime(2026, 11, 3, 18, 0, tzinfo=TZ))
+    assert run_calendar_maintenance(google) == {"pulled": 1}
+    titles = [e["title"] for e in client.get(f"{API}/events", params=NOVEMBER, headers=connected).json()["items"]]
+    assert titles == ["Từ Google"]
+
+
+def test_daily_job_renews_only_channels_close_to_expiry(client, connected, google, monkeypatch, db):
+    from app.jobs.calendar_maintenance import run_calendar_maintenance
+
+    monkeypatch.setattr(Config, "WEBHOOK_BASE_URL", "https://recolly.example")
+    two_way(client, connected)
+    [first_channel] = google.channels
+    assert run_calendar_maintenance(google) == {"channel_ok": 1}
+    assert list(google.channels) == [first_channel]
+
+    # 6.5 days later the 7-day channel is inside the 1-day renewal window.
+    db.execute(update(CalendarConnection).values(
+        channel_expires_at=CalendarConnection.channel_expires_at - timedelta(days=6, hours=12)))
+    db.commit()
+    assert run_calendar_maintenance(google) == {"channel_ok": 1}
+    [renewed] = google.channels
+    assert renewed != first_channel
+
+
+def test_daily_job_skips_a_revoked_user_and_keeps_going(client, connected, google):
+    from app.jobs.calendar_maintenance import run_calendar_maintenance
+
+    two_way(client, connected)
+    google.revoked = True
+    assert run_calendar_maintenance(google) == {"failed": 1}

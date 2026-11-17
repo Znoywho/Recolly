@@ -503,6 +503,17 @@ def pull_for(db: Session, user: User, google: GoogleClient) -> SyncResult:
     return result
 
 
+def daily_maintenance(db: Session, user: User, google: GoogleClient) -> bool:
+    """Daily job for a two-way user: renew a push channel close to expiry, and pull when no
+    channel is alive (no WEBHOOK_BASE_URL, watch failed, or it expired). Returns True if it pulled."""
+    conn = require_connection(user)
+    _renew_channel(conn, google, _access_token(conn, google))
+    if conn.channel_expires_at is not None and conn.channel_expires_at > now_utc():
+        return False
+    pull_for(db, user, google)
+    return True
+
+
 # ─────────────────────────── Conflicts ───────────────────────────
 
 def list_conflicts(db: Session, user: User) -> list[SyncConflict]:
