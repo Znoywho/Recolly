@@ -1,15 +1,26 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+
+import pytest
+from sqlalchemy import update
 
 from app.config import Config
 from app.core.security import channel_token
+from app.models.calendar import CalendarConnection
+from app.service import calendar_sync
 from tests.test_event_api import create as create_event
 from tests.test_timetable_api import SUBJECT
 
 API = "/api/v1"
 TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 NOVEMBER = {"from": "2026-11-01T00:00:00+07:00", "to": "2026-11-30T00:00:00+07:00"}
+
+
+@pytest.fixture(autouse=True)
+def no_pull_cooldown(monkeypatch):
+    """Tests sync back-to-back and expect every sync to pull; cooldown tests turn it back on."""
+    monkeypatch.setattr(calendar_sync, "PULL_COOLDOWN", timedelta(0))
 
 
 def sync(client, headers):
@@ -115,6 +126,36 @@ def test_two_way_pulls_edits_new_events_and_deletes(client, connected, google):
     assert client.get(f"{API}/events/{birthday['id']}", headers=connected).status_code == 404
 
 
+def test_sync_inside_cooldown_skips_pull_but_still_pushes(client, connected, google, monkeypatch, db):
+    monkeypatch.setattr(calendar_sync, "PULL_COOLDOWN", timedelta(minutes=2))
+    two_way(client, connected)
+    sync(client, connected)
+    last_synced = client.get(f"{API}/calendar/status", headers=connected).json()["last_synced_at"]
+
+    google.add_on_google("Từ Google", datetime(2026, 11, 3, 18, 0, tzinfo=TZ))
+    create_event(client, connected)
+    assert sync(client, connected) == {"pushed": 1, "pulled": 0, "failed": 0, "conflicts": 0}
+    assert sync(client, connected) == {"pushed": 0, "pulled": 0, "failed": 0, "conflicts": 0}
+    # Push-only syncs must not move the cooldown window forward.
+    assert client.get(f"{API}/calendar/status", headers=connected).json()["last_synced_at"] == last_synced
+
+    # Let 3 minutes "pass" by moving the last sync back, so the real 2-minute check is exercised.
+    db.execute(update(CalendarConnection).values(
+        last_synced_at=CalendarConnection.last_synced_at - timedelta(minutes=3)))
+    db.commit()
+    assert sync(client, connected)["pulled"] == 1
+
+
+def test_first_pull_after_turning_on_two_way_ignores_cooldown(client, connected, google, monkeypatch):
+    monkeypatch.setattr(calendar_sync, "PULL_COOLDOWN", timedelta(minutes=2))
+    create_event(client, connected)
+    sync(client, connected)  # one-way: sets last_synced_at without ever pulling
+
+    google.add_on_google("Từ Google", datetime(2026, 11, 3, 18, 0, tzinfo=TZ))
+    two_way(client, connected)
+    assert sync(client, connected)["pulled"] == 1
+
+
 def test_conflict_keep_google_then_keep_local(client, connected, google):
     two_way(client, connected)
     event = create_event(client, connected)
@@ -199,3 +240,39 @@ def test_webhook_triggers_a_pull(client, connected, google, monkeypatch):
 
     titles = [e["title"] for e in client.get(f"{API}/events", params=NOVEMBER, headers=connected).json()["items"]]
     assert titles == ["Từ Google"]
+
+
+def test_daily_job_pulls_for_users_without_a_live_channel(client, connected, google):
+    from app.jobs.calendar_maintenance import run_calendar_maintenance
+
+    two_way(client, connected)  # no WEBHOOK_BASE_URL: no channel, so the job must pull
+    google.add_on_google("Từ Google", datetime(2026, 11, 3, 18, 0, tzinfo=TZ))
+    assert run_calendar_maintenance(google) == {"pulled": 1}
+    titles = [e["title"] for e in client.get(f"{API}/events", params=NOVEMBER, headers=connected).json()["items"]]
+    assert titles == ["Từ Google"]
+
+
+def test_daily_job_renews_only_channels_close_to_expiry(client, connected, google, monkeypatch, db):
+    from app.jobs.calendar_maintenance import run_calendar_maintenance
+
+    monkeypatch.setattr(Config, "WEBHOOK_BASE_URL", "https://recolly.example")
+    two_way(client, connected)
+    [first_channel] = google.channels
+    assert run_calendar_maintenance(google) == {"channel_ok": 1}
+    assert list(google.channels) == [first_channel]
+
+    # 6.5 days later the 7-day channel is inside the 1-day renewal window.
+    db.execute(update(CalendarConnection).values(
+        channel_expires_at=CalendarConnection.channel_expires_at - timedelta(days=6, hours=12)))
+    db.commit()
+    assert run_calendar_maintenance(google) == {"channel_ok": 1}
+    [renewed] = google.channels
+    assert renewed != first_channel
+
+
+def test_daily_job_skips_a_revoked_user_and_keeps_going(client, connected, google):
+    from app.jobs.calendar_maintenance import run_calendar_maintenance
+
+    two_way(client, connected)
+    google.revoked = True
+    assert run_calendar_maintenance(google) == {"failed": 1}
