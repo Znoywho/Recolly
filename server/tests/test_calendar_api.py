@@ -146,6 +146,16 @@ def test_sync_inside_cooldown_skips_pull_but_still_pushes(client, connected, goo
     assert sync(client, connected)["pulled"] == 1
 
 
+def test_first_pull_after_turning_on_two_way_ignores_cooldown(client, connected, google, monkeypatch):
+    monkeypatch.setattr(calendar_sync, "PULL_COOLDOWN", timedelta(minutes=2))
+    create_event(client, connected)
+    sync(client, connected)  # one-way: sets last_synced_at without ever pulling
+
+    google.add_on_google("Từ Google", datetime(2026, 11, 3, 18, 0, tzinfo=TZ))
+    two_way(client, connected)
+    assert sync(client, connected)["pulled"] == 1
+
+
 def test_conflict_keep_google_then_keep_local(client, connected, google):
     two_way(client, connected)
     event = create_event(client, connected)

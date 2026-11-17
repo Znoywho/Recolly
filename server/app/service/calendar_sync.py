@@ -475,8 +475,12 @@ def sync(db: Session, user: User, google: GoogleClient,
 
 
 def pulled_recently(conn: CalendarConnection) -> bool:
-    """True when the last full sync is younger than PULL_COOLDOWN: now − last_synced_at < cooldown."""
-    return conn.last_synced_at is not None and now_utc() - conn.last_synced_at < PULL_COOLDOWN
+    """True when Google was already pulled (a sync token exists) and now − last_synced_at < cooldown.
+
+    No sync token means no pull yet (two-way just turned on, or calendar changed), so never block it.
+    """
+    return (conn.sync_token is not None and conn.last_synced_at is not None
+            and now_utc() - conn.last_synced_at < PULL_COOLDOWN)
 
 
 def channel_owner(db: Session, channel_id: str, resource_id: str, token: str | None) -> uuid.UUID | None:
