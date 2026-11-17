@@ -17,13 +17,12 @@ SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 
 
 def get_db() -> Iterator[Session]:
-    """FastAPI dependency: one session per request, commit on success, rollback on error."""
+    """FastAPI dependency: one session per request, closed after the response is sent.
+
+    Commit/rollback lives in `app.core.deps.commit_when_endpoint_returns`, which runs earlier.
+    """
     db = SessionLocal()
     try:
         yield db
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
     finally:
         db.close()

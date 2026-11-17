@@ -1,5 +1,6 @@
 """FastAPI dependencies shared by every router."""
 
+from collections.abc import Iterator
 from typing import Annotated
 from zoneinfo import ZoneInfo
 
@@ -14,7 +15,21 @@ from app.models.user import User
 
 _bearer = HTTPBearer(auto_error=False)
 
-DbSession = Annotated[Session, Depends(get_db)]
+def commit_when_endpoint_returns(db: Annotated[Session, Depends(get_db)]) -> Iterator[Session]:
+    """Commit as soon as the endpoint returns (rollback if it raises), before the response is sent.
+
+    FastAPI runs request-scoped yield cleanup only after the response is sent, so committing
+    there let a client's next request (e.g. right after sign-in) miss the new rows.
+    """
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+
+DbSession = Annotated[Session, Depends(commit_when_endpoint_returns, scope="function")]
 
 
 def get_current_user(
