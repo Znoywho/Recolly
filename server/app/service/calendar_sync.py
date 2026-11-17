@@ -32,6 +32,8 @@ logger = logging.getLogger(__name__)
 
 FULL_SYNC_DAYS = 30
 CHANNEL_RENEW_BEFORE = timedelta(days=1)
+# App-triggered syncs inside this window skip the Google pull (webhook pulls are not limited).
+PULL_COOLDOWN = timedelta(minutes=2)
 TO_PUSH = (SyncStatus.PENDING, SyncStatus.ERROR)
 UNTITLED = "(Không có tiêu đề)"
 # Google Calendar colorId per kind, so classes and study blocks are easy to tell apart.
@@ -454,19 +456,27 @@ def sync(db: Session, user: User, google: GoogleClient,
     _lock(db, conn)
     tz = ZoneInfo(user.timezone)
     result = SyncResult()
+    should_pull = conn.two_way_sync and not pulled_recently(conn)
     try:
         token = _access_token(conn, google)
         _push(db, user, conn, google, token, tz, result, event_ids)
-        if conn.two_way_sync:
+        if should_pull:
             _pull(db, user, conn, google, token, tz, result)
             _renew_channel(conn, google, token)
     except GoogleError as exc:
         # Keep what already reached Google; otherwise stale etags would look like conflicts.
         db.commit()
         raise api_error(exc) from exc
-    conn.last_synced_at = now_utc()
+    # A push-only sync inside the cooldown must not extend it, or spamming would block pulls forever.
+    if should_pull or not conn.two_way_sync:
+        conn.last_synced_at = now_utc()
     db.flush()
     return result
+
+
+def pulled_recently(conn: CalendarConnection) -> bool:
+    """True when the last full sync is younger than PULL_COOLDOWN: now − last_synced_at < cooldown."""
+    return conn.last_synced_at is not None and now_utc() - conn.last_synced_at < PULL_COOLDOWN
 
 
 def channel_owner(db: Session, channel_id: str, resource_id: str, token: str | None) -> uuid.UUID | None:

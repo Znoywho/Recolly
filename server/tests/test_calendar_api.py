@@ -1,15 +1,26 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+
+import pytest
+from sqlalchemy import update
 
 from app.config import Config
 from app.core.security import channel_token
+from app.models.calendar import CalendarConnection
+from app.service import calendar_sync
 from tests.test_event_api import create as create_event
 from tests.test_timetable_api import SUBJECT
 
 API = "/api/v1"
 TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 NOVEMBER = {"from": "2026-11-01T00:00:00+07:00", "to": "2026-11-30T00:00:00+07:00"}
+
+
+@pytest.fixture(autouse=True)
+def no_pull_cooldown(monkeypatch):
+    """Tests sync back-to-back and expect every sync to pull; cooldown tests turn it back on."""
+    monkeypatch.setattr(calendar_sync, "PULL_COOLDOWN", timedelta(0))
 
 
 def sync(client, headers):
@@ -113,6 +124,26 @@ def test_two_way_pulls_edits_new_events_and_deletes(client, connected, google):
     google.delete_on_google(added["id"])
     assert sync(client, connected)["pulled"] == 1
     assert client.get(f"{API}/events/{birthday['id']}", headers=connected).status_code == 404
+
+
+def test_sync_inside_cooldown_skips_pull_but_still_pushes(client, connected, google, monkeypatch, db):
+    monkeypatch.setattr(calendar_sync, "PULL_COOLDOWN", timedelta(minutes=2))
+    two_way(client, connected)
+    sync(client, connected)
+    last_synced = client.get(f"{API}/calendar/status", headers=connected).json()["last_synced_at"]
+
+    google.add_on_google("Từ Google", datetime(2026, 11, 3, 18, 0, tzinfo=TZ))
+    create_event(client, connected)
+    assert sync(client, connected) == {"pushed": 1, "pulled": 0, "failed": 0, "conflicts": 0}
+    assert sync(client, connected) == {"pushed": 0, "pulled": 0, "failed": 0, "conflicts": 0}
+    # Push-only syncs must not move the cooldown window forward.
+    assert client.get(f"{API}/calendar/status", headers=connected).json()["last_synced_at"] == last_synced
+
+    # Let 3 minutes "pass" by moving the last sync back, so the real 2-minute check is exercised.
+    db.execute(update(CalendarConnection).values(
+        last_synced_at=CalendarConnection.last_synced_at - timedelta(minutes=3)))
+    db.commit()
+    assert sync(client, connected)["pulled"] == 1
 
 
 def test_conflict_keep_google_then_keep_local(client, connected, google):
