@@ -86,6 +86,29 @@ def test_blocks_respect_every_constraint(client, auth):
     assert suggestion["from"] == tomorrow.isoformat()
 
 
+def test_blocks_end_buffer_minutes_before_the_deadline(client, auth):
+    tomorrow = prepare(client, auth)  # free before 15:00 tomorrow: only 13:00–15:00 (lunch until 13:00)
+    todo = add_todo(client, auth, deadline_at=at(tomorrow, 17).isoformat(), estimated_minutes=180)
+    suggestion = generate(client, auth, tomorrow, tomorrow, options={"deadline_buffer_minutes": 120})
+
+    study = [b for b in suggestion["blocks"] if b["kind"] == "study"]
+    assert [minutes(b) for b in study] == [90]  # 17:00 − 120 min = 15:00 leaves room for one block
+    assert all(parse(b["end_at"]) <= at(tomorrow, 15) for b in study)
+    assert suggestion["unscheduled"] == [{"todo_id": todo["id"], "reason": "NOT_ENOUGH_TIME_BEFORE_DEADLINE",
+                                          "missing_minutes": 90}]
+
+
+def test_zero_deadline_buffer_allows_blocks_up_to_the_deadline(client, auth):
+    tomorrow = prepare(client, auth)
+    add_todo(client, auth, deadline_at=at(tomorrow, 17).isoformat(), estimated_minutes=180)
+    suggestion = generate(client, auth, tomorrow, tomorrow, options={"deadline_buffer_minutes": 0})
+
+    study = [b for b in suggestion["blocks"] if b["kind"] == "study"]
+    assert sum(minutes(b) for b in study) == 180
+    assert all(parse(b["end_at"]) <= at(tomorrow, 17) for b in study)
+    assert suggestion["unscheduled"] == []
+
+
 def test_apply_creates_events_once(client, auth):
     tomorrow = prepare(client, auth)
     todo = add_todo(client, auth, deadline_at=at(tomorrow + timedelta(days=1), 23, 59).isoformat(),

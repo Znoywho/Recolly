@@ -4,7 +4,8 @@ Time is cut into 15-minute slots of local time. A slot is free when it is in the
 user is awake (sleep from the sleep timeline), it is not inside the wake / bed buffers, a meal
 window, or any event (classes, manual and Google events, already applied blocks).
 
-Hard constraints: a block sits on free slots of one day and ends before its todo's deadline;
+Hard constraints: a block sits on free slots of one day and ends `deadline_buffer_minutes` before
+its todo's deadline;
 blocks keep `min_break_minutes` apart; at most `max_study_minutes_per_day` per day.
 Objective: Σ predicted KSS × slots, weighted by difficulty (hard work goes to golden hours),
 plus a large penalty per unscheduled slot (weighted by priority) and a tiny one per hour of
@@ -135,8 +136,12 @@ class Planner:
                 self._block_range(begin, finish)
 
     def allowed_starts(self, slots: int, deadline: datetime) -> list[int]:
-        """Starts where the block fits on free slots of one day and ends by the deadline."""
-        last_end = min(self.n, self.slot_of(deadline))
+        """Starts where the block fits on free slots of one day and ends by deadline − buffer.
+
+        end_slot(block) ≤ slot_of(deadline − deadline_buffer_minutes)
+        """
+        buffer = timedelta(minutes=self.options.deadline_buffer_minutes)
+        last_end = min(self.n, self.slot_of(deadline - buffer))
         starts = []
         for s in range(0, self.n - slots + 1):
             if s + slots > last_end or s // DAY_SLOTS != (s + slots - 1) // DAY_SLOTS:

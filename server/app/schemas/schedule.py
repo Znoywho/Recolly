@@ -31,6 +31,8 @@ class ScheduleOptions(BaseModel):
         max_length=5)
     include_rest_blocks: bool = False
     include_bedtime_blocks: bool = True
+    deadline_buffer_minutes: int = Field(default=120, ge=0, le=1440,
+                                         description="Every block must end at least this long before the todo's deadline.")
 
 
 class ScheduleGenerateRequest(BaseModel):
