@@ -4,7 +4,7 @@
 
 **Điều hòa lịch trình sinh hoạt cho sinh viên – cân bằng giữa học tập và nghỉ ngơi**
 
-![Flutter](https://img.shields.io/badge/Mobile-Flutter-02569B?logo=flutter&logoColor=white) ![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-4169E1?logo=postgresql&logoColor=white) ![Gemini](https://img.shields.io/badge/LLM-Google%20Gemini-8E75B2?logo=googlegemini&logoColor=white) ![License](https://img.shields.io/badge/License-MIT-green) ![Status](https://img.shields.io/badge/Status-In%20Development-orange)
+![Flutter](https://img.shields.io/badge/Mobile-Flutter-02569B?logo=flutter&logoColor=white) ![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-4169E1?logo=postgresql&logoColor=white) ![Ollama](https://img.shields.io/badge/LLM-Qwen2.5%20(Ollama)-000000?logo=ollama&logoColor=white) ![License](https://img.shields.io/badge/License-MIT-green) ![Status](https://img.shields.io/badge/Status-In%20Development-orange)
 
 </div>
 
@@ -80,10 +80,10 @@ Tích hợp Google Calendar để đồng bộ thời khóa biểu và các sự
 | Lịch | Google Calendar API (OAuth 2.0) |
 | Xếp lịch tối ưu | OR-Tools CP-SAT |
 | Nhận diện văn bản (OCR) | Vintern-1B-v3_5 |
-| Nhận diện giọng nói (ASR) | PhoWhisper |
-| LLM | Google Gemini |
+| Nhận diện giọng nói (ASR) | [PhoWhisper](https://huggingface.co/vinai/PhoWhisper-small) |
+| LLM | Qwen2.5 chạy qua [Ollama](https://ollama.com) (giọng nói → todo); Google Gemini (dự kiến, cho quote) |
 
-Vintern, PhoWhisper và Gemini nằm trong kế hoạch, chưa được tích hợp vào server.
+PhoWhisper và Qwen2.5 đã chạy trong server (`/voice/transcribe`). Vintern và Gemini chưa được tích hợp.
 
 ---
 
@@ -95,7 +95,8 @@ flowchart LR
     B --> C[(🐘 PostgreSQL)]
     B --> D[📅 Google Calendar API]
     B -.-> E[🖼️ Vintern - OCR]
-    B -.-> F[🎙️ PhoWhisper - ASR]
+    B --> F[🎙️ PhoWhisper - ASR]
+    B --> J[🦙 Qwen2.5 qua Ollama - LLM]
     B -.-> G[🤖 Google Gemini - LLM]
     B --> H[🧮 OR-Tools CP-SAT]
     B --> I[😴 Two-Process Model S/C]
@@ -115,7 +116,8 @@ Bảng dưới đây chỉ nói về backend.
 |---|---|
 | Xếp 3 con vật, đường năng lượng trong ngày | Đã có: `/chronotype/assess`, `/biorhythm` |
 | Nhật ký ngủ và nợ ngủ | Đã có: `/sleep-logs`, `/sleep-debt` |
-| Xếp giờ ôn thi và giờ nghỉ bằng CP-SAT, tránh thời khóa biểu và deadline | Đã có: `/schedule/generate`, `/schedule/apply` |
+| Xếp giờ ôn thi và giờ nghỉ bằng CP-SAT, tránh thời khóa biểu, khung giờ bận và giữ khoảng đệm trước deadline | Đã có: `/schedule/generate`, `/schedule/apply` |
+| Sự kiện và todo/deadline | Đã có: `/events`, `/todos` |
 | Đẩy lịch lên Google Calendar | Đã có: `/calendar/sync` |
 | Nhập và sửa thời khóa biểu thủ công | Đã có: `/timetable` |
 | Chụp ảnh thời khóa biểu và trích xuất dữ liệu | Chưa có |
@@ -125,8 +127,8 @@ Bảng dưới đây chỉ nói về backend.
 | Tính năng | Backend |
 |---|---|
 | Thông báo nhắc giờ ngủ và deadline | Một phần: đã lưu cài đặt và thiết bị, chưa gửi thông báo |
-| Đồng bộ hai chiều với Google Calendar | Đã có: `/calendar/sync`, `/calendar/conflicts`, `/calendar/webhook` |
-| Nhập bằng giọng nói (PhoWhisper) | Chưa có |
+| Đồng bộ hai chiều với Google Calendar | Đã có: `/calendar/sync`, `/calendar/conflicts`, `/calendar/webhook`; job hằng ngày gia hạn kênh push và kéo dữ liệu dự phòng |
+| Nhập bằng giọng nói → bản nháp todo | Đã có: `/voice/transcribe` (PhoWhisper + Qwen2.5; khi Ollama tắt thì chỉ dùng luật). Chi tiết ở [`server/README.md`](server/README.md) |
 
 ### Giai đoạn 3 – Hoàn thiện
 
@@ -134,7 +136,7 @@ Bảng dưới đây chỉ nói về backend.
 |---|---|
 | Quote khích lệ | Một phần: `/quotes/random` dùng bộ câu có sẵn, chưa dùng LLM |
 
-**Về app Flutter:** nhánh `main` đã có API client và model, nhưng `client/lib/main.dart` vẫn là màn hình mẫu của Flutter. Các màn hình đang nằm ở nhánh riêng như `UI-Rework` và `feature/r07-sign-in`.
+**Về app Flutter:** nhánh `UI-Rework` đã được merge vào `main`. App đã có các màn hình Today, Biorhythm, Sleep, Todo (danh sách + form), Calendar, Personal và màn hình chào (`client/lib/features/`).
 
 ---
 
@@ -154,14 +156,24 @@ git clone https://github.com/Znoywho/Recolly.git
 cd Recolly
 ```
 
-### 2. Chạy database
+### 2. Chạy bằng Docker (nhanh nhất)
+
+```bash
+cp .env.example .env            # điền POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
+# tạo server/.env như ở bước 4
+docker compose up --build       # PostgreSQL ở cổng 5433, API ở cổng 8765
+```
+
+Muốn chạy backend trực tiếp trên máy để dev thì làm bước 3 và 4.
+
+### 3. Chỉ chạy database
 
 ```bash
 cp .env.example .env            # điền POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
 docker compose up -d db         # PostgreSQL ở cổng 5433 trên máy
 ```
 
-### 3. Chạy Backend
+### 4. Chạy Backend
 
 ```bash
 cd server
@@ -178,7 +190,15 @@ JWT_SECRET=<chuỗi ngẫu nhiên, ít nhất 32 ký tự>
 TOKEN_ENCRYPTION_KEY=<kết quả của lệnh bên dưới>
 GOOGLE_CLIENT_ID=<OAuth client ID>
 GOOGLE_CLIENT_SECRET=<OAuth client secret>
+
+# Tùy chọn
+WEBHOOK_BASE_URL=<URL HTTPS công khai cho push của Google Calendar>
+OLLAMA_BASE_URL=http://localhost:11434
+VOICE_LLM_MODEL=qwen2.5:14b     # máy yếu: qwen2.5:7b và VOICE_REPAIR_TRANSCRIPT=0
+PHOWHISPER_MODEL=vinai/PhoWhisper-small
 ```
+
+Nhập giọng nói cần cài thêm `transformers` và `torch` (không có trong `requirements.txt`); thiếu thì server vẫn chạy bình thường.
 
 ```bash
 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
@@ -187,7 +207,7 @@ uvicorn app.main:app --reload --port 8765
 
 API docs: `http://localhost:8765/docs`. Cách chạy test xem ở [`server/README.md`](server/README.md).
 
-### 4. Chạy Mobile
+### 5. Chạy Mobile
 
 ```bash
 cd client
