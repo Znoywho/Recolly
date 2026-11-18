@@ -91,15 +91,46 @@ PhoWhisper và Qwen2.5 đã chạy trong server (`/voice/transcribe`). Vintern v
 
 ```mermaid
 flowchart LR
-    A[📱 Flutter App] -->|REST API| B[⚙️ FastAPI Backend]
-    B --> C[(🐘 PostgreSQL)]
-    B --> D[📅 Google Calendar API]
-    B -.-> E[🖼️ Vintern - OCR]
-    B --> F[🎙️ PhoWhisper - ASR]
-    B --> J[🦙 Qwen2.5 qua Ollama - LLM]
-    B -.-> G[🤖 Google Gemini - LLM]
-    B --> H[🧮 OR-Tools CP-SAT]
-    B --> I[😴 Two-Process Model S/C]
+    subgraph APP["📱 Flutter App (Android)"]
+        UI["Today · Sleep · Todo · Calendar"]
+        IN["Ghi âm giọng nói / Chụp TKB"]
+    end
+
+    subgraph API["⚙️ FastAPI Backend /api/v1"]
+        AUTH["Auth: Google Sign-In + JWT"]
+        CRUD["TKB · Sự kiện · Todo · Nhật ký ngủ"]
+        SLEEP["Two-Process Model S/C<br/>chronotype, nợ ngủ, độ tỉnh táo"]
+        SCHED["Xếp lịch OR-Tools CP-SAT"]
+        SYNC["Đồng bộ Google Calendar 2 chiều"]
+        JOB["Job hằng ngày: gia hạn push, kéo dự phòng"]
+        VOICE["Giọng nói → bản nháp todo<br/>PhoWhisper + luật thời gian"]
+        OCR["OCR thời khóa biểu"]
+        QUOTE["Quote khích lệ"]
+    end
+
+    DB[("🐘 PostgreSQL")]
+    GCAL["📅 Google Calendar API"]
+    LLM["Qwen2.5 qua Ollama<br/>máy local / Kaggle GPU"]
+    VIN["Vintern-1B"]
+    GEM["Google Gemini"]
+
+    UI -->|REST + JWT| AUTH
+    UI -->|REST| CRUD
+    IN -->|file âm thanh| VOICE
+    IN -.->|ảnh| OCR
+
+    CRUD --> SLEEP
+    SLEEP -->|đường tỉnh táo| SCHED
+    CRUD -->|lịch học, deadline| SCHED
+    SCHED -->|lịch đề xuất| SYNC
+    SYNC <-->|đẩy / kéo sự kiện, webhook| GCAL
+    JOB --> SYNC
+
+    VOICE -->|tiêu đề, loại, ưu tiên| LLM
+    OCR -.-> VIN
+    QUOTE -.-> GEM
+
+    API --> DB
 ```
 
 Nét đứt là phần chưa tích hợp. Hợp đồng API nằm ở [`docs/openapi.yaml`](docs/openapi.yaml).
