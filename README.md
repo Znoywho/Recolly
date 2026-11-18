@@ -96,7 +96,7 @@ flowchart LR
     B --> D[📅 Google Calendar API]
     B -.-> E[🖼️ Vintern - OCR]
     B --> F[🎙️ PhoWhisper - ASR]
-    B --> J[🦙 Qwen2.5 qua Ollama - LLM]
+    B --> J["🧠 Qwen2.5 qua Ollama - LLM"]
     B -.-> G[🤖 Google Gemini - LLM]
     B --> H[🧮 OR-Tools CP-SAT]
     B --> I[😴 Two-Process Model S/C]
