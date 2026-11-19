@@ -5,36 +5,16 @@ from app.core.deps import CurrentUser, DbSession
 from app.core.timeutil import now_utc
 from app.models.notification import Device, ReminderSettings as ReminderSettingsRow
 from app.schemas.notification import DeviceRegister, Quote, QuoteContext, ReminderSettings
-from app.schemas.schedule import ClockWindow
 from app.service.quotes import random_quote
+from app.service.reminders import reminder_settings_of
 
 router = APIRouter(tags=["Reminders"])
-
-
-def _settings(row: ReminderSettingsRow | None) -> ReminderSettings:
-    if row is None:
-        return ReminderSettings()
-    quiet = None
-    if row.quiet_hours_start is not None and row.quiet_hours_end is not None:
-        quiet = ClockWindow(start=row.quiet_hours_start, end=row.quiet_hours_end)
-    return ReminderSettings(
-        bedtime_reminder_enabled=row.bedtime_reminder_enabled,
-        bedtime_reminder_minutes_before=row.bedtime_reminder_minutes_before,
-        deadline_reminder_enabled=row.deadline_reminder_enabled,
-        deadline_reminder_hours_before=list(row.deadline_reminder_hours_before),
-        kss_prompt_enabled=row.kss_prompt_enabled,
-        kss_prompts_per_day=row.kss_prompts_per_day,
-        kss_prompt_window=ClockWindow(start=row.kss_prompt_window_start, end=row.kss_prompt_window_end),
-        sleep_confirm_enabled=row.sleep_confirm_enabled,
-        motivation_enabled=row.motivation_enabled,
-        quiet_hours=quiet,
-    )
 
 
 @router.get("/reminder-settings", response_model=ReminderSettings)
 def get_reminder_settings(user: CurrentUser):
     """R1 · Reminder settings (defaults until the user saves them)."""
-    return _settings(user.reminder_settings)
+    return reminder_settings_of(user.reminder_settings)
 
 
 @router.put("/reminder-settings", response_model=ReminderSettings)
@@ -61,7 +41,7 @@ def put_reminder_settings(body: ReminderSettings, user: CurrentUser, db: DbSessi
         for field, value in fields.items():
             setattr(row, field, value)
     db.flush()
-    return _settings(row)
+    return reminder_settings_of(row)
 
 
 @router.post("/devices", status_code=204)

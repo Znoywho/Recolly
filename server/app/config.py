@@ -43,3 +43,6 @@ class Config:
 
     # Optional; only reported by GET /health for now.
     REDIS_URL = os.getenv("REDIS_URL", "")
+
+    # Path to a Firebase service account JSON for FCM push (R39). Empty: reminders are only logged.
+    FCM_SERVICE_ACCOUNT_FILE = os.getenv("FCM_SERVICE_ACCOUNT_FILE", "")
