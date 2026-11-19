@@ -50,6 +50,8 @@ class _TodoFormPageState extends State<TodoFormPage> {
   }
 
   Future<void> pickDeadline() async {
+    // Close the keyboard so it does not pop up again after the pickers
+    FocusScope.of(context).unfocus();
     final now = DateTime.now();
     final date = await showDatePicker(
       context: context,
@@ -199,7 +201,10 @@ class _TodoFormPageState extends State<TodoFormPage> {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(deadlineText(), style: AppTypography.body),
+                  child: GestureDetector(
+                    onTap: pickDeadline,
+                    child: Text(deadlineText(), style: AppTypography.body),
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.calendar_month),
