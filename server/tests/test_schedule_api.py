@@ -109,6 +109,47 @@ def test_zero_deadline_buffer_allows_blocks_up_to_the_deadline(client, auth):
     assert suggestion["unscheduled"] == []
 
 
+def test_blocked_windows_take_away_study_time(client, auth):
+    tomorrow = prepare(client, auth)  # free tomorrow: 13:00–18:00 and 19:00–22:00 (07:00–07:30 is too short)
+    todo = add_todo(client, auth, deadline_at=at(tomorrow, 23, 59).isoformat(), estimated_minutes=90)
+    suggestion = generate(client, auth, tomorrow, tomorrow, options={
+        "deadline_buffer_minutes": 0,
+        "blocked_windows": [{"start": "13:00", "end": "18:00"}, {"start": "19:00", "end": "22:00"}]})
+
+    assert [b for b in suggestion["blocks"] if b["kind"] == "study"] == []
+    assert suggestion["unscheduled"] == [{"todo_id": todo["id"], "reason": "NOT_ENOUGH_TIME_BEFORE_DEADLINE",
+                                          "missing_minutes": 90}]
+
+
+def test_blocked_window_only_on_its_weekdays(client, auth):
+    tomorrow = prepare(client, auth)
+    day_after = tomorrow + timedelta(days=1)
+    add_todo(client, auth, deadline_at=at(day_after, 23, 59).isoformat(), estimated_minutes=180)
+    suggestion = generate(client, auth, tomorrow, day_after, options={
+        "deadline_buffer_minutes": 0,
+        "blocked_windows": [{"start": "07:00", "end": "22:00", "weekdays": [day_after.weekday()]}]})
+
+    study = [b for b in suggestion["blocks"] if b["kind"] == "study"]
+    assert sum(minutes(b) for b in study) == 180
+    assert all(parse(b["start_at"]).date() == tomorrow for b in study)
+
+
+def test_hard_blocks_per_day_are_limited(client, auth):
+    tomorrow = prepare(client, auth)  # room for three 90-min blocks tomorrow
+    deadline = at(tomorrow, 23, 59).isoformat()
+    hard = [add_todo(client, auth, title=f"Khó {n}", deadline_at=deadline, estimated_minutes=90, difficulty=5)
+            for n in range(2)]
+    easy = add_todo(client, auth, title="Dễ", deadline_at=deadline, estimated_minutes=90, difficulty=2)
+    suggestion = generate(client, auth, tomorrow, tomorrow, options={
+        "deadline_buffer_minutes": 0, "max_study_minutes_per_day": 480, "max_hard_blocks_per_day": 1})
+
+    placed = {b["todo_id"] for b in suggestion["blocks"] if b["kind"] == "study"}
+    assert easy["id"] in placed  # easy work is not limited
+    assert len(placed & {t["id"] for t in hard}) == 1
+    [left] = suggestion["unscheduled"]
+    assert left["reason"] == "HARD_LIMIT_REACHED" and left["missing_minutes"] == 90
+
+
 def test_apply_creates_events_once(client, auth):
     tomorrow = prepare(client, auth)
     todo = add_todo(client, auth, deadline_at=at(tomorrow + timedelta(days=1), 23, 59).isoformat(),

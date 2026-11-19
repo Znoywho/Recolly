@@ -2,11 +2,12 @@
 
 Time is cut into 15-minute slots of local time. A slot is free when it is in the future, the
 user is awake (sleep from the sleep timeline), it is not inside the wake / bed buffers, a meal
-window, or any event (classes, manual and Google events, already applied blocks).
+window, a user-blocked window (on its weekdays), or any event (classes, manual and Google
+events, already applied blocks).
 
 Hard constraints: a block sits on free slots of one day and ends `deadline_buffer_minutes` before
-its todo's deadline;
-blocks keep `min_break_minutes` apart; at most `max_study_minutes_per_day` per day.
+its todo's deadline; blocks keep `min_break_minutes` apart; at most `max_study_minutes_per_day`
+per day and at most `max_hard_blocks_per_day` blocks of difficulty ≥ 4 per day.
 Objective: Σ predicted KSS × slots, weighted by difficulty (hard work goes to golden hours),
 plus a large penalty per unscheduled slot (weighted by priority) and a tiny one per hour of
 delay, so the earlier of two equally alert slots wins.
@@ -41,6 +42,7 @@ MAX_DAYS = 15       # `to` at most 14 days after `from`
 SOLVE_SECONDS = 5.0
 KSS_SCALE = 100     # KSS 3.25 -> 325 (CP-SAT needs integers)
 UNSCHEDULED_PENALTY = 10_000  # per slot, x priority: always worse than any placement
+HARD_DIFFICULTY = 4  # difficulty ≥ this counts towards max_hard_blocks_per_day
 PRIORITY_FACTOR = {Priority.LOW: 1, Priority.MEDIUM: 2, Priority.HIGH: 3}
 SUGGESTION_TTL = timedelta(hours=1)
 BEDTIME_TITLE = "Đi ngủ"
@@ -128,7 +130,8 @@ class Planner:
 
         for day in range(self.n // DAY_SLOTS):
             midnight = self.slot_time(day * DAY_SLOTS)
-            for window in o.meal_windows:
+            blocked = [w for w in o.blocked_windows if w.weekdays is None or midnight.weekday() in w.weekdays]
+            for window in [*o.meal_windows, *blocked]:
                 begin = datetime.combine(midnight.date(), window.start, self.tz)
                 finish = datetime.combine(midnight.date(), window.end, self.tz)
                 if finish <= begin:  # crosses midnight
@@ -163,6 +166,7 @@ class Planner:
         model = cp_model.CpModel()
         starts, present, intervals, objective = {}, {}, [], []
         per_day: dict[int, list[cp_model.LinearExpr]] = {}  # slots studied on each day
+        hard_per_day: dict[int, list[cp_model.IntVar]] = {}  # hard blocks placed on each day
 
         for i, block in enumerate(blocks):
             if not block.starts:
@@ -192,10 +196,15 @@ class Planner:
                 model.add(start < (day + 1) * DAY_SLOTS).only_enforce_if(on_day)
                 day_flags.append(on_day)
                 per_day.setdefault(day, []).append(block.slots * on_day)
+                if _is_hard(block):
+                    hard_per_day.setdefault(day, []).append(on_day)
             model.add(sum(day_flags) == is_on)
 
         for studied in per_day.values():
             model.add(sum(studied) <= cap)
+        # For each day d: Σ_{i hard} on_day[i][d] ≤ max_hard_blocks_per_day
+        for hard_flags in hard_per_day.values():
+            model.add(sum(hard_flags) <= o.max_hard_blocks_per_day)
 
         # Blocks of one todo keep their order (also breaks the symmetry between equal blocks).
         for i in starts:
@@ -221,6 +230,16 @@ class Planner:
         """True if `slots` more would break that day's study limit."""
         used = sum(blocks[i].slots for i, s in placed.items() if s // DAY_SLOTS == day)
         return (used + slots) * SLOT_MINUTES > self.options.max_study_minutes_per_day
+
+    def hard_day_is_full(self, day: int, placed: dict[int, int], blocks: list[Block]) -> bool:
+        """True if one more hard block would break that day's hard-block limit."""
+        hard = sum(1 for i, s in placed.items() if s // DAY_SLOTS == day and _is_hard(blocks[i]))
+        return hard >= self.options.max_hard_blocks_per_day
+
+
+def _is_hard(block: Block) -> bool:
+    """Hard work = difficulty ≥ HARD_DIFFICULTY; an unset difficulty counts as medium."""
+    return (block.todo.difficulty or 0) >= HARD_DIFFICULTY
 
 
 def check_range(first_day: date, last_day: date) -> int:
@@ -267,18 +286,24 @@ def generate(db: Session, user: User, timeline: Timeline, first_day: date, last_
 
     status, placed, solve_ms = planner.solve(blocks)
 
-    missing: dict[uuid.UUID, tuple[int, bool]] = {}
+    # todo id -> (missing minutes, every block hit the daily limit, every block hit a daily or hard limit)
+    missing: dict[uuid.UUID, tuple[int, bool, bool]] = {}
     for i, block in enumerate(blocks):
         if i in placed:
             continue
         days_of_block = {s // DAY_SLOTS for s in block.starts}
         capped = bool(days_of_block) and all(planner.day_is_full(d, placed, blocks, block.slots)
                                              for d in days_of_block)
-        minutes, all_capped = missing.get(block.todo.id, (0, True))
-        missing[block.todo.id] = (minutes + block.slots * SLOT_MINUTES, all_capped and capped)
-    for todo_id, (minutes, capped) in missing.items():
-        unscheduled.append({"todo_id": todo_id, "missing_minutes": minutes,
-                            "reason": "DAILY_LIMIT_REACHED" if capped else "NOT_ENOUGH_TIME_BEFORE_DEADLINE"})
+        hard_capped = bool(days_of_block) and _is_hard(block) and all(
+            planner.day_is_full(d, placed, blocks, block.slots) or planner.hard_day_is_full(d, placed, blocks)
+            for d in days_of_block)
+        minutes, all_capped, all_hard_capped = missing.get(block.todo.id, (0, True, True))
+        missing[block.todo.id] = (minutes + block.slots * SLOT_MINUTES, all_capped and capped,
+                                  all_hard_capped and hard_capped)
+    for todo_id, (minutes, capped, hard_capped) in missing.items():
+        reason = ("DAILY_LIMIT_REACHED" if capped else "HARD_LIMIT_REACHED" if hard_capped
+                  else "NOT_ENOUGH_TIME_BEFORE_DEADLINE")
+        unscheduled.append({"todo_id": todo_id, "missing_minutes": minutes, "reason": reason})
 
     result_blocks: list[dict[str, Any]] = []
     for i, start in placed.items():
