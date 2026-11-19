@@ -20,16 +20,18 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from ortools.sat.python import cp_model
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.errors import ApiError, not_found
+from app.core.redis_client import get_store
 from app.models.enums import Priority
 from app.models.event import Event
 from app.models.todo import Todo
 from app.models.user import User
 from app.repository.todo_repository import TodoRepository
-from app.schemas.schedule import ScheduleOptions
+from app.schemas.schedule import ScheduleBlock, ScheduleOptions
 from app.service.event_service import occurrences
 from app.service.sleep.timeline import Timeline, alertness_score
 
@@ -43,6 +45,8 @@ KSS_SCALE = 100     # KSS 3.25 -> 325 (CP-SAT needs integers)
 UNSCHEDULED_PENALTY = 10_000  # per slot, x priority: always worse than any placement
 PRIORITY_FACTOR = {Priority.LOW: 1, Priority.MEDIUM: 2, Priority.HIGH: 3}
 SUGGESTION_TTL = timedelta(hours=1)
+# The store keeps a suggestion a day past expiry, so S2 can still answer 410 (expired) instead of 404.
+STORE_TTL_SECONDS = int((SUGGESTION_TTL + timedelta(days=1)).total_seconds())
 BEDTIME_TITLE = "Đi ngủ"
 REST_TITLE = "Nghỉ giải lao"
 
@@ -54,15 +58,17 @@ class Block:
     starts: list[int] = field(default_factory=list)  # allowed start slots
 
 
-@dataclass
-class Suggestion:
+class Suggestion(BaseModel):
+    """An S1 result waiting for S2; stored as JSON so every API process can read it."""
+
     user_id: uuid.UUID
     expires_at: datetime
-    blocks: list[dict[str, Any]]
+    blocks: list[ScheduleBlock]
 
 
-# Suggestions live one hour, so memory is enough (single API process).
-_suggestions: dict[uuid.UUID, Suggestion] = {}
+def _suggestion_key(suggestion_id: uuid.UUID) -> str:
+    """Store key of one suggestion."""
+    return f"schedule:suggestion:{suggestion_id}"
 
 
 def _ceil_slots(minutes: int) -> int:
@@ -322,8 +328,8 @@ def generate(db: Session, user: User, timeline: Timeline, first_day: date, last_
 
     suggestion_id = uuid.uuid4()
     expires_at = now + SUGGESTION_TTL
-    _prune(now)
-    _suggestions[suggestion_id] = Suggestion(user.id, expires_at, result_blocks)
+    suggestion = Suggestion(user_id=user.id, expires_at=expires_at, blocks=result_blocks)
+    get_store().set_with_ttl(_suggestion_key(suggestion_id), suggestion.model_dump_json(), STORE_TTL_SECONDS)
     return {
         "suggestion_id": suggestion_id,
         "expires_at": expires_at,
@@ -338,21 +344,18 @@ def generate(db: Session, user: User, timeline: Timeline, first_day: date, last_
     }
 
 
-def _prune(now: datetime) -> None:
-    for key in [k for k, s in _suggestions.items() if s.expires_at <= now]:
-        del _suggestions[key]
-
-
 def get_suggestion(user: User, suggestion_id: uuid.UUID, now: datetime) -> Suggestion:
-    suggestion = _suggestions.get(suggestion_id)
+    """The user's suggestion; 404 if unknown or someone else's, 410 once expired."""
+    raw = get_store().get(_suggestion_key(suggestion_id))
+    suggestion = Suggestion.model_validate_json(raw) if raw else None
     if suggestion is None or suggestion.user_id != user.id:
         raise ApiError(404, "SUGGESTION_NOT_FOUND", "Suggestion not found")
     if suggestion.expires_at <= now:
-        del _suggestions[suggestion_id]
+        discard_suggestion(suggestion_id)
         raise ApiError(410, "SUGGESTION_EXPIRED", "Suggestion expired; generate a new one")
     return suggestion
 
 
 def discard_suggestion(suggestion_id: uuid.UUID) -> None:
     """After S2, so the same blocks cannot be applied twice."""
-    _suggestions.pop(suggestion_id, None)
+    get_store().delete(_suggestion_key(suggestion_id))
