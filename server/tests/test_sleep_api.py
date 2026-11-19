@@ -176,10 +176,13 @@ def test_biorhythm_typical_week(client, auth):
     assert client.get(f"{API}/biorhythm", params={"interval_minutes": 7}, headers=auth).status_code == 422
 
 
-def test_biorhythm_with_sleep_logs(client, auth):
+def test_biorhythm_with_sleep_logs(client, auth, monkeypatch):
+    """Late evening is the worst case: a 1-day timeline has no future point left to project."""
+    late_evening = at(today(), 23, 50)
+    monkeypatch.setattr("app.service.biorhythm_service.now_utc", lambda: late_evening)
     put_profile(client, auth)
     add_log(client, auth, at(today() - timedelta(days=1), 23), at(today(), 6, 30))
-    body = client.get(f"{API}/biorhythm", headers=auth).json()
+    body = client.get(f"{API}/biorhythm", params={"days": 2}, headers=auth).json()
     assert "TYPICAL_WEEK" not in body["warnings"]
     assert "NO_RECENT_SLEEP_DATA" in body["warnings"]
     states = {p["sleep_state"] for p in body["points"]}
