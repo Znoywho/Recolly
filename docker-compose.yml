@@ -14,7 +14,18 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
-    networks: 
+    networks:
+      - recolly-network
+  redis:
+    image: redis:7-alpine
+    container_name: recolly-redis-container
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
       - recolly-network
   server:
     build: ./server/
@@ -22,10 +33,13 @@ services:
     env_file: ./server/.env  # secrets stay out of the image (.dockerignore); `environment` below wins on conflicts
     environment:
       POSTGRES_DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-    ports: 
+      REDIS_URL: redis://redis:6379/0
+    ports:
       - "8765:8765"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:

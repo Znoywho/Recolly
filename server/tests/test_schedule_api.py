@@ -212,14 +212,15 @@ def test_unscheduled_reasons(client, auth):
     assert max(per_day.values()) <= 240
 
 
-def test_expired_suggestion(client, auth):
+def test_expired_suggestion(client, auth, monkeypatch):
     tomorrow = prepare(client, auth)
     suggestion = generate(client, auth, tomorrow, tomorrow)
-    import uuid
-    scheduler._suggestions[uuid.UUID(suggestion["suggestion_id"])].expires_at = at(today(), 0)
-    response = client.post(f"{API}/schedule/apply", json={"suggestion_id": suggestion["suggestion_id"]},
-                           headers=auth)
+    monkeypatch.setattr("app.api.schedule_api.now_utc", lambda: parse(suggestion["expires_at"]))
+    apply = {"suggestion_id": suggestion["suggestion_id"]}
+    response = client.post(f"{API}/schedule/apply", json=apply, headers=auth)
     assert (response.status_code, response.json()["code"]) == (410, "SUGGESTION_EXPIRED")
+    response = client.post(f"{API}/schedule/apply", json=apply, headers=auth)  # dropped after the 410
+    assert (response.status_code, response.json()["code"]) == (404, "SUGGESTION_NOT_FOUND")
 
 
 @pytest.mark.parametrize("first, last, code", [(3, 1, "INVALID_RANGE"), (1, 16, "RANGE_TOO_LARGE")])
