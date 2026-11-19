@@ -6,9 +6,10 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/theme/app_theme.dart';
 import '../../widgets/widgets.dart';
 import 'scan_page.dart';
+import 'scan_result_page.dart';
 
 // R13: take or pick a timetable photo, upload it, then go to the scan screen.
-// Returns the scanned subjects (List<SubjectDraft>) when OCR succeeds.
+// Pops `true` when the timetable was saved.
 class TimetableImportPage extends StatefulWidget {
   const TimetableImportPage({super.key});
 
@@ -64,16 +65,23 @@ class _TimetableImportPageState extends State<TimetableImportPage> {
     if (!mounted) return;
 
     if (result is List<SubjectDraft>) {
-      // TODO(R14): open the scan result screen instead of returning here
-      Navigator.pop(context, result);
+      openResult(result);
     } else if (result == ScanPage.retake) {
       pickPhoto(ImageSource.camera);
     } else if (result == ScanPage.pickOther) {
       pickPhoto(ImageSource.gallery);
     } else if (result == ScanPage.manual) {
-      // TODO(R14): open the edit subject screen with an empty subject
-      showMessage('Nhập thủ công sẽ có ở bản sau');
+      openResult([]);
     }
+  }
+
+  // R14: check / edit the subjects, then save. Close this page when saved.
+  Future<void> openResult(List<SubjectDraft> subjects) async {
+    final saved = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ScanResultPage(subjects: subjects)),
+    );
+    if (saved == true && mounted) Navigator.pop(context, true);
   }
 
   void showMessage(String text) {
