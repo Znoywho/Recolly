@@ -23,6 +23,10 @@ CALENDAR_API = "https://www.googleapis.com/calendar/v3"
 CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events"
 GOOGLE_ISSUERS = {"accounts.google.com", "https://accounts.google.com"}
 CHANNEL_TTL_SECONDS = 7 * 24 * 3600
+# Seconds to wait before each retry of a rate-limited Calendar call (exponential backoff, 7 s worst case).
+RATE_LIMIT_WAITS = (1, 2, 4)
+# Google answers some rate limits with 403 + one of these reasons instead of 429.
+RATE_LIMIT_REASONS = ("rateLimitExceeded", "userRateLimitExceeded")
 
 
 class GoogleError(Exception):
@@ -147,20 +151,26 @@ class GoogleClient:
     def _call(self, method: str, path: str, access_token: str, *,
               params: dict[str, Any] | None = None, json: dict[str, Any] | None = None,
               headers: dict[str, str] | None = None) -> dict[str, Any] | None:
-        try:
-            response = self.http.request(
-                method, f"{CALENDAR_API}{path}", params=params, json=json,
-                headers={"Authorization": f"Bearer {access_token}", **(headers or {})},
-            )
-        except httpx.HTTPError as exc:
-            raise GoogleUnavailable(0, str(exc)) from exc
-        status = response.status_code
-        if status < 300:
-            return response.json() if response.content else None
-        reason = _reason(response)
+        """One Calendar API request; a rate-limited answer is retried after RATE_LIMIT_WAITS."""
+        for wait in (*RATE_LIMIT_WAITS, None):
+            try:
+                response = self.http.request(
+                    method, f"{CALENDAR_API}{path}", params=params, json=json,
+                    headers={"Authorization": f"Bearer {access_token}", **(headers or {})},
+                )
+            except httpx.HTTPError as exc:
+                raise GoogleUnavailable(0, str(exc)) from exc
+            status = response.status_code
+            if status < 300:
+                return response.json() if response.content else None
+            reason = _reason(response)
+            # Only rate limits are retried: Google did not run the request, so a retried insert cannot duplicate.
+            if wait is None or not (status == 429 or reason in RATE_LIMIT_REASONS):
+                break
+            time.sleep(wait)
         if status == 401:
             raise GoogleAuthRevoked(status, reason)
-        if status == 429 or status >= 500 or reason in ("rateLimitExceeded", "userRateLimitExceeded"):
+        if status == 429 or status >= 500 or reason in RATE_LIMIT_REASONS:
             raise GoogleUnavailable(status, reason)
         raise GoogleError(status, reason)
 
