@@ -11,6 +11,7 @@ abstract final class AppColors {
 
   static const Color inkMuted = Color(0xFF5C5A55);
   static const Color slate = Color(0xFF4E6A75);
+  static const Color deepSlate = Color(0xFF435C65);
   static const Color disabled = Color(0xFFD9D5CA);
   static const Color skeleton = Color(0xFFE5DFD2);
   static const Color danger = Color(0xFFCC0000);

@@ -27,6 +27,7 @@ flutter:
     - assets/splashLogo_original.png
     - assets/phones.png
     - assets/trophy.png
+    - assets/google_logo.png
 
   fonts:
     - family: Be Vietnam Pro
