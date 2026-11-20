@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../core/theme/app_theme.dart';
 
 class BrutalButton extends StatefulWidget {
@@ -12,6 +13,7 @@ class BrutalButton extends StatefulWidget {
     this.hasBorder = true,
     this.hasShadow = true,
     this.leadingIcon = false,
+    this.leading,
   });
 
   final String label;
@@ -22,6 +24,7 @@ class BrutalButton extends StatefulWidget {
   final bool hasBorder;
   final bool hasShadow;
   final bool leadingIcon;
+  final Widget? leading;
 
   @override
   State<BrutalButton> createState() => _BrutalButtonState();
@@ -43,7 +46,7 @@ class _BrutalButtonState extends State<BrutalButton> {
 
   @override
   Widget build(BuildContext context) {
-    final hasShadow = _isEnabled && !_isPressed;
+    final leading = widget.leading;
     final travel = _isPressed ? AppShadows.offset : Offset.zero;
 
     return Semantics(
@@ -73,8 +76,10 @@ class _BrutalButtonState extends State<BrutalButton> {
             mainAxisSize: widget.expanded ? MainAxisSize.max : MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Kiểm tra thêm điều kiện widget.leadingIcon phải là true thì mới hiển thị icon
-              if (widget.icon != null && widget.leadingIcon) ...[
+              if (leading != null) ...[
+                leading,
+                const SizedBox(width: AppSpacing.sm),
+              ] else if (widget.icon != null && widget.leadingIcon) ...[
                 Icon(widget.icon, size: 18, color: _foregroundColor),
                 const SizedBox(width: AppSpacing.xs),
               ],
