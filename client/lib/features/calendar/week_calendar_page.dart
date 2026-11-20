@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../widgets/widgets.dart';
+import 'event_detail_page.dart';
 
 // R28: week calendar (Figma "Lịch tuần" 12:1925).
 // Week strip on top, timeline 6h–24h of the selected day below.
+// R29: "Xếp lịch ôn" asks CP-SAT for study blocks, user picks some, then saves.
+// R58: tapping a saved event opens EventDetailSheet.
 
 const int firstHour = 6;
 const int lastHour = 24;
@@ -28,6 +31,16 @@ const skeletonSlots = [
 ];
 
 const weekdayNames = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+// Why a todo could not be scheduled (UnscheduledTodo.reason)
+const unscheduledReasons = {
+  'NOT_ENOUGH_TIME_BEFORE_DEADLINE': 'Không đủ thời gian trước deadline',
+  'MISSING_DEADLINE': 'Chưa có deadline',
+  'MISSING_ESTIMATE': 'Chưa có thời lượng ước tính',
+  'DEADLINE_PASSED': 'Đã quá deadline',
+  'DAILY_LIMIT_REACHED': 'Đã đủ giờ học mỗi ngày',
+  'ALREADY_SCHEDULED': 'Đã có lịch ôn',
+};
+
 const weekdayLongNames = [
   'Thứ Hai',
   'Thứ Ba',
@@ -50,6 +63,7 @@ class CalendarBlock {
     this.fullWidth = false,
     this.event,
     this.todo,
+    this.suggested,
   });
 
   final String title;
@@ -61,6 +75,13 @@ class CalendarBlock {
   final bool fullWidth;
   final CalendarEvent? event;
   final Todo? todo;
+
+  // Not saved yet, comes from /schedule/generate (R29)
+  final ScheduleBlock? suggested;
+
+  // Column inside the lane when blocks overlap (set by layoutColumns)
+  int col = 0;
+  int cols = 1;
 }
 
 class WeekCalendarPage extends StatefulWidget {
@@ -81,6 +102,14 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
   bool loading = true;
   bool started = false;
   String? error;
+  int loadId = 0;
+
+  // R29 suggestion state
+  ScheduleSuggestion? suggestion;
+  Set<int> picked = {};
+  Map<String, String> todoTitles = {};
+  bool generating = false;
+  bool applying = false;
 
   DateTime get weekStart =>
       selectedDay.subtract(Duration(days: selectedDay.weekday - 1));
@@ -101,6 +130,8 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
 
   Future<void> loadWeek() async {
     final repos = RepositoryScope.of(context);
+    // Only the newest load may update the screen (fast week switching)
+    final id = ++loadId;
     final from = weekStart;
     final to = from.add(const Duration(days: 7));
     setState(() {
@@ -113,7 +144,7 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
         query: TodoQuery(dueAfter: from, dueBefore: to),
         limit: 100,
       );
-      if (!mounted) return;
+      if (!mounted || id != loadId) return;
       setState(() {
         events = eventList;
         deadlines = todoPage.items
@@ -122,7 +153,7 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
         loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || id != loadId) return;
       setState(() {
         loading = false;
         error =
@@ -159,10 +190,25 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
     loadGoldenHours();
   }
 
+  // True when [start, end) shows on the selected day's 6h–24h timeline.
+  // Events crossing midnight (e.g. bedtime 23:00–07:00) show on both days.
+  bool onSelectedDay(DateTime start, DateTime end) {
+    final from = DateTime(
+      selectedDay.year,
+      selectedDay.month,
+      selectedDay.day,
+      firstHour,
+    );
+    final to = selectedDay.add(const Duration(days: 1));
+    return start.isBefore(to) && end.isAfter(from);
+  }
+
   List<CalendarBlock> blocksOfDay() {
     final blocks = <CalendarBlock>[];
     for (final e in events) {
-      if (e.allDay || !sameDay(e.startAt.toLocal(), selectedDay)) continue;
+      if (e.allDay || !onSelectedDay(e.startAt.toLocal(), e.endAt.toLocal())) {
+        continue;
+      }
       blocks.add(
         CalendarBlock(
           title: e.title,
@@ -191,8 +237,69 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
         ),
       );
     }
+    for (final b in suggestion?.blocks ?? <ScheduleBlock>[]) {
+      final start = b.startAt.toLocal();
+      final end = b.endAt.toLocal();
+      if (!onSelectedDay(start, end)) continue;
+      final on = picked.contains(b.index);
+      blocks.add(
+        CalendarBlock(
+          title: b.title,
+          start: start,
+          end: end,
+          color: on ? colorOf(b.kind) : AppColors.disabled,
+          textColor: on && b.kind == EventKind.bedtime
+              ? AppColors.white
+              : AppColors.ink,
+          icon: on ? Icons.check_box : Icons.check_box_outline_blank,
+          fullWidth: b.kind == EventKind.bedtime,
+          suggested: b,
+        ),
+      );
+    }
     blocks.sort((a, b) => a.start.compareTo(b.start));
+    layoutColumns(blocks);
     return blocks;
+  }
+
+  // Blocks that overlap in time share the lane side by side.
+  // Bedtime (full width) blocks are left out.
+  void layoutColumns(List<CalendarBlock> blocks) {
+    // A block is drawn at least minBlockHeight tall, so count that as its end
+    final minMinutes = (minBlockHeight / hourHeight * 60).round();
+    DateTime shownEnd(CalendarBlock b) {
+      final minEnd = b.start.add(Duration(minutes: minMinutes));
+      return b.end.isAfter(minEnd) ? b.end : minEnd;
+    }
+
+    var group = <CalendarBlock>[];
+    var colEnds = <DateTime>[];
+    DateTime? groupEnd;
+
+    void closeGroup() {
+      for (final b in group) {
+        b.cols = colEnds.length;
+      }
+      group = [];
+      colEnds = [];
+      groupEnd = null;
+    }
+
+    for (final b in blocks.where((b) => !b.fullWidth)) {
+      if (groupEnd != null && !b.start.isBefore(groupEnd!)) closeGroup();
+      var col = colEnds.indexWhere((end) => !b.start.isBefore(end));
+      if (col == -1) {
+        col = colEnds.length;
+        colEnds.add(shownEnd(b));
+      } else {
+        colEnds[col] = shownEnd(b);
+      }
+      b.col = col;
+      group.add(b);
+      final end = shownEnd(b);
+      if (groupEnd == null || end.isAfter(groupEnd!)) groupEnd = end;
+    }
+    closeGroup();
   }
 
   static Color colorOf(EventKind kind) => switch (kind) {
@@ -218,8 +325,138 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
     return 'Tuần ${weekStart.day}/${weekStart.month} – ${end.day}/${end.month}, ${end.year}';
   }
 
+  void showSnack(String text) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  String errorText(Object e) {
+    if (e is ApiException) {
+      if (e.isNetworkError) return 'Không có mạng, thử lại sau nhé.';
+      if (e.code == 'HEALTH_PROFILE_NOT_FOUND') {
+        return 'Bạn cần nhập hồ sơ giấc ngủ trước khi xếp lịch.';
+      }
+      if (e.code == 'SUGGESTION_EXPIRED') {
+        return 'Lịch đề xuất đã hết hạn, bấm nút xếp lịch lại nhé.';
+      }
+    }
+    return 'Có lỗi xảy ra, thử lại sau nhé.';
+  }
+
+  // S1: ask the server for study blocks of the week being viewed.
+  Future<void> generateSchedule() async {
+    final today = dateOnly(DateTime.now());
+    final weekEnd = weekStart.add(const Duration(days: 6));
+    if (weekEnd.isBefore(today)) {
+      showSnack('Tuần này đã qua, chọn tuần khác nhé.');
+      return;
+    }
+    final from = weekStart.isBefore(today) ? today : weekStart;
+    final repos = RepositoryScope.of(context);
+    setState(() => generating = true);
+    showSnack('Đang xếp lịch ôn...');
+    try {
+      final result = await repos.schedule.generate(
+        ScheduleRequest(from: from, to: weekEnd),
+      );
+      // Titles for the "could not schedule" card
+      final todoPage = await repos.todos.listTodos(limit: 100);
+      if (!mounted) return;
+      setState(() {
+        suggestion = result;
+        picked = {for (final b in result.blocks) b.index};
+        todoTitles = {for (final t in todoPage.items) t.id: t.title};
+        generating = false;
+      });
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      if (result.blocks.isEmpty && result.unscheduled.isEmpty) {
+        showSnack('Không có việc nào cần xếp lịch.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => generating = false);
+      showSnack(errorText(e));
+    }
+  }
+
+  // S2: save the picked blocks as events, then reload the week.
+  Future<void> applySchedule() async {
+    final s = suggestion;
+    if (s == null || picked.isEmpty) return;
+    setState(() => applying = true);
+    try {
+      final result = await RepositoryScope.of(context).schedule
+          .apply(s.suggestionId, blockIndexes: picked.toList()..sort());
+      if (!mounted) return;
+      setState(() {
+        suggestion = null;
+        applying = false;
+      });
+      showSnack('Đã lưu ${result.events.length} khối vào lịch.');
+      loadWeek();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        applying = false;
+        if (e is ApiException && e.code == 'SUGGESTION_EXPIRED') {
+          suggestion = null;
+        }
+      });
+      showSnack(errorText(e));
+    }
+  }
+
+  void cancelSuggestion() => setState(() => suggestion = null);
+
+  void togglePick(ScheduleBlock b) {
+    setState(() {
+      if (!picked.remove(b.index)) picked.add(b.index);
+    });
+  }
+
+  // R58: open the event detail sheet, reload when it changed.
+  Future<void> openEvent(CalendarEvent e) async {
+    final start = e.startAt.toLocal();
+    final end = e.endAt.toLocal();
+    final golden = goldenHours.any(
+      (w) => w.start.toLocal().isBefore(end) && w.end.toLocal().isAfter(start),
+    );
+    final result = await EventDetailSheet.show(
+      context,
+      event: e,
+      repo: RepositoryScope.of(context).events,
+      golden: golden,
+    );
+    if (result == null || !mounted) return;
+    loadWeek();
+    if (result == 'deleted' && e.kind == EventKind.study) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: const Text('Đã xóa khối ôn.'),
+            action: SnackBarAction(
+              label: 'Xếp lại',
+              onPressed: generateSchedule,
+            ),
+          ),
+        );
+    } else {
+      showSnack(result == 'deleted' ? 'Đã xóa.' : 'Đã dời giờ.');
+    }
+  }
+
   void showBlock(CalendarBlock block) {
-    // Simple info sheet; full event detail screen is R58.
+    if (block.suggested != null) {
+      togglePick(block.suggested!);
+      return;
+    }
+    if (block.event != null) {
+      openEvent(block.event!);
+      return;
+    }
+    // Todo deadline: simple info sheet
     final e = block.event;
     showModalBottomSheet(
       context: context,
@@ -298,6 +535,11 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
                 ],
               ),
               const SizedBox(height: AppSpacing.sm),
+              // Only while a suggestion is shown, so the screen stays as Figma
+              if (error == null && suggestion != null) ...[
+                scheduleBar(suggestion!),
+                const SizedBox(height: AppSpacing.md),
+              ],
               if (error != null)
                 statusCard(
                   color: AppColors.coral,
@@ -309,6 +551,8 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
                 )
               else
                 timeline(loading ? [] : blocks),
+              if (suggestion != null && suggestion!.unscheduled.isNotEmpty)
+                unscheduledCard(suggestion!.unscheduled),
             ],
           ),
         ),
@@ -327,6 +571,20 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
               style: AppTypography.title,
             ),
           ),
+          // R29: not in Figma, so a small button next to the week arrows
+          Tooltip(
+            message: 'Xếp lịch ôn',
+            child: BrutalIconButton(
+              icon: Icons.auto_awesome,
+              size: 36,
+              iconSize: 18,
+              color: AppColors.yellow,
+              onPressed: generating || loading || suggestion != null
+                  ? null
+                  : generateSchedule,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
           BrutalIconButton(
             icon: Icons.chevron_left,
             size: 36,
@@ -385,8 +643,14 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
     );
   }
 
+  // Offset on the selected day's timeline; times on other days are clamped.
   double topOf(DateTime t) {
-    final dayStart = DateTime(t.year, t.month, t.day, firstHour);
+    final dayStart = DateTime(
+      selectedDay.year,
+      selectedDay.month,
+      selectedDay.day,
+      firstHour,
+    );
     final hours = t.difference(dayStart).inMinutes / 60;
     return hours.clamp(0, (lastHour - firstHour).toDouble()) * hourHeight;
   }
@@ -456,7 +720,8 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
               ],
               // Golden hours lane (right side), hidden when the day is empty
               for (final w in goldenHours)
-                if (blocks.isNotEmpty && sameDay(w.start.toLocal(), selectedDay))
+                if (blocks.isNotEmpty &&
+                    sameDay(w.start.toLocal(), selectedDay))
                   Positioned(
                     top: topOf(w.start.toLocal()),
                     right: 0,
@@ -486,8 +751,10 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
               for (final b in blocks)
                 Positioned(
                   top: topOf(b.start),
-                  left: hourLabelWidth + 4,
-                  width: b.fullWidth ? width - hourLabelWidth - 14 : laneWidth,
+                  left: hourLabelWidth + 4 + b.col * laneWidth / b.cols,
+                  width: b.fullWidth
+                      ? width - hourLabelWidth - 14
+                      : laneWidth / b.cols - (b.cols > 1 ? 4 : 0),
                   height: blockHeight(b.start, b.end),
                   child: GestureDetector(
                     onTap: () => showBlock(b),
@@ -503,8 +770,7 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
                     color: AppColors.yellow,
                     icon: Icons.edit_calendar_outlined,
                     title: 'Chưa có lịch hôm nay',
-                    message:
-                        'Nhập thời khóa biểu hoặc thêm todo để Recolly xếp lịch ôn tập cho bạn.',
+                    message: 'Nhập thời khóa biểu hoặc thêm todo để Recolly xếp lịch ôn tập cho bạn.',
                     button: 'Nhập thời khóa biểu',
                     onPressed: widget.onImportTimetable,
                   ),
@@ -513,6 +779,82 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
           ),
         );
       },
+    );
+  }
+
+  // Save/cancel bar while a suggestion is shown.
+  Widget scheduleBar(ScheduleSuggestion s) {
+    final minutes = s.blocks
+        .where((b) => picked.contains(b.index) && b.kind == EventKind.study)
+        .fold<int>(
+          0,
+          (sum, b) => sum + b.endAt.difference(b.startAt).inMinutes,
+        );
+    return BrutalCard(
+      color: AppColors.teal,
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Đề xuất: chọn ${picked.length}/${s.blocks.length} khối',
+            style: AppTypography.subtitle,
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            '${minutes ~/ 60}h${two(minutes % 60)} ôn tập · '
+            // Server ratio is for the whole suggestion, so only show it then
+            '${picked.length == s.blocks.length ? '${(s.stats.goldenHourRatio * 100).round()}% trong giờ vàng. ' : ''}'
+            'Chạm vào khối để bỏ chọn.',
+            style: AppTypography.body,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: BrutalButton(
+                  label: 'Hủy',
+                  color: AppColors.white,
+                  onPressed: applying ? null : cancelSuggestion,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: BrutalButton(
+                  label: applying ? 'Đang lưu...' : 'Lưu lịch',
+                  onPressed: applying || picked.isEmpty ? null : applySchedule,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget unscheduledCard(List<UnscheduledTodo> items) {
+    return BrutalCard(
+      color: AppColors.coral,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Chưa xếp được ${items.length} việc',
+            style: AppTypography.subtitle,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          for (final u in items)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xxs),
+              child: Text(
+                '• ${todoTitles[u.todoId] ?? 'Một việc'}: '
+                '${unscheduledReasons[u.reason] ?? u.reason}'
+                '${u.missingMinutes != null ? ' (thiếu ${u.missingMinutes} phút)' : ''}',
+                style: AppTypography.body,
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -575,6 +917,9 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
   Widget eventBlock(CalendarBlock b) {
     return BrutalCard(
       color: b.color,
+      borderStyle: b.suggested != null
+          ? BrutalBorderStyle.dashed
+          : BrutalBorderStyle.solid,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -600,7 +945,12 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
             ],
           ),
           Text(
-            '${hhmm(b.start)} - ${hhmm(b.end)}',
+            // Narrow column (overlapping events): start time only
+            b.cols > 1
+                ? hhmm(b.start)
+                : '${hhmm(b.start)} - ${hhmm(b.end)}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: AppTypography.label.copyWith(color: b.textColor),
           ),
         ],

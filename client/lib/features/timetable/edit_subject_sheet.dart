@@ -255,6 +255,7 @@ class _EditSubjectSheetState extends State<EditSubjectSheet> {
                           child: DropdownButton<int>(
                             value: day,
                             isExpanded: true,
+                            icon: const Icon(Icons.keyboard_arrow_down),
                             style: AppTypography.body,
                             items: [
                               for (var d = 1; d <= 7; d++)
