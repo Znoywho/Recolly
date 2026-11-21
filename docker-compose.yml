@@ -1,3 +1,8 @@
+# Shared by the API and the reminder job (YAML anchor, used below as *server-env).
+x-server-env: &server-env
+  POSTGRES_DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+  REDIS_URL: redis://redis:6379/0
+
 services:
   db:
     image: postgres:18
@@ -19,6 +24,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: recolly-redis-container
+    ports:
+      - "127.0.0.1:6380:6379"  # this machine only (no password); server/.env: REDIS_URL=redis://localhost:6380/0
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -29,11 +36,10 @@ services:
       - recolly-network
   server:
     build: ./server/
+    image: recolly-server
     container_name: recolly-server-container
     env_file: ./server/.env  # secrets stay out of the image (.dockerignore); `environment` below wins on conflicts
-    environment:
-      POSTGRES_DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      REDIS_URL: redis://redis:6379/0
+    environment: *server-env
     ports:
       - "8765:8765"
     depends_on:
@@ -44,6 +50,21 @@ services:
     restart: unless-stopped
     networks:
         - recolly-network
+  reminders:  # bedtime/deadline pushes (R39) on every 5-minute mark; FCM key: see docker-compose.override.yml in README
+    build: ./server/
+    image: recolly-server  # same image as server, built from cache
+    container_name: recolly-reminders-container
+    env_file: ./server/.env
+    environment: *server-env
+    command: python -m app.jobs.send_reminders --loop
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - recolly-network
 networks:
   recolly-network:
     driver: bridge

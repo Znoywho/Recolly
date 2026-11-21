@@ -192,7 +192,20 @@ cd Recolly
 ```bash
 cp .env.example .env            # điền POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
 # tạo server/.env như ở bước 4
-docker compose up --build       # PostgreSQL ở cổng 5433, API ở cổng 8765
+docker compose up --build       # PostgreSQL ở cổng 5433, Redis ở 127.0.0.1:6380, API ở cổng 8765
+```
+
+Service `reminders` gửi nhắc giờ ngủ / deadline mỗi 5 phút (`python -m app.jobs.send_reminders --loop`).
+Không có key FCM thì nó chỉ ghi log. Muốn push thật tới điện thoại, tạo `docker-compose.override.yml`
+(đã gitignore, chỉ nằm trên máy bạn; không commit key):
+
+```yaml
+services:
+  reminders:
+    environment:
+      FCM_SERVICE_ACCOUNT_FILE: /run/secrets/fcm.json
+    volumes:
+      - ~/secrets/recolly-fcm.json:/run/secrets/fcm.json:ro
 ```
 
 Muốn chạy backend trực tiếp trên máy để dev thì làm bước 3 và 4.
