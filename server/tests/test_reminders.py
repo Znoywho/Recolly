@@ -29,6 +29,8 @@ class FakeSender:
         """Record and answer like FcmSender.send."""
         if fcm_token.startswith("dead"):
             return False
+        if fcm_token.startswith("broken"):  # e.g. 403 SENDER_ID_MISMATCH, 5xx
+            raise RuntimeError("FCM error")
         self.sent.append((fcm_token, payload))
         return True
 
@@ -116,6 +118,20 @@ def test_dead_token_is_removed(client, auth):
     assert {token for token, _ in sender.sent} == {"phone-1"}
     sender.sent.clear()
     assert run_send_reminders(deadline - timedelta(hours=2, minutes=-1), sender) == {"sent": 2}
+
+
+def test_failing_device_does_not_block_the_users_other_devices(client, auth):
+    add_device(client, auth, "dead-token")
+    add_device(client, auth, "broken-token")
+    add_device(client, auth, "phone-1")
+    deadline = deadline_in_days(3)
+    add_todo(client, auth, deadline)
+    sender = FakeSender()
+    counts = run_send_reminders(deadline - timedelta(hours=2, minutes=-1), sender)
+    assert counts == {"sent": 1, "failed": 1, "dead_tokens": 1}
+    assert [token for token, _ in sender.sent] == ["phone-1"]
+    sender.sent.clear()  # the dead token's removal was committed despite the other failure
+    assert run_send_reminders(deadline - timedelta(hours=2, minutes=-1), sender) == {"sent": 1, "failed": 1}
 
 
 # ─────────────────────────── FcmSender ───────────────────────────

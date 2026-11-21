@@ -41,7 +41,13 @@ def run_send_reminders(now: datetime | None = None, sender: FcmSender | LogSende
                     for device in user.devices:
                         if device.id in dead:
                             continue
-                        if sender.send(device.fcm_token, payload):
+                        try:
+                            delivered = sender.send(device.fcm_token, payload)
+                        except Exception as exc:  # noqa: BLE001 - one bad device must not block the user's others
+                            counts["failed"] += 1
+                            logger.warning("Push to device %s failed: %s", device.id, exc)
+                            continue
+                        if delivered:
                             counts["sent"] += 1
                         else:
                             dead.add(device.id)
