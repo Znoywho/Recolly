@@ -53,11 +53,14 @@ def client(database, google):
     from fastapi.testclient import TestClient
     from sqlalchemy import text
 
+    from app.core.redis_client import MemoryStore, get_store
     from app.db.base import Base
     from app.main import app
     from app.service.google import get_google_client
 
     app.dependency_overrides[get_google_client] = lambda: google
+    store = MemoryStore()  # fresh rate-limit counters per test, never a real Redis
+    app.dependency_overrides[get_store] = lambda: store
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
