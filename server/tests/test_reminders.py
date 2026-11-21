@@ -142,6 +142,11 @@ def test_fcm_sender_follows_the_v1_api(service_account):
         if token == "gone":
             return httpx.Response(404, json={"error": {"status": "NOT_FOUND", "details": [
                 {"errorCode": "UNREGISTERED"}]}})
+        if token in ("malformed", "bad-payload"):  # real FCM 400 bodies: same status, different field
+            field = "message.token" if token == "malformed" else "message.data[0].value"
+            return httpx.Response(400, json={"error": {"code": 400, "status": "INVALID_ARGUMENT", "details": [
+                {"@type": "type.googleapis.com/google.rpc.BadRequest",
+                 "fieldViolations": [{"field": field, "description": "…"}]}]}})
         return httpx.Response(200, json={"name": "projects/recolly-test/messages/1"})
 
     sender = FcmSender(service_account, httpx.Client(transport=httpx.MockTransport(handle)))
@@ -149,8 +154,11 @@ def test_fcm_sender_follows_the_v1_api(service_account):
                "scheduled_for": "2026-11-20T17:00:00+07:00"}
     assert sender.send("phone-1", payload) is True
     assert sender.send("gone", payload) is False
+    assert sender.send("malformed", payload) is False
+    with pytest.raises(httpx.HTTPStatusError):  # a payload bug must not look like a dead token
+        sender.send("bad-payload", payload)
 
-    token_request, first, second = requests  # the access token is fetched once and reused
+    token_request, first, second, *_ = requests  # the access token is fetched once and reused
     form = dict(httpx.QueryParams(token_request.content.decode()))
     assert form["grant_type"] == "urn:ietf:params:oauth:grant-type:jwt-bearer"
     claims = jwt.decode(form["assertion"], service_account["public_key"], algorithms=["RS256"],
