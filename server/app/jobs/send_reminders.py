@@ -1,7 +1,8 @@
 """Send due bedtime / deadline reminders (R39) to every registered device.
 
-Run every 5 minutes (cron now, a Kubernetes CronJob when deployed):
-    python -m app.jobs.send_reminders
+Run once:                 python -m app.jobs.send_reminders
+Run on every 5-minute mark (the `reminders` service in docker-compose.yml):
+                          python -m app.jobs.send_reminders --loop
 Each run covers the window [now − RUN_EVERY, now).
 Each reminder is claimed once in the store (Redis SET NX), so an extra run in the same window
 does not send it twice. Needs REDIS_URL: each cron run is a new process, so MemoryStore forgets.
@@ -12,6 +13,8 @@ add catch-up / retry if users report missed reminders.
 import hashlib
 import json
 import logging
+import sys
+import time
 from collections import Counter
 from datetime import datetime, timedelta
 
@@ -31,6 +34,12 @@ RUN_EVERY = timedelta(minutes=5)
 CLAIM_TTL_SECONDS = 24 * 3600  # far longer than any overlap between runs
 
 
+def floor_to_period(moment: datetime, period: timedelta) -> datetime:
+    """`moment` rounded down to a whole period since the epoch: floor(t / p) · p (10:07:23 → 10:05 for 5 min)."""
+    seconds = period.total_seconds()
+    return datetime.fromtimestamp(moment.timestamp() // seconds * seconds, tz=moment.tzinfo)
+
+
 def reminder_claim_key(user_id, payload: dict) -> str:
     """Store key for one reminder: same user + same payload = same reminder."""
     digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
@@ -40,7 +49,7 @@ def reminder_claim_key(user_id, payload: dict) -> str:
 def run_send_reminders(now: datetime | None = None, sender: FcmSender | LogSender | None = None,
                        store: RedisStore | MemoryStore | None = None) -> Counter:
     """Send what fell due in the last RUN_EVERY to each user's devices; one failing user skips only itself."""
-    now = now or now_utc()
+    now = now or floor_to_period(now_utc(), RUN_EVERY)  # late runs still cover :00-:05, :05-:10, … with no gaps
     sender = sender or get_push_sender()
     store = store or get_store()
     with SessionLocal() as db:
@@ -80,4 +89,10 @@ def run_send_reminders(now: datetime | None = None, sender: FcmSender | LogSende
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    print(dict(run_send_reminders()))
+    if "--loop" not in sys.argv:
+        print(dict(run_send_reminders()))
+        sys.exit()
+    period = RUN_EVERY.total_seconds()
+    while True:
+        time.sleep(period - time.time() % period)  # wake on the next 5-minute mark
+        print(dict(run_send_reminders()), flush=True)

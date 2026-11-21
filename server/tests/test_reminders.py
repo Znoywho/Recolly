@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from app.core.redis_client import MemoryStore
-from app.jobs.send_reminders import run_send_reminders
+from app.jobs.send_reminders import floor_to_period, run_send_reminders
 from app.service.push import FcmSender
 from app.service.reminders import due_reminders
 
@@ -199,3 +199,9 @@ def test_fcm_sender_follows_the_v1_api(service_account):
     message = json.loads(first.content)["message"]
     assert message["notification"] == {"title": "Còn 2 giờ", "body": "…"}
     assert message["data"] == payload  # all values are strings already
+
+
+def test_floor_to_period_rounds_down_to_the_mark():
+    five = timedelta(minutes=5)
+    assert floor_to_period(datetime(2026, 11, 21, 10, 7, 23, tzinfo=TZ), five) == datetime(2026, 11, 21, 10, 5, tzinfo=TZ)
+    assert floor_to_period(datetime(2026, 11, 21, 10, 5, tzinfo=TZ), five) == datetime(2026, 11, 21, 10, 5, tzinfo=TZ)
