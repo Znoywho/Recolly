@@ -22,6 +22,10 @@ class RedisStore:
         """Store `value`; Redis deletes it after `seconds`."""
         self.client.set(key, value, ex=seconds)
 
+    def set_if_absent(self, key: str, value: str, seconds: int) -> bool:
+        """Atomically store `value` only if `key` does not exist (SET NX EX); True when stored."""
+        return bool(self.client.set(key, value, ex=seconds, nx=True))
+
     def get(self, key: str) -> str | None:
         """The value, or None when missing or expired."""
         return self.client.get(key)
@@ -40,6 +44,13 @@ class MemoryStore:
     def set_with_ttl(self, key: str, value: str, seconds: int) -> None:
         """Store `value` until `seconds` from now."""
         self._items[key] = (value, time.monotonic() + seconds)
+
+    def set_if_absent(self, key: str, value: str, seconds: int) -> bool:
+        """Store `value` only if `key` is missing or expired; True when stored (one process, so no race)."""
+        if self.get(key) is not None:
+            return False
+        self.set_with_ttl(key, value, seconds)
+        return True
 
     def get(self, key: str) -> str | None:
         """The value, or None when missing or expired (expired keys are dropped on read)."""
