@@ -32,7 +32,6 @@ OAuth client is needed.
 
 - OCR (T1, T2): waiting for the Vintern provider.
 - Operations marked `x-phase: later` in the contract (screen events, KSS check-ins, Bayes).
-- Sending FCM push notifications: R3/R4 only store device tokens.
 
 ## Voice → todo pipeline (V1)
 
