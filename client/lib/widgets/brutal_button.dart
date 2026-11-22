@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
+import 'brutal_press_feedback.dart';
 
 class BrutalButton extends StatefulWidget {
   const BrutalButton({
@@ -30,67 +31,63 @@ class BrutalButton extends StatefulWidget {
   State<BrutalButton> createState() => _BrutalButtonState();
 }
 
-class _BrutalButtonState extends State<BrutalButton> {
-  static const Duration _pressDuration = Duration(milliseconds: 70);
+class _BrutalButtonState extends State<BrutalButton> with BrutalPressFeedback {
+  @override
+  bool get isPressEnabled => widget.onPressed != null;
 
-  bool _isPressed = false;
-
-  bool get _isEnabled => widget.onPressed != null;
-
-  Color get _foregroundColor => _isEnabled ? AppColors.ink : AppColors.inkMuted;
-
-  void _setPressed(bool isPressed) {
-    if (!_isEnabled || _isPressed == isPressed) return;
-    setState(() => _isPressed = isPressed);
-  }
+  Color get _foregroundColor =>
+      isPressEnabled ? AppColors.ink : AppColors.inkMuted;
 
   @override
   Widget build(BuildContext context) {
     final leading = widget.leading;
-    final travel = _isPressed ? AppShadows.offset : Offset.zero;
+    final travel = isPressed ? AppShadows.offset : Offset.zero;
 
     return Semantics(
       button: true,
-      enabled: _isEnabled,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onPressed,
-        onTapDown: (_) => _setPressed(true),
-        onTapUp: (_) => _setPressed(false),
-        onTapCancel: () => _setPressed(false),
-        child: AnimatedContainer(
-          duration: _pressDuration,
-          curve: Curves.easeOut,
-          transform: Matrix4.translationValues(travel.dx, travel.dy, 0),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.sm + AppSpacing.xxs,
-          ),
-          decoration: AppTheme.brutalBox(
-            color: _isEnabled ? widget.color : AppColors.disabled,
-            borderRadius: AppRadii.pillAll,
-            hasShadow: _isEnabled && !_isPressed && widget.hasShadow,
-            hasBorder: widget.hasBorder,
-          ),
-          child: Row(
-            mainAxisSize: widget.expanded ? MainAxisSize.max : MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (leading != null) ...[
-                leading,
-                const SizedBox(width: AppSpacing.sm),
-              ] else if (widget.icon != null && widget.leadingIcon) ...[
-                Icon(widget.icon, size: 18, color: _foregroundColor),
-                const SizedBox(width: AppSpacing.xs),
-              ],
-              Flexible(
-                child: Text(
-                  widget.label,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.button.copyWith(color: _foregroundColor),
+      enabled: isPressEnabled,
+      child: pressListener(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onPressed,
+          child: AnimatedContainer(
+            duration: BrutalPressFeedback.pressAnimationDuration,
+            curve: Curves.easeOut,
+            transform: Matrix4.translationValues(travel.dx, travel.dy, 0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.sm + AppSpacing.xxs,
+            ),
+            decoration: AppTheme.brutalBox(
+              color: isPressEnabled ? widget.color : AppColors.disabled,
+              borderRadius: AppRadii.pillAll,
+              hasShadow: isPressEnabled && !isPressed && widget.hasShadow,
+              hasBorder: widget.hasBorder,
+            ),
+            child: Row(
+              mainAxisSize: widget.expanded
+                  ? MainAxisSize.max
+                  : MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (leading != null) ...[
+                  leading,
+                  const SizedBox(width: AppSpacing.sm),
+                ] else if (widget.icon != null && widget.leadingIcon) ...[
+                  Icon(widget.icon, size: 18, color: _foregroundColor),
+                  const SizedBox(width: AppSpacing.xs),
+                ],
+                Flexible(
+                  child: Text(
+                    widget.label,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.button.copyWith(
+                      color: _foregroundColor,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
