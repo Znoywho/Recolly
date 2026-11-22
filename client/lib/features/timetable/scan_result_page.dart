@@ -21,7 +21,8 @@ class _ScanResultPageState extends State<ScanResultPage> {
   late final List<SubjectDraft> subjects = [...widget.subjects];
   bool saving = false;
 
-  static const cardColors = [AppColors.teal, AppColors.yellow, AppColors.green];
+  // Figma 2:1374: teal / yellow in turn, flagged cards are white
+  static const cardColors = [AppColors.teal, AppColors.yellow];
 
   // OCR rows under this confidence get the "Kiểm tra lại" badge
   static const lowConfidence = 0.7;
@@ -108,36 +109,66 @@ class _ScanResultPageState extends State<ScanResultPage> {
     final s = subjects[index];
     final check = needsCheck(s);
     final room = s.room;
+    // Color index counts only the cards that are not flagged
+    final colorIndex = subjects.take(index).where((x) => !needsCheck(x)).length;
+    const text = TextStyle(
+      fontFamily: AppTypography.fontFamily,
+      fontSize: 15,
+      height: 1.3,
+      color: AppColors.ink,
+    );
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: GestureDetector(
         onTap: saving ? null : () => edit(index),
         child: BrutalCard(
-          color: check ? AppColors.white : cardColors[index % cardColors.length],
+          color: check
+              ? AppColors.white
+              : cardColors[colorIndex % cardColors.length],
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Expanded(child: Text(s.name, style: AppTypography.subtitle)),
-                  const Icon(Icons.edit_outlined, size: 20),
+                  Expanded(
+                    child: Text(
+                      s.name,
+                      style: text.copyWith(fontWeight: AppTypography.semiBold),
+                    ),
+                  ),
+                  // Figma shows the pencil only on cards to check
+                  if (check) const Icon(Icons.edit_outlined, size: 20),
                 ],
               ),
-              if (room != null && room.isNotEmpty)
-                Text('· $room', style: AppTypography.body),
+              const SizedBox(height: AppSpacing.xxs),
+              if (room != null && room.isNotEmpty) ...[
+                Text('· $room', style: text),
+                const SizedBox(height: AppSpacing.xxs),
+              ],
               Row(
                 children: [
                   Expanded(
                     child: Text(
                       '· ${dayName(s.dayOfWeek)} · '
                       '${s.startTime.toJson()}-${s.endTime.toJson()}',
-                      style: AppTypography.body,
+                      style: text,
                     ),
                   ),
                   if (check)
-                    const BrutalBadge(
-                      label: 'Kiểm tra lại',
-                      color: AppColors.coral,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 5,
+                      ),
+                      decoration: AppTheme.brutalBox(color: AppColors.coral),
+                      child: const Text(
+                        'Kiểm tra lại',
+                        style: AppTypography.label,
+                      ),
                     ),
                 ],
               ),
@@ -162,21 +193,35 @@ class _ScanResultPageState extends State<ScanResultPage> {
                     children: [
                       BrutalIconButton(
                         icon: Icons.arrow_back,
+                        size: 40,
                         onPressed: () => Navigator.pop(context),
                       ),
-                      const Expanded(
+                      Expanded(
                         child: Text(
                           'Recolly',
                           textAlign: TextAlign.center,
-                          style: AppTypography.subtitle,
+                          style: AppTypography.subtitle.copyWith(fontSize: 20),
                         ),
                       ),
-                      const BrutalBadge(label: '2 / 2'),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: AppTheme.brutalBox(
+                          color: AppColors.yellow,
+                          borderRadius: AppRadii.pillAll,
+                        ),
+                        child: const Text('2 / 2', style: AppTypography.label),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.lg),
-                  const Text('Kiểm tra lại lịch học', style: AppTypography.title),
-                  const SizedBox(height: AppSpacing.lg),
+                  const SizedBox(height: AppSpacing.md),
+                  const Text(
+                    'Kiểm tra lại lịch học',
+                    style: AppTypography.title,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
                   if (subjects.isEmpty)
                     const Padding(
                       padding: EdgeInsets.only(bottom: AppSpacing.md),
