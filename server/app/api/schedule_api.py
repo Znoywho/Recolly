@@ -48,11 +48,11 @@ def apply_schedule(body: ScheduleApplyRequest, user: CurrentUser, db: DbSession,
         blocks = [blocks[i] for i in sorted(set(body.block_indexes))]
 
     # A todo may have been deleted since S1.
-    todo_ids = {b["todo_id"] for b in blocks if b["todo_id"]}
+    todo_ids = {b.todo_id for b in blocks if b.todo_id}
     existing = set(db.scalars(select(Todo.id).where(Todo.user_id == user.id, Todo.id.in_(todo_ids))).all())
-    events = [Event(user_id=user.id, title=b["title"], start_at=b["start_at"], end_at=b["end_at"],
-                    kind=EventKind(b["kind"]), source=EventSource.SCHEDULER,
-                    todo_id=b["todo_id"] if b["todo_id"] in existing else None,
+    events = [Event(user_id=user.id, title=b.title, start_at=b.start_at, end_at=b.end_at,
+                    kind=EventKind(b.kind), source=EventSource.SCHEDULER,
+                    todo_id=b.todo_id if b.todo_id in existing else None,
                     sync_status=initial_sync_status(user))
               for b in blocks]
     db.add_all(events)

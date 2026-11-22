@@ -86,6 +86,70 @@ def test_blocks_respect_every_constraint(client, auth):
     assert suggestion["from"] == tomorrow.isoformat()
 
 
+def test_blocks_end_buffer_minutes_before_the_deadline(client, auth):
+    tomorrow = prepare(client, auth)  # free before 15:00 tomorrow: only 13:00–15:00 (lunch until 13:00)
+    todo = add_todo(client, auth, deadline_at=at(tomorrow, 17).isoformat(), estimated_minutes=180)
+    suggestion = generate(client, auth, tomorrow, tomorrow, options={"deadline_buffer_minutes": 120})
+
+    study = [b for b in suggestion["blocks"] if b["kind"] == "study"]
+    assert [minutes(b) for b in study] == [90]  # 17:00 − 120 min = 15:00 leaves room for one block
+    assert all(parse(b["end_at"]) <= at(tomorrow, 15) for b in study)
+    assert suggestion["unscheduled"] == [{"todo_id": todo["id"], "reason": "NOT_ENOUGH_TIME_BEFORE_DEADLINE",
+                                          "missing_minutes": 90}]
+
+
+def test_zero_deadline_buffer_allows_blocks_up_to_the_deadline(client, auth):
+    tomorrow = prepare(client, auth)
+    add_todo(client, auth, deadline_at=at(tomorrow, 17).isoformat(), estimated_minutes=180)
+    suggestion = generate(client, auth, tomorrow, tomorrow, options={"deadline_buffer_minutes": 0})
+
+    study = [b for b in suggestion["blocks"] if b["kind"] == "study"]
+    assert sum(minutes(b) for b in study) == 180
+    assert all(parse(b["end_at"]) <= at(tomorrow, 17) for b in study)
+    assert suggestion["unscheduled"] == []
+
+
+def test_blocked_windows_take_away_study_time(client, auth):
+    tomorrow = prepare(client, auth)  # free tomorrow: 13:00–18:00 and 19:00–22:00 (07:00–07:30 is too short)
+    todo = add_todo(client, auth, deadline_at=at(tomorrow, 23, 59).isoformat(), estimated_minutes=90)
+    suggestion = generate(client, auth, tomorrow, tomorrow, options={
+        "deadline_buffer_minutes": 0,
+        "blocked_windows": [{"start": "13:00", "end": "18:00"}, {"start": "19:00", "end": "22:00"}]})
+
+    assert [b for b in suggestion["blocks"] if b["kind"] == "study"] == []
+    assert suggestion["unscheduled"] == [{"todo_id": todo["id"], "reason": "NOT_ENOUGH_TIME_BEFORE_DEADLINE",
+                                          "missing_minutes": 90}]
+
+
+def test_blocked_window_only_on_its_weekdays(client, auth):
+    tomorrow = prepare(client, auth)
+    day_after = tomorrow + timedelta(days=1)
+    add_todo(client, auth, deadline_at=at(day_after, 23, 59).isoformat(), estimated_minutes=180)
+    suggestion = generate(client, auth, tomorrow, day_after, options={
+        "deadline_buffer_minutes": 0,
+        "blocked_windows": [{"start": "07:00", "end": "22:00", "weekdays": [day_after.weekday()]}]})
+
+    study = [b for b in suggestion["blocks"] if b["kind"] == "study"]
+    assert sum(minutes(b) for b in study) == 180
+    assert all(parse(b["start_at"]).date() == tomorrow for b in study)
+
+
+def test_hard_blocks_per_day_are_limited(client, auth):
+    tomorrow = prepare(client, auth)  # room for three 90-min blocks tomorrow
+    deadline = at(tomorrow, 23, 59).isoformat()
+    hard = [add_todo(client, auth, title=f"Khó {n}", deadline_at=deadline, estimated_minutes=90, difficulty=5)
+            for n in range(2)]
+    easy = add_todo(client, auth, title="Dễ", deadline_at=deadline, estimated_minutes=90, difficulty=2)
+    suggestion = generate(client, auth, tomorrow, tomorrow, options={
+        "deadline_buffer_minutes": 0, "max_study_minutes_per_day": 480, "max_hard_blocks_per_day": 1})
+
+    placed = {b["todo_id"] for b in suggestion["blocks"] if b["kind"] == "study"}
+    assert easy["id"] in placed  # easy work is not limited
+    assert len(placed & {t["id"] for t in hard}) == 1
+    [left] = suggestion["unscheduled"]
+    assert left["reason"] == "HARD_LIMIT_REACHED" and left["missing_minutes"] == 90
+
+
 def test_apply_creates_events_once(client, auth):
     tomorrow = prepare(client, auth)
     todo = add_todo(client, auth, deadline_at=at(tomorrow + timedelta(days=1), 23, 59).isoformat(),
@@ -148,14 +212,15 @@ def test_unscheduled_reasons(client, auth):
     assert max(per_day.values()) <= 240
 
 
-def test_expired_suggestion(client, auth):
+def test_expired_suggestion(client, auth, monkeypatch):
     tomorrow = prepare(client, auth)
     suggestion = generate(client, auth, tomorrow, tomorrow)
-    import uuid
-    scheduler._suggestions[uuid.UUID(suggestion["suggestion_id"])].expires_at = at(today(), 0)
-    response = client.post(f"{API}/schedule/apply", json={"suggestion_id": suggestion["suggestion_id"]},
-                           headers=auth)
+    monkeypatch.setattr("app.api.schedule_api.now_utc", lambda: parse(suggestion["expires_at"]))
+    apply = {"suggestion_id": suggestion["suggestion_id"]}
+    response = client.post(f"{API}/schedule/apply", json=apply, headers=auth)
     assert (response.status_code, response.json()["code"]) == (410, "SUGGESTION_EXPIRED")
+    response = client.post(f"{API}/schedule/apply", json=apply, headers=auth)  # dropped after the 410
+    assert (response.status_code, response.json()["code"]) == (404, "SUGGESTION_NOT_FOUND")
 
 
 @pytest.mark.parametrize("first, last, code", [(3, 1, "INVALID_RANGE"), (1, 16, "RANGE_TOO_LARGE")])

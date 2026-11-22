@@ -5,8 +5,6 @@ import time
 from dataclasses import dataclass
 from threading import Lock
 
-from transformers import pipeline
-
 DEFAULT_MODEL_NAME = os.getenv("PHOWHISPER_MODEL", "vinai/PhoWhisper-small")
 
 
@@ -26,6 +24,10 @@ class PhoWhisperTranscriber:
 
     def __init__(self, model_name: str = DEFAULT_MODEL_NAME):
         """Load the ASR pipeline on CPU (slow: a few seconds, do it only once)."""
+        # Imported here so the server starts without transformers/torch (not in requirements.txt);
+        # only the voice endpoint fails, and it already turns that into an error response.
+        from transformers import pipeline
+
         self.model_name = model_name
         self._pipeline = pipeline(
             "automatic-speech-recognition",

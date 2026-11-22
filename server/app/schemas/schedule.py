@@ -1,5 +1,5 @@
 from datetime import date, datetime, time
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -18,6 +18,12 @@ class ClockWindow(BaseModel):
     end: ClockTime
 
 
+class BlockedWindow(ClockWindow):
+    """User-chosen no-study window; `weekdays` 0 = Monday … 6 = Sunday, None = every day."""
+
+    weekdays: list[Annotated[int, Field(ge=0, le=6)]] | None = None
+
+
 class ScheduleOptions(BaseModel):
     max_study_minutes_per_day: int = Field(default=240, ge=30, le=720)
     block_minutes: int = Field(default=90, ge=25, le=180)
@@ -31,6 +37,11 @@ class ScheduleOptions(BaseModel):
         max_length=5)
     include_rest_blocks: bool = False
     include_bedtime_blocks: bool = True
+    deadline_buffer_minutes: int = Field(default=120, ge=0, le=1440,
+                                         description="Every block must end at least this long before the todo's deadline.")
+    blocked_windows: list[BlockedWindow] = Field(default_factory=list, max_length=10)
+    max_hard_blocks_per_day: int = Field(default=2, ge=1, le=10,
+                                         description="Max study blocks per day for todos with difficulty ≥ 4.")
 
 
 class ScheduleGenerateRequest(BaseModel):
@@ -54,7 +65,7 @@ class ScheduleBlock(ORMModel):
 class UnscheduledTodo(BaseModel):
     todo_id: UUID
     reason: Literal["NOT_ENOUGH_TIME_BEFORE_DEADLINE", "MISSING_DEADLINE", "MISSING_ESTIMATE",
-                    "DEADLINE_PASSED", "DAILY_LIMIT_REACHED", "ALREADY_SCHEDULED"]
+                    "DEADLINE_PASSED", "DAILY_LIMIT_REACHED", "ALREADY_SCHEDULED", "HARD_LIMIT_REACHED"]
     missing_minutes: int | None
 
 

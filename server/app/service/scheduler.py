@@ -2,10 +2,12 @@
 
 Time is cut into 15-minute slots of local time. A slot is free when it is in the future, the
 user is awake (sleep from the sleep timeline), it is not inside the wake / bed buffers, a meal
-window, or any event (classes, manual and Google events, already applied blocks).
+window, a user-blocked window (on its weekdays), or any event (classes, manual and Google
+events, already applied blocks).
 
-Hard constraints: a block sits on free slots of one day and ends before its todo's deadline;
-blocks keep `min_break_minutes` apart; at most `max_study_minutes_per_day` per day.
+Hard constraints: a block sits on free slots of one day and ends `deadline_buffer_minutes` before
+its todo's deadline; blocks keep `min_break_minutes` apart; at most `max_study_minutes_per_day`
+per day and at most `max_hard_blocks_per_day` blocks of difficulty ≥ 4 per day.
 Objective: Σ predicted KSS × slots, weighted by difficulty (hard work goes to golden hours),
 plus a large penalty per unscheduled slot (weighted by priority) and a tiny one per hour of
 delay, so the earlier of two equally alert slots wins.
@@ -19,16 +21,18 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from ortools.sat.python import cp_model
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.errors import ApiError, not_found
+from app.core.redis_client import get_store
 from app.models.enums import Priority
 from app.models.event import Event
 from app.models.todo import Todo
 from app.models.user import User
 from app.repository.todo_repository import TodoRepository
-from app.schemas.schedule import ScheduleOptions
+from app.schemas.schedule import ScheduleBlock, ScheduleOptions
 from app.service.event_service import occurrences
 from app.service.sleep.timeline import Timeline, alertness_score
 
@@ -40,8 +44,11 @@ MAX_DAYS = 15       # `to` at most 14 days after `from`
 SOLVE_SECONDS = 5.0
 KSS_SCALE = 100     # KSS 3.25 -> 325 (CP-SAT needs integers)
 UNSCHEDULED_PENALTY = 10_000  # per slot, x priority: always worse than any placement
+HARD_DIFFICULTY = 4  # difficulty ≥ this counts towards max_hard_blocks_per_day
 PRIORITY_FACTOR = {Priority.LOW: 1, Priority.MEDIUM: 2, Priority.HIGH: 3}
 SUGGESTION_TTL = timedelta(hours=1)
+# The store keeps a suggestion a day past expiry, so S2 can still answer 410 (expired) instead of 404.
+STORE_TTL_SECONDS = int((SUGGESTION_TTL + timedelta(days=1)).total_seconds())
 BEDTIME_TITLE = "Đi ngủ"
 REST_TITLE = "Nghỉ giải lao"
 
@@ -53,15 +60,17 @@ class Block:
     starts: list[int] = field(default_factory=list)  # allowed start slots
 
 
-@dataclass
-class Suggestion:
+class Suggestion(BaseModel):
+    """An S1 result waiting for S2; stored as JSON so every API process can read it."""
+
     user_id: uuid.UUID
     expires_at: datetime
-    blocks: list[dict[str, Any]]
+    blocks: list[ScheduleBlock]
 
 
-# Suggestions live one hour, so memory is enough (single API process).
-_suggestions: dict[uuid.UUID, Suggestion] = {}
+def _suggestion_key(suggestion_id: uuid.UUID) -> str:
+    """Store key of one suggestion."""
+    return f"schedule:suggestion:{suggestion_id}"
 
 
 def _ceil_slots(minutes: int) -> int:
@@ -127,7 +136,8 @@ class Planner:
 
         for day in range(self.n // DAY_SLOTS):
             midnight = self.slot_time(day * DAY_SLOTS)
-            for window in o.meal_windows:
+            blocked = [w for w in o.blocked_windows if w.weekdays is None or midnight.weekday() in w.weekdays]
+            for window in [*o.meal_windows, *blocked]:
                 begin = datetime.combine(midnight.date(), window.start, self.tz)
                 finish = datetime.combine(midnight.date(), window.end, self.tz)
                 if finish <= begin:  # crosses midnight
@@ -135,8 +145,12 @@ class Planner:
                 self._block_range(begin, finish)
 
     def allowed_starts(self, slots: int, deadline: datetime) -> list[int]:
-        """Starts where the block fits on free slots of one day and ends by the deadline."""
-        last_end = min(self.n, self.slot_of(deadline))
+        """Starts where the block fits on free slots of one day and ends by deadline − buffer.
+
+        end_slot(block) ≤ slot_of(deadline − deadline_buffer_minutes)
+        """
+        buffer = timedelta(minutes=self.options.deadline_buffer_minutes)
+        last_end = min(self.n, self.slot_of(deadline - buffer))
         starts = []
         for s in range(0, self.n - slots + 1):
             if s + slots > last_end or s // DAY_SLOTS != (s + slots - 1) // DAY_SLOTS:
@@ -158,6 +172,7 @@ class Planner:
         model = cp_model.CpModel()
         starts, present, intervals, objective = {}, {}, [], []
         per_day: dict[int, list[cp_model.LinearExpr]] = {}  # slots studied on each day
+        hard_per_day: dict[int, list[cp_model.IntVar]] = {}  # hard blocks placed on each day
 
         for i, block in enumerate(blocks):
             if not block.starts:
@@ -187,10 +202,15 @@ class Planner:
                 model.add(start < (day + 1) * DAY_SLOTS).only_enforce_if(on_day)
                 day_flags.append(on_day)
                 per_day.setdefault(day, []).append(block.slots * on_day)
+                if _is_hard(block):
+                    hard_per_day.setdefault(day, []).append(on_day)
             model.add(sum(day_flags) == is_on)
 
         for studied in per_day.values():
             model.add(sum(studied) <= cap)
+        # For each day d: Σ_{i hard} on_day[i][d] ≤ max_hard_blocks_per_day
+        for hard_flags in hard_per_day.values():
+            model.add(sum(hard_flags) <= o.max_hard_blocks_per_day)
 
         # Blocks of one todo keep their order (also breaks the symmetry between equal blocks).
         for i in starts:
@@ -216,6 +236,16 @@ class Planner:
         """True if `slots` more would break that day's study limit."""
         used = sum(blocks[i].slots for i, s in placed.items() if s // DAY_SLOTS == day)
         return (used + slots) * SLOT_MINUTES > self.options.max_study_minutes_per_day
+
+    def hard_day_is_full(self, day: int, placed: dict[int, int], blocks: list[Block]) -> bool:
+        """True if one more hard block would break that day's hard-block limit."""
+        hard = sum(1 for i, s in placed.items() if s // DAY_SLOTS == day and _is_hard(blocks[i]))
+        return hard >= self.options.max_hard_blocks_per_day
+
+
+def _is_hard(block: Block) -> bool:
+    """Hard work = difficulty ≥ HARD_DIFFICULTY; an unset difficulty counts as medium."""
+    return (block.todo.difficulty or 0) >= HARD_DIFFICULTY
 
 
 def check_range(first_day: date, last_day: date) -> int:
@@ -262,18 +292,24 @@ def generate(db: Session, user: User, timeline: Timeline, first_day: date, last_
 
     status, placed, solve_ms = planner.solve(blocks)
 
-    missing: dict[uuid.UUID, tuple[int, bool]] = {}
+    # todo id -> (missing minutes, every block hit the daily limit, every block hit a daily or hard limit)
+    missing: dict[uuid.UUID, tuple[int, bool, bool]] = {}
     for i, block in enumerate(blocks):
         if i in placed:
             continue
         days_of_block = {s // DAY_SLOTS for s in block.starts}
         capped = bool(days_of_block) and all(planner.day_is_full(d, placed, blocks, block.slots)
                                              for d in days_of_block)
-        minutes, all_capped = missing.get(block.todo.id, (0, True))
-        missing[block.todo.id] = (minutes + block.slots * SLOT_MINUTES, all_capped and capped)
-    for todo_id, (minutes, capped) in missing.items():
-        unscheduled.append({"todo_id": todo_id, "missing_minutes": minutes,
-                            "reason": "DAILY_LIMIT_REACHED" if capped else "NOT_ENOUGH_TIME_BEFORE_DEADLINE"})
+        hard_capped = bool(days_of_block) and _is_hard(block) and all(
+            planner.day_is_full(d, placed, blocks, block.slots) or planner.hard_day_is_full(d, placed, blocks)
+            for d in days_of_block)
+        minutes, all_capped, all_hard_capped = missing.get(block.todo.id, (0, True, True))
+        missing[block.todo.id] = (minutes + block.slots * SLOT_MINUTES, all_capped and capped,
+                                  all_hard_capped and hard_capped)
+    for todo_id, (minutes, capped, hard_capped) in missing.items():
+        reason = ("DAILY_LIMIT_REACHED" if capped else "HARD_LIMIT_REACHED" if hard_capped
+                  else "NOT_ENOUGH_TIME_BEFORE_DEADLINE")
+        unscheduled.append({"todo_id": todo_id, "missing_minutes": minutes, "reason": reason})
 
     result_blocks: list[dict[str, Any]] = []
     for i, start in placed.items():
@@ -317,8 +353,8 @@ def generate(db: Session, user: User, timeline: Timeline, first_day: date, last_
 
     suggestion_id = uuid.uuid4()
     expires_at = now + SUGGESTION_TTL
-    _prune(now)
-    _suggestions[suggestion_id] = Suggestion(user.id, expires_at, result_blocks)
+    suggestion = Suggestion(user_id=user.id, expires_at=expires_at, blocks=result_blocks)
+    get_store().set_with_ttl(_suggestion_key(suggestion_id), suggestion.model_dump_json(), STORE_TTL_SECONDS)
     return {
         "suggestion_id": suggestion_id,
         "expires_at": expires_at,
@@ -333,21 +369,18 @@ def generate(db: Session, user: User, timeline: Timeline, first_day: date, last_
     }
 
 
-def _prune(now: datetime) -> None:
-    for key in [k for k, s in _suggestions.items() if s.expires_at <= now]:
-        del _suggestions[key]
-
-
 def get_suggestion(user: User, suggestion_id: uuid.UUID, now: datetime) -> Suggestion:
-    suggestion = _suggestions.get(suggestion_id)
+    """The user's suggestion; 404 if unknown or someone else's, 410 once expired."""
+    raw = get_store().get(_suggestion_key(suggestion_id))
+    suggestion = Suggestion.model_validate_json(raw) if raw else None
     if suggestion is None or suggestion.user_id != user.id:
         raise ApiError(404, "SUGGESTION_NOT_FOUND", "Suggestion not found")
     if suggestion.expires_at <= now:
-        del _suggestions[suggestion_id]
+        discard_suggestion(suggestion_id)
         raise ApiError(410, "SUGGESTION_EXPIRED", "Suggestion expired; generate a new one")
     return suggestion
 
 
 def discard_suggestion(suggestion_id: uuid.UUID) -> None:
     """After S2, so the same blocks cannot be applied twice."""
-    _suggestions.pop(suggestion_id, None)
+    get_store().delete(_suggestion_key(suggestion_id))

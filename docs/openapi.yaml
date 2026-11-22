@@ -2667,6 +2667,23 @@ components:
             - { start: '18:00', end: '19:00' }
         include_rest_blocks: { type: boolean, default: false, description: Also return `rest` blocks for the breaks between study blocks. }
         include_bedtime_blocks: { type: boolean, default: true, description: Also return one `bedtime` block per night at `recommended_sleep_at`. }
+        deadline_buffer_minutes: { type: integer, minimum: 0, maximum: 1440, default: 120, description: Every block must end at least this long before the todo's deadline. }
+        blocked_windows:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/BlockedWindow' }
+          default: []
+          description: User-chosen no-study windows (e.g. after 22:00, Sunday morning).
+        max_hard_blocks_per_day: { type: integer, minimum: 1, maximum: 10, default: 2, description: Max study blocks per day for todos with difficulty ≥ 4. }
+    BlockedWindow:
+      allOf:
+        - $ref: '#/components/schemas/ClockWindow'
+        - type: object
+          properties:
+            weekdays:
+              type: [array, 'null']
+              items: { type: integer, minimum: 0, maximum: 6 }
+              description: 0 = Monday … 6 = Sunday; null = every day.
     ScheduleGenerateRequest:
       type: object
       required: [from, to]
@@ -2697,7 +2714,7 @@ components:
         reason:
           type: string
           enum: [NOT_ENOUGH_TIME_BEFORE_DEADLINE, MISSING_DEADLINE, MISSING_ESTIMATE,
-                 DEADLINE_PASSED, DAILY_LIMIT_REACHED, ALREADY_SCHEDULED]
+                 DEADLINE_PASSED, DAILY_LIMIT_REACHED, ALREADY_SCHEDULED, HARD_LIMIT_REACHED]
         missing_minutes: { type: [integer, 'null'], description: Minutes that could not be placed. }
     ScheduleSuggestion:
       type: object
