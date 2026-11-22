@@ -10,6 +10,7 @@ from app.models.ocr import OcrJob
 from app.models.timetable import Subject
 from app.models.todo import Todo
 from app.models.user import User
+from app.models.voice import VoiceJob
 
 __all__ = [
     "Base",
@@ -26,4 +27,5 @@ __all__ = [
     "SyncConflict",
     "Todo",
     "User",
+    "VoiceJob",
 ]

@@ -2,6 +2,7 @@
 x-server-env: &server-env
   POSTGRES_DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
   REDIS_URL: redis://redis:6379/0
+  VOICE_AUDIO_DIR: /data/voice  # the voice-audio volume below
 
 services:
   db:
@@ -42,6 +43,8 @@ services:
     environment: *server-env
     ports:
       - "8765:8765"
+    volumes:
+      - voice-audio:/data/voice  # recordings are saved here before going to Kaggle (kept 7 days)
     depends_on:
       db:
         condition: service_healthy
@@ -82,8 +85,25 @@ services:
       - server
     networks:
       - recolly-network
+  voice-worker:  # retries recordings saved while Kaggle was down, pushes "voice_ready", deletes week-old audio
+    build: ./server/
+    image: recolly-server
+    container_name: recolly-voice-worker-container
+    env_file: ./server/.env
+    environment: *server-env
+    command: python -m app.jobs.process_voice --loop
+    volumes:
+      - voice-audio:/data/voice
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - recolly-network
 networks:
   recolly-network:
     driver: bridge
+volumes:
+  voice-audio:
 
 

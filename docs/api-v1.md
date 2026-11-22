@@ -116,7 +116,8 @@ Full list of `code` values: `info.description` in `openapi.yaml`.
 | D4 | PATCH | `/todos/{id}` | Edit / change status | R21 |
 | D5 | DELETE | `/todos/{id}` | Delete todo | R21 |
 | **Voice** |
-| V1 | POST | `/voice/transcribe` | Audio → transcript + todo draft | R42, R43 |
+| V1 | POST | `/voice/transcribe` | Audio → transcript + todo draft (202 + job if the speech server is down) | R42, R43 |
+| V2 | GET | `/voice/jobs/{id}` | Saved recording status + draft | R42, R43 |
 | **Scheduler** |
 | S1 | POST | `/schedule/generate` | Run CP-SAT → suggested study blocks (not saved) | R24–R27 |
 | S2 | POST | `/schedule/apply` | Save chosen suggestions as events | R27 |
@@ -566,7 +567,26 @@ optional field `reference_time` (device "now", to resolve "thứ sáu", "tối m
 
 `parser` is `gemini` or `rules` (fallback when Gemini is down).
 
-The draft is **not saved**. Flutter lets the user edit it, then calls D2.
+The draft is **not saved**. Flutter lets the user edit it, then calls D2. The 200 body also has `job_id`.
+
+**The recording is never lost.** It is saved first (kept 7 days). If the speech server (Kaggle) is down:
+
+```json
+// 202
+{ "job_id": "7a1c2e3f-4b5d-4e6f-8a9b-0c1d2e3f4a5b", "status": "queued" }
+```
+
+The server retries every minute and sends an FCM push `type = voice_ready` (data `job_id`) when the draft is ready.
+Flutter polls **V2 `GET /voice/jobs/{id}`** (about every 5 s while the screen is open):
+
+```json
+// 200
+{ "job_id": "7a1c…", "status": "succeeded", "error": null, "created_at": "2026-10-22T09:00:00+07:00",
+  "result": { "transcript": "…", "todo_draft": { … }, "parser": "ollama", "job_id": "7a1c…" } }
+```
+
+`status`: `queued` → `processing` → `succeeded` | `failed`. `error` when failed: `VOICE_ASR_UNAVAILABLE`
+(still down after 24 h), `VOICE_BAD_AUDIO` (V1 answers 422 at once for that). After 7 days: `404 VOICE_JOB_NOT_FOUND`.
 
 ### Scheduler
 
@@ -762,7 +782,7 @@ Flutter code does not call any of these yet, but please re-check DTOs written fr
 | Event | New `kind`; `occurrence_start` always present (null if not an instance) | Additive |
 | Todo | New `scheduled_minutes`, `completed_at`; D1 adds `due_after`, `sort`, repeatable `status` | Additive |
 | User | New `onboarding_completed` | Additive |
-| Voice | Draft adds `description`, `difficulty`; response adds `parser`; request adds `reference_time` | Additive |
+| Voice | Draft adds `description`, `difficulty`; response adds `parser`, `job_id`; request adds `reference_time`; V1 may answer **202** (speech server down) | Additive, **202 is new for Flutter** |
 | Calendar | G1 adds `google_email`; G2 result adds `pulled`, optional body; S2 result adds `sync` | Additive |
 | Reminders | New `kss_prompt_*`, `sleep_confirm_enabled`; quote adds `context` | Additive |
-| New endpoints | C1, H9, P1–P4, K1–K3, B1, B2, G6–G8, O1 | New |
+| New endpoints | C1, H9, P1–P4, K1–K3, B1, B2, G6–G8, O1, V2 | New |

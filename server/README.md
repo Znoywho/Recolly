@@ -36,6 +36,13 @@ OAuth client is needed.
 
 ## Voice → todo pipeline (V1)
 
+PhoWhisper and the LLM both run on the Kaggle GPU (`notebooks/kaggle_ollama.ipynb`): the server has no
+speech model and uploads the audio through a Cloudflare tunnel. Run the notebook, then copy the lines it
+prints (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `ASR_BASE_URL`, `ASR_TOKEN`, `PHOWHISPER_MODEL`) into `.env`.
+The recording is saved first (`voice_jobs` table + file in the `voice-audio` volume, kept 7 days). Without the
+notebook `/voice/transcribe` answers 202; the `voice-worker` service retries every minute and pushes `voice_ready`.
+The LLM step alone falls back to rules.
+
 ```
  audio (.m4a)
    │
