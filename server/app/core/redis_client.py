@@ -22,6 +22,17 @@ class RedisStore:
         """Store `value`; Redis deletes it after `seconds`."""
         self.client.set(key, value, ex=seconds)
 
+    def set_if_absent(self, key: str, value: str, seconds: int) -> bool:
+        """Atomically store `value` only if `key` does not exist (SET NX EX); True when stored."""
+        return bool(self.client.set(key, value, ex=seconds, nx=True))
+
+    def increment_with_ttl(self, key: str, seconds: int) -> int:
+        """Add 1 to the counter at `key` and return it; the TTL is set only by the first increment."""
+        pipe = self.client.pipeline()  # MULTI/EXEC: INCR and EXPIRE NX run together
+        pipe.incr(key)
+        pipe.expire(key, seconds, nx=True)
+        return pipe.execute()[0]
+
     def get(self, key: str) -> str | None:
         """The value, or None when missing or expired."""
         return self.client.get(key)
@@ -40,6 +51,25 @@ class MemoryStore:
     def set_with_ttl(self, key: str, value: str, seconds: int) -> None:
         """Store `value` until `seconds` from now."""
         self._items[key] = (value, time.monotonic() + seconds)
+
+    def set_if_absent(self, key: str, value: str, seconds: int) -> bool:
+        """Store `value` only if `key` is missing or expired; True when stored (one process, so no race)."""
+        if self.get(key) is not None:
+            return False
+        self.set_with_ttl(key, value, seconds)
+        return True
+
+    def increment_with_ttl(self, key: str, seconds: int) -> int:
+        """Add 1 to the counter at `key` and return it; a missing or expired counter restarts at 1 with a new TTL.
+
+        shortcut: not thread-safe, so parallel requests may lose a count; dev/tests only, Redis when it matters.
+        """
+        if self.get(key) is None:
+            self.set_with_ttl(key, "1", seconds)
+            return 1
+        value, expiry = self._items[key]
+        self._items[key] = (str(int(value) + 1), expiry)
+        return int(value) + 1
 
     def get(self, key: str) -> str | None:
         """The value, or None when missing or expired (expired keys are dropped on read)."""

@@ -10,7 +10,8 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from app.jobs.send_reminders import run_send_reminders
+from app.core.redis_client import MemoryStore
+from app.jobs.send_reminders import floor_to_period, run_send_reminders
 from app.service.push import FcmSender
 from app.service.reminders import due_reminders
 
@@ -29,6 +30,8 @@ class FakeSender:
         """Record and answer like FcmSender.send."""
         if fcm_token.startswith("dead"):
             return False
+        if fcm_token.startswith("broken"):  # e.g. 403 SENDER_ID_MISMATCH, 5xx
+            raise RuntimeError("FCM error")
         self.sent.append((fcm_token, payload))
         return True
 
@@ -115,7 +118,41 @@ def test_dead_token_is_removed(client, auth):
     assert counts == {"sent": 2, "dead_tokens": 1}  # dead token tried once, then skipped
     assert {token for token, _ in sender.sent} == {"phone-1"}
     sender.sent.clear()
-    assert run_send_reminders(deadline - timedelta(hours=2, minutes=-1), sender) == {"sent": 2}
+    assert run_send_reminders(deadline - timedelta(hours=2, minutes=-1), sender, MemoryStore()) == {"sent": 2}
+
+
+def test_failing_device_does_not_block_the_users_other_devices(client, auth):
+    add_device(client, auth, "dead-token")
+    add_device(client, auth, "broken-token")
+    add_device(client, auth, "phone-1")
+    deadline = deadline_in_days(3)
+    add_todo(client, auth, deadline)
+    sender = FakeSender()
+    counts = run_send_reminders(deadline - timedelta(hours=2, minutes=-1), sender)
+    assert counts == {"sent": 1, "failed": 1, "dead_tokens": 1}
+    assert [token for token, _ in sender.sent] == ["phone-1"]
+    sender.sent.clear()  # the dead token's removal was committed despite the other failure
+    assert run_send_reminders(deadline - timedelta(hours=2, minutes=-1), sender, MemoryStore()) == {"sent": 1, "failed": 1}
+
+
+def test_a_second_run_in_the_same_window_sends_nothing(client, auth):
+    add_device(client, auth)
+    deadline = deadline_in_days(3)
+    add_todo(client, auth, deadline)
+    sender, store = FakeSender(), MemoryStore()
+    now = deadline - timedelta(hours=2, minutes=-1)
+    assert run_send_reminders(now, sender, store) == {"sent": 1}
+    assert run_send_reminders(now + timedelta(minutes=2), sender, store) == {"duplicates": 1}  # overlapping run
+    assert len(sender.sent) == 1
+
+
+def test_memory_store_set_if_absent():
+    store = MemoryStore()
+    assert store.set_if_absent("k", "1", 60) is True
+    assert store.set_if_absent("k", "2", 60) is False
+    assert store.get("k") == "1"
+    store.set_with_ttl("old", "1", 0)  # already expired
+    assert store.set_if_absent("old", "2", 60) is True
 
 
 # ─────────────────────────── FcmSender ───────────────────────────
@@ -142,6 +179,11 @@ def test_fcm_sender_follows_the_v1_api(service_account):
         if token == "gone":
             return httpx.Response(404, json={"error": {"status": "NOT_FOUND", "details": [
                 {"errorCode": "UNREGISTERED"}]}})
+        if token in ("malformed", "bad-payload"):  # real FCM 400 bodies: same status, different field
+            field = "message.token" if token == "malformed" else "message.data[0].value"
+            return httpx.Response(400, json={"error": {"code": 400, "status": "INVALID_ARGUMENT", "details": [
+                {"@type": "type.googleapis.com/google.rpc.BadRequest",
+                 "fieldViolations": [{"field": field, "description": "…"}]}]}})
         return httpx.Response(200, json={"name": "projects/recolly-test/messages/1"})
 
     sender = FcmSender(service_account, httpx.Client(transport=httpx.MockTransport(handle)))
@@ -149,8 +191,11 @@ def test_fcm_sender_follows_the_v1_api(service_account):
                "scheduled_for": "2026-11-20T17:00:00+07:00"}
     assert sender.send("phone-1", payload) is True
     assert sender.send("gone", payload) is False
+    assert sender.send("malformed", payload) is False
+    with pytest.raises(httpx.HTTPStatusError):  # a payload bug must not look like a dead token
+        sender.send("bad-payload", payload)
 
-    token_request, first, second = requests  # the access token is fetched once and reused
+    token_request, first, second, *_ = requests  # the access token is fetched once and reused
     form = dict(httpx.QueryParams(token_request.content.decode()))
     assert form["grant_type"] == "urn:ietf:params:oauth:grant-type:jwt-bearer"
     claims = jwt.decode(form["assertion"], service_account["public_key"], algorithms=["RS256"],
@@ -162,3 +207,9 @@ def test_fcm_sender_follows_the_v1_api(service_account):
     message = json.loads(first.content)["message"]
     assert message["notification"] == {"title": "Còn 2 giờ", "body": "…"}
     assert message["data"] == payload  # all values are strings already
+
+
+def test_floor_to_period_rounds_down_to_the_mark():
+    five = timedelta(minutes=5)
+    assert floor_to_period(datetime(2026, 11, 21, 10, 7, 23, tzinfo=TZ), five) == datetime(2026, 11, 21, 10, 5, tzinfo=TZ)
+    assert floor_to_period(datetime(2026, 11, 21, 10, 5, tzinfo=TZ), five) == datetime(2026, 11, 21, 10, 5, tzinfo=TZ)

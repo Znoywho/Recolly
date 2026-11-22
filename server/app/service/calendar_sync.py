@@ -471,6 +471,7 @@ def sync(db: Session, user: User, google: GoogleClient,
     if should_pull or not conn.two_way_sync:
         conn.last_synced_at = now_utc()
     db.flush()
+    logger.info("GCal sync user=%s %s", user.id, result)
     return result
 
 
@@ -500,6 +501,7 @@ def pull_for(db: Session, user: User, google: GoogleClient) -> SyncResult:
     result = SyncResult()
     _pull(db, user, conn, google, _access_token(conn, google), ZoneInfo(user.timezone), result)
     conn.last_synced_at = now_utc()
+    logger.info("GCal webhook pull user=%s %s", user.id, result)
     return result
 
 

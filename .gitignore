@@ -204,3 +204,6 @@ server/uploads/
 *.iws
 *.swp
 .DS_Store
+
+# Personal Compose settings (e.g. the FCM key mount)
+docker-compose.override.yml

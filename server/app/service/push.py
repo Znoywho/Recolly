@@ -53,10 +53,22 @@ class FcmSender:
                    "data": {k: str(v) for k, v in payload.items()}}  # FCM data values must be strings
         response = self.http.post(url, json={"message": message},
                                   headers={"Authorization": f"Bearer {self._access_token()}"})
-        if response.status_code == 404:  # UNREGISTERED
+        if response.status_code == 404 or is_invalid_token_error(response):  # UNREGISTERED / malformed token
             return False
         response.raise_for_status()
         return True
+
+
+def is_invalid_token_error(response: httpx.Response) -> bool:
+    """True for 400 INVALID_ARGUMENT blaming `message.token`; a bad payload also gives 400 and must not drop devices."""
+    if response.status_code != 400:
+        return False
+    try:
+        details = response.json()["error"].get("details", [])
+    except (ValueError, KeyError, TypeError):
+        return False
+    return any(violation.get("field") == "message.token"
+               for detail in details for violation in detail.get("fieldViolations", []))
 
 
 class LogSender:

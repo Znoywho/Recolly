@@ -19,5 +19,5 @@ def create_demo_app() -> FastAPI:
 
 
 if __name__ == "__main__":
-    PhoWhisperTranscriber.get_instance()  # load the model before accepting requests
+    PhoWhisperTranscriber.get_instance()  # fail at start, not on the first request, if ASR_BASE_URL is missing
     uvicorn.run(create_demo_app(), host="0.0.0.0", port=8765)

@@ -51,6 +51,8 @@ def sign_in(db: Session, grant: GoogleGrant) -> tuple[User, bool]:
         except ApiError as exc:  # e.g. no TOKEN_ENCRYPTION_KEY: sign in anyway, connect later (G6)
             logger.warning("Calendar not linked at sign-in: %s", exc.detail)
     db.flush()
+    logger.info("Sign-in user=%s new=%s calendar_linked=%s", user.id, is_new,
+                user.calendar_connection is not None)
     return user, is_new
 
 

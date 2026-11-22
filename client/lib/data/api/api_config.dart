@@ -18,4 +18,10 @@ class ApiConfig {
     'USE_MOCK_API',
     defaultValue: true,
   );
+
+  /// Web OAuth client ID of the backend, used by google_sign_in to get a
+  /// `serverAuthCode`. Pass it with --dart-define=GOOGLE_SERVER_CLIENT_ID=...
+  static const googleServerClientId = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+  );
 }

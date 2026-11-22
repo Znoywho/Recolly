@@ -1,3 +1,9 @@
+# Shared by the API and the reminder job (YAML anchor, used below as *server-env).
+x-server-env: &server-env
+  POSTGRES_DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+  REDIS_URL: redis://redis:6379/0
+  VOICE_AUDIO_DIR: /data/voice  # the voice-audio volume below
+
 services:
   db:
     image: postgres:18
@@ -19,6 +25,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: recolly-redis-container
+    ports:
+      - "127.0.0.1:6380:6379"  # this machine only (no password); server/.env: REDIS_URL=redis://localhost:6380/0
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -29,13 +37,14 @@ services:
       - recolly-network
   server:
     build: ./server/
+    image: recolly-server
     container_name: recolly-server-container
     env_file: ./server/.env  # secrets stay out of the image (.dockerignore); `environment` below wins on conflicts
-    environment:
-      POSTGRES_DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      REDIS_URL: redis://redis:6379/0
+    environment: *server-env
     ports:
       - "8765:8765"
+    volumes:
+      - voice-audio:/data/voice  # recordings are saved here before going to Kaggle (kept 7 days)
     depends_on:
       db:
         condition: service_healthy
@@ -44,8 +53,57 @@ services:
     restart: unless-stopped
     networks:
         - recolly-network
+  reminders:  # bedtime/deadline pushes (R39) on every 5-minute mark; FCM key: see docker-compose.override.yml in README
+    build: ./server/
+    image: recolly-server  # same image as server, built from cache
+    container_name: recolly-reminders-container
+    env_file: ./server/.env
+    environment: *server-env
+    command: python -m app.jobs.send_reminders --loop
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - recolly-network
+  logs:  # browser log viewer for testing/demo: http://localhost:8888 (https://dozzle.dev)
+    image: amir20/dozzle:v11.5.0
+    container_name: recolly-logs-container
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # read container logs; socket = root on the host
+    ports:
+      - "127.0.0.1:8888:8080"  # this machine only, never expose the socket-backed UI to the network
+    restart: unless-stopped
+  tunnel:  # public HTTPS for Google Calendar webhooks; only with `docker compose --profile tunnel up`
+    image: cloudflare/cloudflared:2026.11.1
+    container_name: recolly-tunnel-container
+    command: tunnel --no-autoupdate --url http://server:8765  # quick tunnel: new trycloudflare URL every start
+    profiles: ["tunnel"]
+    depends_on:
+      - server
+    networks:
+      - recolly-network
+  voice-worker:  # retries recordings saved while Kaggle was down, pushes "voice_ready", deletes week-old audio
+    build: ./server/
+    image: recolly-server
+    container_name: recolly-voice-worker-container
+    env_file: ./server/.env
+    environment: *server-env
+    command: python -m app.jobs.process_voice --loop
+    volumes:
+      - voice-audio:/data/voice
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - recolly-network
 networks:
   recolly-network:
     driver: bridge
+volumes:
+  voice-audio:
 
 
