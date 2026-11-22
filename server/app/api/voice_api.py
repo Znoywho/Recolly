@@ -4,6 +4,7 @@ audio → PhoWhisper transcript → VoiceTodoParser (Ollama words + rule deadlin
 The draft is not saved; the app shows it for confirmation and then calls the todo API.
 """
 
+import logging
 import os
 import tempfile
 from datetime import datetime
@@ -27,6 +28,7 @@ TodoCategory = Literal["study", "assignment", "exam", "personal", "other"]
 Priority = Literal["low", "medium", "high"]
 
 router = APIRouter(prefix="/voice", tags=["Voice"])  # mounted under /api/v1 by app.api.api_router
+logger = logging.getLogger(__name__)
 
 
 class TodoDraftResponse(BaseModel):
@@ -68,7 +70,7 @@ def to_response_draft(draft: TodoDraft) -> TodoDraftResponse:
 
 @router.post("/transcribe", response_model=TranscribeResponse)
 async def transcribe_audio(
-    _user: CurrentUser,
+    user: CurrentUser,
     audio: UploadFile = File(...),
     reference_time: datetime | None = Form(default=None, description="Device 'now' for relative dates"),
 ) -> TranscribeResponse:
@@ -101,6 +103,9 @@ async def transcribe_audio(
         draft = draft_from_rules_only(result.text, reference)
         parser_name = "rules"
 
+    # Length only: the transcript is the user's private content.
+    logger.info("Transcribed user=%s chars=%d parser=%s in %.1fs", user.id, len(result.text),
+                parser_name, result.duration_seconds)
     return TranscribeResponse(
         transcript=result.text,
         todo_draft=to_response_draft(draft) if result.text.strip() else None,

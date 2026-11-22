@@ -65,6 +65,23 @@ services:
     restart: unless-stopped
     networks:
       - recolly-network
+  logs:  # browser log viewer for testing/demo: http://localhost:8888 (https://dozzle.dev)
+    image: amir20/dozzle:v11.5.0
+    container_name: recolly-logs-container
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # read container logs; socket = root on the host
+    ports:
+      - "127.0.0.1:8888:8080"  # this machine only, never expose the socket-backed UI to the network
+    restart: unless-stopped
+  tunnel:  # public HTTPS for Google Calendar webhooks; only with `docker compose --profile tunnel up`
+    image: cloudflare/cloudflared:2026.11.1
+    container_name: recolly-tunnel-container
+    command: tunnel --no-autoupdate --url http://server:8765  # quick tunnel: new trycloudflare URL every start
+    profiles: ["tunnel"]
+    depends_on:
+      - server
+    networks:
+      - recolly-network
 networks:
   recolly-network:
     driver: bridge

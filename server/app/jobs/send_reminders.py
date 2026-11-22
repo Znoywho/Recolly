@@ -75,7 +75,10 @@ def run_send_reminders(now: datetime | None = None, sender: FcmSender | LogSende
                             continue
                         if delivered:
                             counts["sent"] += 1
+                            logger.info("Push sent user=%s device=%s type=%s title=%r", user_id, device.id,
+                                        payload["type"], payload["title"])
                         else:
+                            logger.info("Push dropped dead token user=%s device=%s", user_id, device.id)
                             dead.add(device.id)
                             db.delete(device)
                             counts["dead_tokens"] += 1
@@ -88,11 +91,11 @@ def run_send_reminders(now: datetime | None = None, sender: FcmSender | LogSende
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     if "--loop" not in sys.argv:
-        print(dict(run_send_reminders()))
+        logger.info("Reminders run: %s", dict(run_send_reminders()))
         sys.exit()
     period = RUN_EVERY.total_seconds()
     while True:
         time.sleep(period - time.time() % period)  # wake on the next 5-minute mark
-        print(dict(run_send_reminders()), flush=True)
+        logger.info("Reminders run: %s", dict(run_send_reminders()))

@@ -1,6 +1,7 @@
 """POST /api/v1/voice/transcribe with the ASR and the LLM replaced by fakes (no models, no network)."""
 
 from datetime import datetime
+from types import SimpleNamespace
 
 import pytest
 from fastapi import FastAPI
@@ -34,7 +35,7 @@ def client(monkeypatch):
     """Test app with only the voice router; the transcriber is faked per test via `set_transcript`."""
     app = FastAPI()
     app.include_router(voice_api.router, prefix="/api/v1")  # same mount point as app.api.api_router
-    app.dependency_overrides[get_current_user] = lambda: object()  # auth is tested elsewhere; skip the DB
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id="test-user")  # auth is tested elsewhere; skip the DB
     holder = {}
     monkeypatch.setattr(voice_api.PhoWhisperTranscriber, "get_instance", classmethod(lambda cls: holder["t"]))
     test_client = TestClient(app)
