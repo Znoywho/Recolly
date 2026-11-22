@@ -20,6 +20,14 @@ DEFAULT_TIMEOUT_SECONDS = float(os.getenv("ASR_TIMEOUT_SECONDS", "120"))
 logger = logging.getLogger(__name__)
 
 
+class AsrUnavailable(RuntimeError):
+    """Kaggle is down, unreachable or misconfigured: keep the recording and try again later."""
+
+
+class AsrRejected(RuntimeError):
+    """The speech server refused the audio itself (cannot decode): retrying will not help."""
+
+
 @dataclass
 class TranscriptionResult:
     """Text recognized from one audio file, plus how long recognition took."""
@@ -38,7 +46,7 @@ class PhoWhisperTranscriber:
                  model_name: str = DEFAULT_MODEL_NAME, http: httpx.Client | None = None):
         """Keep one HTTP client to the notebook; fail early when the notebook URL is missing."""
         if not base_url and http is None:
-            raise RuntimeError("ASR_BASE_URL is not set: run notebooks/kaggle_ollama on Kaggle first")
+            raise AsrUnavailable("ASR_BASE_URL is not set: run notebooks/kaggle_ollama on Kaggle first")
         self.model_name = model_name
         # The token stops strangers who find the public tunnel URL from using the GPU.
         self._http = http or httpx.Client(base_url=base_url.rstrip("/"), timeout=DEFAULT_TIMEOUT_SECONDS,
@@ -65,10 +73,11 @@ class PhoWhisperTranscriber:
         except httpx.HTTPStatusError as error:
             logger.warning("ASR via %s failed: HTTP %d", host, error.response.status_code)
             # No URL in the message: it reaches the app and would leak the tunnel address.
-            raise RuntimeError(f"speech server returned HTTP {error.response.status_code}") from error
+            error_type = AsrRejected if error.response.status_code == 400 else AsrUnavailable
+            raise error_type(f"speech server returned HTTP {error.response.status_code}") from error
         except (httpx.HTTPError, ValueError, KeyError) as error:
             logger.warning("ASR via %s unreachable: %s", host, error)
-            raise RuntimeError("speech server is unreachable") from error
+            raise AsrUnavailable("speech server is unreachable") from error
         elapsed = time.perf_counter() - start
         logger.info("ASR via %s ok in %.0fms", host, elapsed * 1000)
         return TranscriptionResult(text=text, duration_seconds=round(elapsed, 2))

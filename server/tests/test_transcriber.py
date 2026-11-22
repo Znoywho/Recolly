@@ -3,7 +3,7 @@
 import httpx
 import pytest
 
-from app.service.voice.transcriber import PhoWhisperTranscriber
+from app.service.voice.transcriber import AsrRejected, AsrUnavailable, PhoWhisperTranscriber
 
 TUNNEL = "https://secret-words.trycloudflare.com"
 
@@ -35,12 +35,19 @@ def test_errors_do_not_leak_the_tunnel_url(tmp_path):
     audio.write_bytes(b"x")
     transcriber = make_transcriber(lambda request: httpx.Response(401))
 
-    with pytest.raises(RuntimeError) as error:
+    with pytest.raises(AsrUnavailable) as error:  # 401 = wrong ASR_TOKEN in .env: fixable, so retry later
         transcriber.transcribe_file(str(audio))
 
     assert "401" in str(error.value) and "trycloudflare" not in str(error.value)
 
 
+def test_undecodable_audio_is_final(tmp_path):
+    audio = tmp_path / "a.wav"
+    audio.write_bytes(b"x")
+    with pytest.raises(AsrRejected):
+        make_transcriber(lambda request: httpx.Response(400)).transcribe_file(str(audio))
+
+
 def test_missing_url_fails_early():
-    with pytest.raises(RuntimeError, match="ASR_BASE_URL"):
+    with pytest.raises(AsrUnavailable, match="ASR_BASE_URL"):
         PhoWhisperTranscriber(base_url="")

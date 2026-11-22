@@ -1,30 +1,29 @@
-"""Voice endpoint (contract: docs/openapi.yaml, POST /voice/transcribe, R42 + R43).
+"""Voice endpoints (contract: docs/openapi.yaml, V1 POST /voice/transcribe, V2 GET /voice/jobs/{id}; R42 + R43).
 
-audio → PhoWhisper transcript → VoiceTodoParser (Ollama words + rule deadline) → todo_draft.
-The draft is not saved; the app shows it for confirmation and then calls the todo API.
+The recording is saved first (voice_jobs + audio file), then sent to PhoWhisper on Kaggle:
+Kaggle up → 200 with the draft; Kaggle down → 202, app.jobs.process_voice retries and pushes "voice_ready".
+The draft is not saved as a todo; the app shows it for confirmation and then calls the todo API.
 """
 
 import os
-import tempfile
+import uuid
 from datetime import datetime
-from typing import Literal
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app.core.deps import CurrentUser
-from app.service.llm.ollama_client import OllamaError
-from app.service.voice.time_parser import VIETNAM_TIMEZONE, VietnameseTimeParser
-from app.service.voice.todo_parser import TodoDraft, VoiceTodoParser
-from app.service.voice.transcriber import PhoWhisperTranscriber
+from app.core.deps import CurrentUser, DbSession, user_tz
+from app.core.errors import not_found
+from app.core.timeutil import now_utc
+from app.models.enums import JobStatus, Priority, TodoCategory
+from app.models.voice import VoiceJob
+from app.service.voice.voice_jobs import create_job, process_job
 
 MAX_AUDIO_BYTES = 25 * 1024 * 1024  # contract: max 25 MB
-
-# Same values as app.models.enums.TodoCategory / Priority. Not imported from there: app.models has a
-# circular import (todo.py <-> user.py) that breaks whenever app.models.enums is imported first.
-TodoCategory = Literal["study", "assignment", "exam", "personal", "other"]
-Priority = Literal["low", "medium", "high"]
+# The filename comes from the client: only these extensions reach the disk.
+AUDIO_SUFFIXES = {".m4a", ".mp4", ".aac", ".wav", ".ogg", ".mp3"}
 
 router = APIRouter(prefix="/voice", tags=["Voice"])  # mounted under /api/v1 by app.api.api_router
 
@@ -50,62 +49,67 @@ class TranscribeResponse(BaseModel):
     corrected_transcript: str | None = None
     model: str
     processing_seconds: float
+    job_id: uuid.UUID | None = None  # the saved recording, for GET /voice/jobs/{job_id}
 
 
-def draft_from_rules_only(transcript: str, reference: datetime) -> TodoDraft:
-    """Fallback when the LLM is down: the sentence itself as title, deadline from the rule parser."""
-    deadline = VietnameseTimeParser().extract_deadline(transcript, reference)
-    title = transcript.strip().rstrip(".").capitalize()
-    return TodoDraft(title=title, category="other", priority="medium", deadline_at=deadline,
-                     transcript=transcript, corrected_transcript=transcript, model="rules")
+class VoiceJobCreated(BaseModel):
+    """202 body: the recording is saved and will be transcribed when the speech server is back."""
+
+    job_id: uuid.UUID
+    status: JobStatus
 
 
-def to_response_draft(draft: TodoDraft) -> TodoDraftResponse:
-    """Map the service dataclass onto the contract schema."""
-    return TodoDraftResponse(title=draft.title, category=draft.category, priority=draft.priority,
-                             deadline_at=draft.deadline_at)
+class VoiceJobRead(BaseModel):
+    """`VoiceJob` in the contract (same shape as OcrJob)."""
+
+    job_id: uuid.UUID
+    status: JobStatus
+    error: str | None            # VOICE_ASR_UNAVAILABLE | VOICE_BAD_AUDIO
+    result: TranscribeResponse | None
+    created_at: datetime
 
 
-@router.post("/transcribe", response_model=TranscribeResponse)
+def job_result(job: VoiceJob) -> TranscribeResponse | None:
+    """The stored draft of a succeeded job, with its id."""
+    return TranscribeResponse(**job.result, job_id=job.id) if job.result else None
+
+
+@router.post("/transcribe", response_model=TranscribeResponse,
+             responses={202: {"model": VoiceJobCreated, "description": "Saved; speech server down, retried later"}})
 async def transcribe_audio(
-    _user: CurrentUser,
+    user: CurrentUser,
+    db: DbSession,
     audio: UploadFile = File(...),
     reference_time: datetime | None = Form(default=None, description="Device 'now' for relative dates"),
-) -> TranscribeResponse:
-    """Save the upload to a temp file, transcribe it, then build a todo draft from the transcript."""
+):
+    """Save the recording, then try Kaggle now: 200 with the draft, or 202 when it must wait in the queue."""
     audio_bytes = await audio.read()
     if not audio_bytes:
         raise HTTPException(status_code=400, detail="Empty audio file")
     if len(audio_bytes) > MAX_AUDIO_BYTES:
         raise HTTPException(status_code=413, detail="Audio file too large (max 25 MB)")
 
-    suffix = os.path.splitext(audio.filename or "")[1] or ".wav"
-    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temp_audio:
-        temp_audio.write(audio_bytes)
-        temp_path = temp_audio.name
+    if reference_time is not None and reference_time.tzinfo is None:
+        # No offset (e.g. typed in Swagger): it is the user's wall clock, not UTC.
+        reference_time = reference_time.replace(tzinfo=user_tz(user))
+    suffix = os.path.splitext(audio.filename or "")[1].lower()
+    job = create_job(db, user, audio_bytes, suffix if suffix in AUDIO_SUFFIXES else ".audio",
+                     reference_time or now_utc())
+    # Network calls (Kaggle ASR + LLM) block, so keep them off the event loop
+    await run_in_threadpool(process_job, db, job)
 
-    try:
-        transcriber = PhoWhisperTranscriber.get_instance()
-        # Model inference blocks the CPU, so keep it off the event loop
-        result = await run_in_threadpool(transcriber.transcribe_file, temp_path)
-    except Exception as error:
-        raise HTTPException(status_code=422, detail=f"Could not transcribe audio: {error}")
-    finally:
-        os.remove(temp_path)
+    if job.status == JobStatus.SUCCEEDED:
+        return job_result(job)
+    if job.status == JobStatus.FAILED:
+        raise HTTPException(status_code=422, detail="Could not transcribe audio: the file cannot be decoded")
+    return JSONResponse(VoiceJobCreated(job_id=job.id, status=job.status).model_dump(mode="json"), status_code=202)
 
-    reference = reference_time or datetime.now(VIETNAM_TIMEZONE)
-    try:
-        draft = await run_in_threadpool(VoiceTodoParser().parse, result.text, reference)
-        parser_name = "ollama"
-    except OllamaError:
-        draft = draft_from_rules_only(result.text, reference)
-        parser_name = "rules"
 
-    return TranscribeResponse(
-        transcript=result.text,
-        todo_draft=to_response_draft(draft) if result.text.strip() else None,
-        parser=parser_name,
-        corrected_transcript=draft.corrected_transcript if parser_name == "ollama" else None,
-        model=f"{transcriber.model_name} + {draft.model}",
-        processing_seconds=result.duration_seconds,
-    )
+@router.get("/jobs/{job_id}", response_model=VoiceJobRead)
+def get_voice_job(job_id: uuid.UUID, user: CurrentUser, db: DbSession) -> VoiceJobRead:
+    """V2 · State of a saved recording; poll it after a 202. Jobs are deleted after 7 days."""
+    job = db.get(VoiceJob, job_id)
+    if job is None or job.user_id != user.id:
+        raise not_found("voice_job")
+    return VoiceJobRead(job_id=job.id, status=job.status, error=job.error_code, result=job_result(job),
+                        created_at=job.created_at)

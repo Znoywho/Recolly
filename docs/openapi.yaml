@@ -55,6 +55,9 @@ info:
     OCR job failure codes (inside `OcrJob.error`, not HTTP errors):
     `OCR_NO_TABLE_FOUND`, `OCR_LOW_QUALITY`, `OCR_MODEL_ERROR`.
 
+    Voice job failure codes (inside `VoiceJob.error`, not HTTP errors):
+    `VOICE_ASR_UNAVAILABLE` (speech server down for 24 h), `VOICE_BAD_AUDIO` (file cannot be decoded).
+
     ## Sleep model (Module 2)
 
     Implements the personalised two-process model from the Recolly sleep research
@@ -1040,6 +1043,10 @@ paths:
         PhoWhisper transcribes Vietnamese speech; an Ollama LLM (qwen2.5:14b, with ASR-error repair)
         extracts title/category/priority and a rule-based parser computes `deadline_at` (rule-only
         fallback when the LLM is down). The draft is **not saved** — Flutter lets the user edit it, then calls D2.
+
+        The recording itself is saved first (kept 7 days). If the speech server (Kaggle) is down the answer
+        is `202` with a `job_id`: the server retries every minute, sends an FCM push `type = voice_ready`
+        (data `job_id`) when done, and Flutter polls V2 `GET /voice/jobs/{job_id}`.
       x-task-ids: [R42, R43]
       requestBody:
         required: true
@@ -1066,11 +1073,37 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TranscribeResponse' }
+        '202':
+          description: Recording saved; the speech server is down, it is transcribed later. Poll V2.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VoiceJobCreated' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '413': { $ref: '#/components/responses/PayloadTooLarge' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /voice/jobs/{job_id}:
+    parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Voice]
+      operationId: getVoiceJob
+      summary: V2 · Saved recording status and its draft
+      description: Poll about every 5 s after a `202` from V1 (or open it from the `voice_ready` push). Jobs are kept 7 days, then this returns `404 VOICE_JOB_NOT_FOUND`.
+      x-task-ids: [R42, R43]
+      responses:
+        '200':
+          description: Job state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VoiceJob' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   # ───────────────────────────── Scheduler ─────────────────────────────
   /schedule/generate:
@@ -2629,6 +2662,7 @@ components:
         corrected_transcript:
           type: [string, 'null']
           description: The transcript after the LLM repaired ASR mishearings (null when parser is rules).
+        job_id: { type: string, format: uuid, description: The saved recording (V2). }
       example:
         transcript: Thứ sáu nộp bài tập lớn cấu trúc dữ liệu
         todo_draft:
@@ -2641,6 +2675,25 @@ components:
           difficulty: null
         parser: ollama
         corrected_transcript: Thứ sáu nộp bài tập lớn cấu trúc dữ liệu
+        job_id: 7a1c2e3f-4b5d-4e6f-8a9b-0c1d2e3f4a5b
+    VoiceJobCreated:
+      type: object
+      required: [job_id, status]
+      properties:
+        job_id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/JobStatus' }
+    VoiceJob:
+      type: object
+      required: [job_id, status, error, result, created_at]
+      properties:
+        job_id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/JobStatus' }
+        error:
+          type: [string, 'null']
+          enum: [VOICE_ASR_UNAVAILABLE, VOICE_BAD_AUDIO, null]
+        result:
+          anyOf: [{ $ref: '#/components/schemas/TranscribeResponse' }, { type: 'null' }]
+        created_at: { type: string, format: date-time }
 
     # ─────────── Scheduler ───────────
     ScheduleOptions:
