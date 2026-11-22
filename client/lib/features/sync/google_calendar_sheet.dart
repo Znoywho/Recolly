@@ -7,7 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../widgets/widgets.dart';
 
 // R32: Google Calendar connect sheet (Figma "Google Calendar – Đã kết nối"
-// 264:33 and "– Chưa kết nối" 264:145).
+// 273:33 and "– Chưa kết nối" 273:140).
 // Open it with GoogleCalendarSheet.show(context).
 
 const calendarScopes = ['https://www.googleapis.com/auth/calendar.events'];
@@ -20,6 +20,8 @@ class GoogleCalendarSheet extends StatefulWidget {
   static Future<void> show(BuildContext context) {
     return showModalBottomSheet<void>(
       context: context,
+      // Cover the bottom nav bar too (Figma)
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       barrierColor: AppColors.ink.withValues(alpha: 0.22),
@@ -253,7 +255,7 @@ class _GoogleCalendarSheetState extends State<GoogleCalendarSheet> {
     final s = status!;
     if (!s.connected) {
       return [
-        tag('Chưa kết nối', AppColors.white),
+        tag('Chưa kết nối', AppColors.coral),
         const SizedBox(height: AppSpacing.sm),
         Text(
           'Kết nối để đẩy lịch học và lịch ôn lên Google Calendar, '
@@ -284,23 +286,43 @@ class _GoogleCalendarSheetState extends State<GoogleCalendarSheet> {
         ],
       ),
       const SizedBox(height: AppSpacing.lg),
-      // Stacked: two labels are too long to sit side by side
       BrutalButton(
         label: 'Đồng bộ ngay',
         icon: Icons.sync,
         leadingIcon: true,
-        color: AppColors.white,
+        color: AppColors.teal,
         onPressed: busy ? null : syncNow,
       ),
       const SizedBox(height: AppSpacing.sm),
-      BrutalButton(
-        label: 'Ngắt kết nối',
-        icon: Icons.link_off,
-        leadingIcon: true,
-        color: AppColors.coral,
-        onPressed: busy ? null : disconnect,
-      ),
+      disconnectButton(),
     ];
+  }
+
+  // Red label + icon (Figma), BrutalButton only has ink text
+  Widget disconnectButton() {
+    final color = busy ? AppColors.inkMuted : AppColors.danger;
+    return GestureDetector(
+      onTap: busy ? null : disconnect,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+        decoration: AppTheme.brutalBox(
+          color: busy ? AppColors.disabled : AppColors.coral,
+          borderRadius: AppRadii.pillAll,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.link_off, size: 18, color: color),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              'Ngắt kết nối',
+              style: AppTypography.button.copyWith(color: color),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget infoRow(IconData icon, String text) {
