@@ -1,3 +1,4 @@
+import logging
 import threading
 from dataclasses import asdict
 
@@ -24,6 +25,7 @@ from app.service.event_service import initial_sync_status
 from app.service.google import GoogleDep
 
 router = APIRouter(prefix="/schedule", tags=["Scheduler"])
+logger = logging.getLogger(__name__)
 
 # Each solve uses 8 CPU threads for up to 5 s; more at once starve each other and hold DB connections.
 # shortcut: counted per server process; with several uvicorn workers each one allows this many.
@@ -47,6 +49,9 @@ def generate_schedule(body: ScheduleGenerateRequest, user: CurrentUser, db: DbSe
         result["model"] = biorhythm_service.model_summary(db, user, profile)
     finally:
         _solver_slots.release()
+    logger.info("Schedule solved user=%s status=%s blocks=%d unscheduled=%d in %dms", user.id,
+                result["solver_status"], len(result["blocks"]), len(result["unscheduled"]),
+                result["stats"]["solve_ms"])
     return ScheduleSuggestion.model_validate(result, context=response_context(user))
 
 
@@ -76,5 +81,6 @@ def apply_schedule(body: ScheduleApplyRequest, user: CurrentUser, db: DbSession,
     sync = None
     if body.sync_to_google and user.calendar_connection is not None:
         sync = SyncResult(**asdict(calendar_sync.sync(db, user, google, [e.id for e in events])))
+    logger.info("Schedule applied user=%s events=%d sync=%s", user.id, len(events), sync)
     ctx = response_context(user)
     return ScheduleApplyResult(events=[event_read(e, ctx) for e in events], sync=sync)

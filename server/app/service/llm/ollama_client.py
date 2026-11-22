@@ -1,13 +1,17 @@
 """Chat with a self-hosted Ollama model (local machine or a Kaggle notebook behind a tunnel)."""
 
 import json
+import logging
 import os
+import time
 
 import httpx
 
 DEFAULT_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 DEFAULT_MODEL_NAME = os.getenv("OLLAMA_MODEL", "gemma3:4b")
 DEFAULT_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "60"))
+
+logger = logging.getLogger(__name__)
 
 
 class OllamaError(Exception):
@@ -91,12 +95,18 @@ class OllamaClient:
 
     def _send_request(self, method: str, path: str, payload: dict | None = None) -> dict:
         """Send one HTTP request and turn network/HTTP failures into OllamaError."""
+        # Host only (e.g. the Kaggle trycloudflare tunnel), so the log shows whether the tunnel is alive.
+        started, host = time.perf_counter(), self._http.base_url.host
         try:
             response = self._http.request(method, path, json=payload)
             response.raise_for_status()
-            return response.json()
+            result = response.json()
         except httpx.HTTPStatusError as error:
             detail = error.response.text[:200]
+            logger.warning("Ollama %s %s via %s failed: HTTP %d", method, path, host, error.response.status_code)
             raise OllamaError(f"Ollama returned {error.response.status_code}: {detail}") from error
         except (httpx.HTTPError, ValueError) as error:
+            logger.warning("Ollama %s %s via %s unreachable: %s", method, path, host, error)
             raise OllamaError(f"Could not reach Ollama: {error}") from error
+        logger.info("Ollama %s %s via %s ok in %.0fms", method, path, host, (time.perf_counter() - started) * 1000)
+        return result
