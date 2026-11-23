@@ -147,6 +147,10 @@ flowchart LR
 
 Nét đứt là phần chưa tích hợp. Hợp đồng API nằm ở [`docs/openapi.yaml`](docs/openapi.yaml).
 
+Chi tiết từng pipeline:
+- 🎙️ Giọng nói → todo: [`docs/voice-pipeline.md`](docs/voice-pipeline.md)
+- 📅 Đồng bộ Google Calendar: [`docs/google-calendar-sync.md`](docs/google-calendar-sync.md)
+
 ---
 
 ## 🗺️ Lộ trình triển khai
