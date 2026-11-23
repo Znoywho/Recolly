@@ -36,6 +36,7 @@ def test_parse_vietnamese_number_rejects_non_numbers(words):
 @pytest.mark.parametrize("hour, part, expected", [
     (7, "sáng", 7), (7, "tối", 19), (3, "chiều", 15), (12, "trưa", 12), (1, "trưa", 13),
     (11, "đêm", 23), (2, "đêm", 2), (17, None, 17), (9, None, 9),
+    (12, "tối", 24), (12, "đêm", 24), (12, "khuya", 24), (12, None, 12),
 ])
 def test_to_24_hour(hour, part, expected):
     assert to_24_hour(hour, part) == expected
@@ -52,6 +53,10 @@ def test_to_24_hour(hour, part, expected):
     ("19h30 đá banh", TUESDAY_2PM, "2026-11-10 19:30"),
     ("lúc bốn rưỡi chiều đi bơi", TUESDAY_2PM, "2026-11-10 16:30"),
     ("sáu rưỡi sáng chạy bộ", TUESDAY_2PM, "2026-11-11 06:30"),
+    ("mười hai giờ tối học bài", TUESDAY_2PM, "2026-11-11 00:00"),
+    ("hai mươi tư giờ chốt sổ", TUESDAY_2PM, "2026-11-11 00:00"),
+    ("mười hai giờ trưa ăn cơm", TUESDAY_2PM, "2026-11-11 12:00"),
+    ("mười hai giờ đêm thứ sáu nộp bài", TUESDAY_2PM, "2026-11-14 00:00"),
     # relative days
     ("hôm nay trả sách thư viện", TUESDAY_2PM, "2026-11-10 23:59"),
     ("sáng mai tám giờ rưỡi thi vấn đáp", TUESDAY_2PM, "2026-11-11 08:30"),
