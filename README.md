@@ -84,7 +84,7 @@ Tích hợp Google Calendar để đồng bộ thời khóa biểu và các sự
 | Nhận diện giọng nói (ASR) | [PhoWhisper-medium](https://huggingface.co/vinai/PhoWhisper-medium) trên GPU Kaggle |
 | LLM | Qwen2.5 chạy qua [Ollama](https://ollama.com) trên GPU Kaggle (giọng nói → todo); Google Gemini (dự kiến, cho quote) |
 | Thông báo đẩy | Firebase Cloud Messaging (HTTP v1) |
-| Hạ tầng | Docker Compose, Redis (rate limit, chống gửi trùng), Cloudflare quick tunnel, [Dozzle](https://dozzle.dev) (xem log) |
+| Hạ tầng | Docker Compose, Redis (rate limit, chống gửi trùng), Cloudflare quick tunnel (webhook Google), ngrok (app kết nối server khi demo), [Dozzle](https://dozzle.dev) (xem log) |
 
 PhoWhisper và Qwen2.5 chạy trên GPU của Kaggle (notebook `server/notebooks/kaggle_ollama.ipynb`); server gọi qua tunnel
 Cloudflare, nên máy chạy server không cần GPU hay `torch`. Vintern và Gemini chưa được tích hợp.
@@ -172,7 +172,7 @@ Bảng dưới đây chỉ nói về backend.
 | Thông báo nhắc giờ ngủ và deadline | Đã có: service `reminders` (mỗi 5 phút) gửi push FCM, chống gửi trùng qua Redis |
 | Đồng bộ hai chiều với Google Calendar | Đã có: `/calendar/sync`, `/calendar/conflicts`, `/calendar/webhook`; job hằng ngày gia hạn kênh push và kéo dữ liệu dự phòng |
 | Nhập bằng giọng nói → bản nháp todo | Đã có: `/voice/transcribe` (PhoWhisper + Qwen2.5 trên Kaggle; khi Ollama tắt thì chỉ dùng luật). **Ghi âm được lưu trước**: Kaggle tắt thì trả `202`, service `voice-worker` thử lại mỗi phút và gửi push `voice_ready`; xem trạng thái ở `/voice/jobs/{id}`. Chi tiết ở [`server/README.md`](server/README.md) |
-| Giới hạn tần suất gọi API | Đã có: 120 request/phút mỗi người, riêng `/schedule/generate` 10/phút và tối đa 2 lần giải cùng lúc |
+| Giới hạn tần suất gọi API | Đã có: 120 request/phút mỗi người, riêng `/schedule/generate` 10/phút và tối đa 2 lần giải cùng lúc. Webhook Google `/calendar/webhook` cũng bị giới hạn 120/phút theo IP (IP của Google, dùng chung): ổn cho demo, cần xem lại khi nhiều người dùng |
 
 ### Giai đoạn 3 – Hoàn thiện
 
@@ -291,6 +291,32 @@ flutter run
 ---
 
 ## 🔎 Theo dõi log & demo
+
+### Kết nối app với server qua ngrok
+
+Server chạy trên máy cá nhân nên app (emulator hoặc điện thoại) vào qua một domain ngrok cố định. Mặc định mọi thứ đều tắt.
+
+1. `docker compose up -d`, chờ khoảng 30 giây, rồi kiểm tra `curl localhost:8765/api/v1/health` trả `status: ok, db: ok, redis: ok`.
+2. Mở tunnel (port **8765**): `ngrok http 8765 --url=https://<domain-của-bạn>.ngrok-free.dev`. Giữ terminal này mở suốt buổi demo.
+3. Kiểm tra tunnel: `curl -H "ngrok-skip-browser-warning: true" https://<domain-của-bạn>.ngrok-free.dev/api/v1/health`.
+4. Chạy app (`-d` nhận device ID, xem bằng `flutter devices`):
+
+```bash
+cd client && flutter run -d emulator-5554 \
+  --dart-define=USE_MOCK_API=false \
+  --dart-define=API_BASE_URL=https://<domain-của-bạn>.ngrok-free.dev/api/v1 \
+  --dart-define=GOOGLE_SERVER_CLIENT_ID=<web-client-id>.apps.googleusercontent.com
+```
+
+`GOOGLE_SERVER_CLIENT_ID` phải trùng Web client ID mà server dùng. Thiếu nó thì app báo "Đăng nhập Google lỗi" và server không thấy request `POST /auth/google`.
+
+| Triệu chứng | Cách xử lý |
+|---|---|
+| ngrok `502` / lỗi `8012` | Docker hoặc server chưa lên: bật compose, chờ ~30 giây |
+| `curl: (56) Connection reset` ngay sau compose up | Server đang khởi động, thử lại sau |
+| ngrok lỗi `6024` (trang cảnh báo gói free) | Thêm header `ngrok-skip-browser-warning: true` |
+
+Chỉ tunnel port 8765, **không** tunnel Dozzle (8888). Đừng bật "Protect it" của ngrok vì nó chặn app hoặc xung đột với header `Authorization: Bearer`; API đã có JWT và giới hạn tần suất. Authtoken ngrok và client secret không ghi vào README hay commit.
 
 ### Bật Kaggle (giọng nói)
 
