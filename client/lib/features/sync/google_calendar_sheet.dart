@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../auth/google_auth.dart';
 import '../../widgets/widgets.dart';
 
 // R32: Google Calendar connect sheet (Figma "Google Calendar – Đã kết nối"
@@ -11,8 +12,6 @@ import '../../widgets/widgets.dart';
 // Open it with GoogleCalendarSheet.show(context).
 
 const calendarScopes = ['https://www.googleapis.com/auth/calendar.events'];
-
-bool googleReady = false;
 
 class GoogleCalendarSheet extends StatefulWidget {
   const GoogleCalendarSheet({super.key});
@@ -77,12 +76,7 @@ class _GoogleCalendarSheetState extends State<GoogleCalendarSheet> {
   // Ask Google for a server auth code with the calendar scope.
   Future<String?> getGoogleCode() async {
     if (ApiConfig.useMock) return 'mock-server-auth-code';
-    if (!googleReady) {
-      await GoogleSignIn.instance.initialize(
-        serverClientId: ApiConfig.googleServerClientId,
-      );
-      googleReady = true;
-    }
+    await ensureGoogleReady();
     final account = await GoogleSignIn.instance.authenticate(
       scopeHint: calendarScopes,
     );

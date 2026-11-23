@@ -1,4 +1,4 @@
-import 'package:client/features/welcome_screens/startscreen.dart';
+import 'package:client/features/auth/auth_gate.dart';
 import 'package:client/widgets/brutal_button.dart';
 import 'package:flutter/material.dart';
 
@@ -19,7 +19,7 @@ class Logoscreen extends StatelessWidget {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => Startscreen()),
+                MaterialPageRoute(builder: (context) => AuthGate()),
               );
             },
             color: AppColors.green,
