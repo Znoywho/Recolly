@@ -135,7 +135,7 @@ Full list of `code` values: `info.description` in `openapi.yaml`.
 | R2 | PUT | `/reminder-settings` | Update reminder settings | R38, R39 |
 | R3 | POST | `/devices` | Register FCM token | R40 |
 | R4 | DELETE | `/devices/{fcm_token}` | Unregister device | R40 |
-| R5 | GET | `/quotes/random` | Motivation quote (Gemini, with fallback) | R49, R50 |
+| R5 | GET | `/quotes/random` | Motivation quote (LLM via Ollama, with fallback) | R49, R50 |
 | **Home** |
 | O1 | GET | `/home` | **New.** Everything the Home screen needs in one call | R56, R60 |
 | **System** |
@@ -734,10 +734,10 @@ R1 returns the defaults above if the user never saved settings.
 **R5 `GET /quotes/random?context=deadline`** — `context`: `general | deadline | sleep | progress`
 
 ```json
-{ "text": "...", "author": null, "source": "gemini", "context": "deadline" }
+{ "text": "...", "author": null, "source": "llm", "context": "deadline" }
 ```
 
-`source` is `"gemini"` or `"fallback"`.
+`source` is `"llm"` (Ollama) or `"fallback"` (built-in list).
 
 ### Home
 
