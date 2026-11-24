@@ -1390,7 +1390,7 @@ paths:
     get:
       tags: [Reminders]
       operationId: getRandomQuote
-      summary: R5 · Motivation quote (Gemini, with fallback)
+      summary: R5 · Motivation quote (LLM via Ollama, with fallback)
       x-task-ids: [R49, R50]
       parameters:
         - name: context
@@ -1398,7 +1398,7 @@ paths:
           schema: { $ref: '#/components/schemas/QuoteContext' }
       responses:
         '200':
-          description: A quote. Never fails because of Gemini — falls back to the built-in list.
+          description: A quote about the user's sleep debt and next deadline. Never fails because of the LLM — falls back to the built-in list.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Quote' }
@@ -2959,7 +2959,7 @@ components:
       properties:
         text: { type: string }
         author: { type: [string, 'null'] }
-        source: { type: string, enum: [gemini, fallback] }
+        source: { type: string, enum: [llm, fallback] }
         context: { $ref: '#/components/schemas/QuoteContext' }
     PushPayload:
       type: object

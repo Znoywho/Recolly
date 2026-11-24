@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Response
 from sqlalchemy import select
 
-from app.core.deps import CurrentUser, DbSession
+from app.core.deps import CurrentUser, DbSession, user_tz
 from app.core.timeutil import now_utc
+from app.models.enums import TodoStatus
 from app.models.notification import Device, ReminderSettings as ReminderSettingsRow
+from app.repository.todo_repository import TodoRepository
 from app.schemas.notification import DeviceRegister, Quote, QuoteContext, ReminderSettings
-from app.service.quotes import random_quote
+from app.service import biorhythm_service
+from app.service.quotes import llm_quote
 from app.service.reminders import reminder_settings_of
 
 router = APIRouter(tags=["Reminders"])
@@ -68,6 +71,13 @@ def unregister_device(fcm_token: str, user: CurrentUser, db: DbSession):
 
 
 @router.get("/quotes/random", response_model=Quote)
-def get_random_quote(user: CurrentUser, context: QuoteContext = "general"):
-    """R5 · Motivation quote; never fails (built-in list until Gemini is plugged in)."""
-    return Quote(**random_quote(context))
+def get_random_quote(user: CurrentUser, db: DbSession, context: QuoteContext = "general"):
+    """R5 · Motivation quote about the user's sleep debt and next deadline; never fails (built-in list fallback)."""
+    debt_hours = None
+    if user.health_profile is not None:  # no profile yet: quote without sleep debt instead of a 404
+        debt_hours = biorhythm_service.debt_summary(db, user, user.health_profile, 7)["total_debt_minutes"] / 60
+    todos, _ = TodoRepository(db).page(user.id, statuses=(TodoStatus.TODO, TodoStatus.IN_PROGRESS),
+                                       due_after=now_utc(), limit=1)
+    deadline = (f"{todos[0].title}, {todos[0].deadline_at.astimezone(user_tz(user)):%H:%M %d/%m}"
+                if todos else None)
+    return Quote(**llm_quote(context, debt_hours, deadline))

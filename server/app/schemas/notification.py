@@ -42,5 +42,5 @@ QuoteContext = Literal["general", "deadline", "sleep", "progress"]
 class Quote(BaseModel):
     text: str
     author: str | None
-    source: Literal["gemini", "fallback"]
+    source: Literal["llm", "fallback"]
     context: QuoteContext
