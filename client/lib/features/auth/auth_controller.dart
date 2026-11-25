@@ -29,11 +29,16 @@ class AuthController extends ChangeNotifier {
   bool busy = false;
   String? error;
 
+  /// Set by [AuthGate]: takes the user back to login when the session
+  /// expires while they are using the app.
+  VoidCallback? onSessionExpired;
+
   // Called once when the app opens: check saved login.
   Future<void> start() async {
     // Every token change (sign-in, refresh rotation, logout) goes to disk,
     // otherwise the next launch would use a refresh token already rotated.
     repos.tokenStore.onChanged = persistTokens;
+    repos.tokenStore.onExpired = expireSession;
     try {
       final saved = await storage.read(key: tokenKey);
       if (saved == null) {
@@ -59,6 +64,15 @@ class AuthController extends ChangeNotifier {
       status = AuthStatus.loggedOut;
     }
     notifyListeners();
+  }
+
+  // The server rejected the refresh token mid-session: back to login.
+  // During start() the 401 branch already shows login, so skip it there.
+  void expireSession() {
+    if (status != AuthStatus.loggedIn) return;
+    status = AuthStatus.loggedOut;
+    user = null;
+    onSessionExpired?.call();
   }
 
   // Writes the current tokens to secure storage (null = delete).

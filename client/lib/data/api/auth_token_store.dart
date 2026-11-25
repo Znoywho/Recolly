@@ -12,6 +12,10 @@ class AuthTokenStore {
   /// Called after every [save] / [clear] with the new value (null = cleared).
   void Function(AuthTokens? tokens)? onChanged;
 
+  /// Called by [ApiClient] when the server rejects the refresh token, so the
+  /// app can send the user back to login (a normal logout does not call it).
+  void Function()? onExpired;
+
   AuthTokens? get tokens => _tokens;
   String? get accessToken => _tokens?.accessToken;
 

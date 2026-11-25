@@ -205,6 +205,7 @@ class ApiClient {
         }
         if (response.statusCode == 401) {
           tokenStore.clear();
+          tokenStore.onExpired?.call();
           return false;
         }
         tokenStore.save(AuthTokens.fromJson(_decode(response) as Json));
