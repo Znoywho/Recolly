@@ -5,7 +5,9 @@ Quy tắc dịch Figma → Flutter: [figma-design-rules.md](figma-design-rules.m
 
 ## Tiến độ
 - [x] Hạo 1 — Variables (`Color` 13 biến, `Dimension` 12 biến), Text Styles `text/*` (7), Effect Style `shadow/hard` — 2026-11-25
-- [ ] Hạo 2 — bind layer vào Variables
+- [~] Hạo 2 — bind layer vào Variables — 2026-11-25
+  - [x] Màu: 2.310 fill/stroke trên 1.878 layer đã gắn `color/*` (chỉ màu khớp chính xác; bỏ qua layer trong instance)
+  - [ ] Chữ: **chưa gán** `text/*` — chỉ 30/~700 đoạn chữ khớp đúng style. Figma dùng line-height `auto` gần hết, và có kiểu code không có: 15 SemiBold (82+), 13 Regular (27+), 20 ExtraBold (20). Cần Member 3 chốt: thêm style vào `AppTypography` hay sửa Figma theo code.
 - [ ] Hạo 3 — component hóa + đổi tên
 - [ ] Hạo 4 — Code Connect
 - [ ] Hạo 5 — danh sách lệch từng màn
