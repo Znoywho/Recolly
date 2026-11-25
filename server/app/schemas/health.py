@@ -1,10 +1,10 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
-from app.core.timeutil import ClockTime
+from app.core.timeutil import ClockTime, now_utc
 from app.models.enums import (
     Chronotype,
     ChronotypeSource,
@@ -17,6 +17,7 @@ from app.schemas.common import ORMModel, PatchModel
 from app.service.sleep.mctq import NightsPerWeek, ProblemDuration
 
 MAX_SLEEP_HOURS = 16
+FUTURE_SKEW = timedelta(minutes=5)  # phone clocks drift a little; a wake time later than this is a typo
 
 
 # ─────────────────────────── Chronotype & profile ───────────────────────────
@@ -157,6 +158,8 @@ class SleepLogCreate(BaseModel):
             raise ValueError("wake_at must be after sleep_at")
         if (self.wake_at - self.sleep_at).total_seconds() > MAX_SLEEP_HOURS * 3600:
             raise ValueError(f"a sleep log lasts at most {MAX_SLEEP_HOURS} hours")
+        if self.wake_at > now_utc() + FUTURE_SKEW:
+            raise ValueError("wake_at cannot be in the future")
         return self
 
 

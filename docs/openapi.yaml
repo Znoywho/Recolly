@@ -1968,7 +1968,7 @@ components:
     SleepLogCreate:
       type: object
       required: [sleep_at, wake_at]
-      description: '`wake_at` must be after `sleep_at`; duration at most 16 h.'
+      description: '`wake_at` must be after `sleep_at` and not in the future (5 min clock skew allowed); duration at most 16 h.'
       properties:
         sleep_at: { type: string, format: date-time }
         wake_at: { type: string, format: date-time }
