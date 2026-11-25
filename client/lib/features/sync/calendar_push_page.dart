@@ -264,13 +264,10 @@ class _CalendarPushPageState extends State<CalendarPushPage> {
   List<Widget> resultBody() {
     final r = result!;
     final t = syncedAt!;
-    // Same wording as Figma
-    final sub = [
-      r.failed == 0 ? 'Không có lỗi' : '${r.failed} sự kiện bị lỗi',
-      r.conflicts > 0
-          ? '${r.conflicts} xung đột'
-          : (r.failed == 0 ? 'không có xung đột' : 'chưa có xung đột'),
-    ].join(', ');
+    // Conflicts are not shown here, they belong to two-way sync (R46)
+    final sub = r.failed == 0
+        ? 'Tất cả sự kiện đã lên Google'
+        : '${r.failed} sự kiện chưa đẩy được';
     return [
       muted('Đồng bộ lúc ${two(t.hour)}:${two(t.minute)} hôm nay$emailPart'),
       const SizedBox(height: AppSpacing.md),
@@ -302,10 +299,6 @@ class _CalendarPushPageState extends State<CalendarPushPage> {
                 tag(
                   'Lỗi ${r.failed}',
                   r.failed > 0 ? AppColors.coral : AppColors.white,
-                ),
-                tag(
-                  'Xung đột ${r.conflicts}',
-                  r.conflicts > 0 ? AppColors.yellow : AppColors.white,
                 ),
               ],
             ),
