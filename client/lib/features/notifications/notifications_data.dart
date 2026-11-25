@@ -31,20 +31,26 @@ class AppNotification {
 }
 
 class NotificationsData {
-  const NotificationsData({required this.notifications});
+  const NotificationsData({required this.notifications, this.chronotype});
 
   static const int _dailyQuoteHour = 8;
 
   final List<AppNotification> notifications;
 
+  /// The user's animal, shown as the mascot giving each reminder.
+  /// `null` before onboarding.
+  final Chronotype? chronotype;
+
   static Future<NotificationsData> load(AppRepositories repositories) async {
     final overview = repositories.home.getOverview();
     final settings = _orNull(repositories.reminders.getSettings());
     final quote = _orNull(repositories.reminders.randomQuote());
+    final profile = _orNull(repositories.sleep.getHealthProfile());
     return NotificationsData.from(
       overview: await overview,
       settings: await settings,
       quote: await quote,
+      chronotype: (await profile)?.chronotype,
     );
   }
 
@@ -52,6 +58,7 @@ class NotificationsData {
     required HomeOverview overview,
     ReminderSettings? settings,
     Quote? quote,
+    Chronotype? chronotype,
   }) {
     final now = overview.now.time;
     final tonight = overview.tonight;
@@ -108,7 +115,10 @@ class NotificationsData {
           message: 'Giữ nhịp đều, đừng quên nghỉ ngơi.',
         ),
     ]..sort(_byCategoryThenTime);
-    return NotificationsData(notifications: notifications);
+    return NotificationsData(
+      notifications: notifications,
+      chronotype: chronotype,
+    );
   }
 
   static int _byCategoryThenTime(AppNotification a, AppNotification b) {
