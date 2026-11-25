@@ -59,7 +59,8 @@ Tích hợp Google Calendar để đồng bộ thời khóa biểu và các sự
 ### 😴 Module 2: Chronotype & nợ ngủ
 - Từ giờ ngủ ngày học và ngày nghỉ, xếp người dùng vào 1 trong 3 nhóm: 🦁 Sư tử, 🐻 Gấu, 🐺 Sói. Các nhóm này chỉ giúp dễ hiển thị, không phải chẩn đoán.
 - Tính nợ ngủ 7 ngày gần nhất: `max(0, tổng của (số giờ cần ngủ − số giờ ngủ thật))`.
-- Ước lượng mức tỉnh táo trong ngày bằng **Two-Process Model of Sleep Regulation** (Process S – áp lực ngủ, Process C – nhịp sinh học) của Borbély để làm cơ sở xếp lịch.
+- Ước lượng mức tỉnh táo trong ngày bằng **Two-Process Model of Sleep Regulation** (Process S – áp lực ngủ, Process C – nhịp sinh học) của Borbély để làm cơ sở xếp lịch. Hằng số lấy đúng bộ của Daan, Beersma & Borbély (1984) theo [Skeldon & Dijk (2025)](https://doi.org/10.1038/s44323-025-00039-z), Hình 1: χs = 4.2 h, χw = 18.2 h, H0+ = 0.67, H0− = 0.17, a = 0.12.
+- Nguồn của từng công thức, hằng số và phần nào còn là giả định của nhóm (ví dụ `KSS = 7.5 − 9·A`): [`docs/sleep-model.md`](docs/sleep-model.md).
 
 ### 🔔 Module 3: Giao diện trực quan, nhắc nhở & động lực
 - Nhắc giờ ngủ và các deadline sắp tới.
@@ -149,6 +150,7 @@ Nét đứt là phần chưa tích hợp. Hợp đồng API nằm ở [`docs/ope
 
 Chi tiết từng pipeline:
 - 🎙️ Giọng nói → todo: [`docs/voice-pipeline.md`](docs/voice-pipeline.md)
+- 😴 Mô hình giấc ngủ — công thức, hằng số, nguồn và mức độ kiểm chứng: [`docs/sleep-model.md`](docs/sleep-model.md)
 - 📅 Đồng bộ Google Calendar: [`docs/google-calendar-sync.md`](docs/google-calendar-sync.md)
 
 ---
