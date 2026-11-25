@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../widgets/widgets.dart';
+import 'conflict_auto_resolver.dart';
 
 // R33: pick events and push them to Google Calendar.
 // Figma: "Google Calendar – Chọn sự kiện" 317:33, "– Kết quả đồng bộ" 317:177,
@@ -81,6 +82,10 @@ class _CalendarPushPageState extends State<CalendarPushPage> {
     try {
       final repos = RepositoryScope.of(context);
       final r = await repos.calendarSync.sync(eventIds: ids);
+      // R46: changes pulled from Google may clash, solve them quietly
+      try {
+        await resolveAllConflicts(repos.calendarSync);
+      } catch (_) {}
       // Find which of the sent events are still not pushed
       var still = <CalendarEvent>[];
       if (r.failed > 0) {

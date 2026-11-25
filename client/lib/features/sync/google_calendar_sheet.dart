@@ -6,6 +6,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../core/theme/app_theme.dart';
 import '../auth/google_auth.dart';
 import 'calendar_push_page.dart';
+import 'conflict_auto_resolver.dart';
 import '../../widgets/widgets.dart';
 
 // R32: Google Calendar connect sheet (Figma "Google Calendar – Đã kết nối"
@@ -53,7 +54,8 @@ class _GoogleCalendarSheetState extends State<GoogleCalendarSheet> {
       error = null;
     });
     try {
-      final s = await repo.getStatus();
+      var s = await repo.getStatus();
+      s = await keepTwoWay(s);
       if (!mounted) return;
       setState(() {
         status = s;
@@ -66,6 +68,18 @@ class _GoogleCalendarSheetState extends State<GoogleCalendarSheet> {
         error = 'Không tải được trạng thái, thử lại nhé.';
       });
     }
+  }
+
+  // R46: turn on two-way sync and clear conflicts quietly, errors ignored
+  Future<CalendarStatus> keepTwoWay(CalendarStatus s) async {
+    if (!s.connected) return s;
+    try {
+      if (!s.twoWaySync) s = await repo.updateSettings(twoWaySync: true);
+      if (s.conflictCount > 0 && await resolveAllConflicts(repo) > 0) {
+        s = await repo.getStatus();
+      }
+    } catch (_) {}
+    return s;
   }
 
   void showSnack(String text) {
