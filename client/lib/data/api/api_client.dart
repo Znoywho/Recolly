@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
+import '../models/auth.dart';
+import '../models/json_utils.dart';
 import 'api_exception.dart';
 import 'auth_token_store.dart';
 import 'http_transport.dart';
@@ -137,24 +139,82 @@ class ApiClient {
     required bool auth,
   }) async {
     final uri = resolve(path, query);
-    final token = auth ? tokenStore.accessToken : null;
-    final request = ApiRequest(
-      method: method,
-      uri: uri,
-      headers: {
-        'accept': 'application/json',
-        'content-type': ?contentType,
-        if (token != null) 'authorization': 'Bearer $token',
-      },
-      body: body,
-    );
-    final ApiResponse response;
-    try {
-      response = await _transport.send(request).timeout(timeout);
-    } on TimeoutException {
-      throw ApiException.network('Request to $uri timed out');
+
+    // Sends the request with whatever access token is current right now.
+    Future<ApiResponse> sendOnce() async {
+      final token = auth ? tokenStore.accessToken : null;
+      final request = ApiRequest(
+        method: method,
+        uri: uri,
+        headers: {
+          'accept': 'application/json',
+          'content-type': ?contentType,
+          if (token != null) 'authorization': 'Bearer $token',
+        },
+        body: body,
+      );
+      try {
+        return await _transport.send(request).timeout(timeout);
+      } on TimeoutException {
+        throw ApiException.network('Request to $uri timed out');
+      }
+    }
+
+    var response = await sendOnce();
+    // Access tokens live 15 min: refresh once and retry instead of failing.
+    if (response.statusCode == 401 && auth && await _refreshTokens()) {
+      response = await sendOnce();
     }
     return _decode(response);
+  }
+
+  Future<bool>? _refreshing;
+
+  /// Swaps the refresh token for a new pair (POST /auth/refresh).
+  /// Returns false when there is nothing to refresh or the server rejects it
+  /// (tokens are then cleared, so the app goes back to login).
+  /// Parallel 401s share one refresh call, because the server rotates the
+  /// refresh token and a second call with the old one would fail.
+  Future<bool> _refreshTokens() {
+    final running = _refreshing;
+    if (running != null) return running;
+    final refreshToken = tokenStore.tokens?.refreshToken;
+    if (refreshToken == null) return Future.value(false);
+    final future = _refreshing = () async {
+      try {
+        final uri = resolve('auth/refresh');
+        final ApiResponse response;
+        try {
+          response = await _transport
+              .send(
+                ApiRequest(
+                  method: 'POST',
+                  uri: uri,
+                  headers: {
+                    'accept': 'application/json',
+                    'content-type': 'application/json',
+                  },
+                  body: utf8.encode(
+                    jsonEncode({'refresh_token': refreshToken}),
+                  ),
+                ),
+              )
+              .timeout(timeout);
+        } on TimeoutException {
+          throw ApiException.network('Request to $uri timed out');
+        }
+        if (response.statusCode == 401) {
+          tokenStore.clear();
+          return false;
+        }
+        tokenStore.save(AuthTokens.fromJson(_decode(response) as Json));
+        return true;
+      } finally {
+        // Runs after the first await, so `_refreshing` is already set here.
+        _refreshing = null;
+      }
+    }();
+    return future;
   }
 
   Object? _decode(ApiResponse response) {

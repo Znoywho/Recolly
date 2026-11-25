@@ -98,7 +98,59 @@ void main() {
     );
   });
 
-  test('401 surfaces as ApiException without retry', () async {
+  test(
+    '401 refreshes once, retries with the new token and reports it',
+    () async {
+      AuthTokens? persisted;
+      client.tokenStore.onChanged = (t) => persisted = t;
+      transport.handler = (req) {
+        if (req.uri.path.endsWith('auth/refresh')) {
+          return jsonResponse(200, {
+            'access_token': 'new',
+            'refresh_token': 'r2',
+            'token_type': 'bearer',
+            'expires_in': 900,
+          });
+        }
+        return req.headers['authorization'] == 'Bearer new'
+            ? jsonResponse(200, {'ok': true})
+            : jsonResponse(401, {'detail': 'expired'});
+      };
+      expect(await client.get('users/me'), {'ok': true});
+      expect(transport.requests.map((r) => r.uri.path.split('/').last), [
+        'me',
+        'refresh',
+        'me',
+      ]);
+      expect(
+        transport.requests[1].headers.containsKey('authorization'),
+        isFalse,
+      );
+      expect(persisted?.refreshToken, 'r2');
+    },
+  );
+
+  test('parallel 401s share one refresh call', () async {
+    transport.handler = (req) {
+      if (req.uri.path.endsWith('auth/refresh')) {
+        return jsonResponse(200, {
+          'access_token': 'new',
+          'refresh_token': 'r2',
+          'expires_in': 900,
+        });
+      }
+      return req.headers['authorization'] == 'Bearer new'
+          ? jsonResponse(200, {})
+          : jsonResponse(401, {});
+    };
+    await Future.wait([client.get('a'), client.get('b')]);
+    final refreshes = transport.requests.where(
+      (r) => r.uri.path.endsWith('auth/refresh'),
+    );
+    expect(refreshes, hasLength(1));
+  });
+
+  test('rejected refresh clears tokens and surfaces 401', () async {
     transport.handler = (_) => jsonResponse(401, {'detail': 'expired'});
     await expectLater(
       client.get('users/me'),
@@ -106,7 +158,8 @@ void main() {
         isA<ApiException>().having((e) => e.isUnauthorized, '401', isTrue),
       ),
     );
-    expect(transport.requests, hasLength(1));
+    expect(transport.requests, hasLength(2));
+    expect(client.tokenStore.tokens, isNull);
   });
 
   test('multipart upload', () async {
