@@ -135,7 +135,7 @@ Full list of `code` values: `info.description` in `openapi.yaml`.
 | R2 | PUT | `/reminder-settings` | Update reminder settings | R38, R39 |
 | R3 | POST | `/devices` | Register FCM token | R40 |
 | R4 | DELETE | `/devices/{fcm_token}` | Unregister device | R40 |
-| R5 | GET | `/quotes/random` | Motivation quote (Gemini, with fallback) | R49, R50 |
+| R5 | GET | `/quotes/random` | Motivation quote (LLM via Ollama, with fallback) | R49, R50 |
 | **Home** |
 | O1 | GET | `/home` | **New.** Everything the Home screen needs in one call | R56, R60 |
 | **System** |
@@ -230,8 +230,8 @@ KSS check-ins ──────────────────────
 - **Process S** = sleep pressure `H` (0–1). **Process C** = `cos(2π(t − φ)/24)`; the phase `φ` **is** the chronotype.
 - **Alertness** `A = H⁺(t) − H(t)` (distance to the sleep threshold; `A ≤ 0` = should be asleep).
   **KSS** (1 very alert … 9 fighting sleep) `= 7.5 − 9·A`. UI number: `alertness_score = 100·(9 − kss_pred)/8`.
-- Each user has a posterior over `(φ, χw)`, starting from a prior (population, or MCTQ + 0.9 h bias
-  correction) and sharpened by every KSS check-in. After ~14 days of check-ins it is near its floor.
+- Each user has a posterior over `(φ, χw)`, starting from a prior (population, or MCTQ)
+  and sharpened by every KSS check-in. After ~14 days of check-ins it is near its floor.
 
 ### Chronotype & health
 
@@ -263,13 +263,13 @@ KSS check-ins ──────────────────────
                    "msw": "03:30", "msf": "05:52", "msf_sc": "05:04",
                    "oversleep_corrected": true, "social_jetlag_hours": 2.38, "chronotype": "bear" },
   "rmeq_category": null,
-  "phi_prior_hours": 18.39,
+  "phi_prior_hours": 17.49,
   "phi_prior_sd_hours": 1.0,
   "natural_sleep_time": "01:45",
   "natural_wake_time": "08:24",
   "sleep_shortfall_hours": 0.36,
   "typical_week": {
-    "phi_hours": 18.39,
+    "phi_hours": 17.49,
     "school_onset_shift_minutes": 0,
     "days": [ { "day": 0, "wake_time": "06:30", "sleep_time": "00:30", "kss_08": 4.3, "kss_14": 4.9,
                 "kss_22": 6.5, "worst_time": "00:25", "worst_kss": 7.6, "minutes_past_threshold": 15,
@@ -734,10 +734,10 @@ R1 returns the defaults above if the user never saved settings.
 **R5 `GET /quotes/random?context=deadline`** — `context`: `general | deadline | sleep | progress`
 
 ```json
-{ "text": "...", "author": null, "source": "gemini", "context": "deadline" }
+{ "text": "...", "author": null, "source": "llm", "context": "deadline" }
 ```
 
-`source` is `"gemini"` or `"fallback"`.
+`source` is `"llm"` (Ollama) or `"fallback"` (built-in list).
 
 ### Home
 

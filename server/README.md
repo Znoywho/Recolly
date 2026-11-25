@@ -30,9 +30,13 @@ OAuth client is needed.
 
 ## Not implemented yet
 
-- OCR (T1, T2): waiting for the Vintern provider.
 - Operations marked `x-phase: later` in the contract (screen events, KSS check-ins, Bayes).
-- Sending FCM push notifications: R3/R4 only store device tokens.
+
+## Timetable OCR (T1, T2)
+
+Vintern-1B-v3_5 on the Kaggle GPU reads the photo as a markdown table, Ollama turns it into rows, and code
+maps periods to clock times (`PERIOD_TIMES` in `app/service/ocr/timetable_parser.py`). See
+[`docs/ocr-pipeline.md`](../docs/ocr-pipeline.md).
 
 ## Voice → todo pipeline (V1)
 

@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../widgets/widgets.dart';
+import '../voice/voice_input_page.dart';
 import 'scan_page.dart';
 import 'scan_result_page.dart';
 
@@ -159,10 +160,14 @@ class _TimetableImportPageState extends State<TimetableImportPage> {
               icon: Icons.mic_none,
               leadingIcon: true,
               color: AppColors.yellow,
-              // TODO(R41): open the voice input screen
               onPressed: uploading
                   ? null
-                  : () => showMessage('Tính năng sắp có'),
+                  : () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const VoiceInputPage(),
+                      ),
+                    ),
             ),
             const SizedBox(height: AppSpacing.lg),
             const Text(

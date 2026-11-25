@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../widgets/widgets.dart';
+import '../todo/todo_list_page.dart';
 import 'event_detail_page.dart';
 
 // R28: week calendar (Figma "Lịch tuần" 12:1925).
@@ -560,6 +561,15 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
     );
   }
 
+  Future<void> openTodos() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const TodoListPage()),
+    );
+    // Deadlines may have changed
+    if (mounted) loadWeek();
+  }
+
   Widget header() {
     return SizedBox(
       height: 44,
@@ -571,6 +581,15 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
               style: AppTypography.title,
             ),
           ),
+          // Figma 313:33: opens the todo list
+          BrutalIconButton(
+            icon: Icons.checklist,
+            size: 36,
+            iconSize: 18,
+            color: AppColors.teal,
+            onPressed: openTodos,
+          ),
+          const SizedBox(width: AppSpacing.xs),
           // R29: not in Figma, so a small button next to the week arrows
           Tooltip(
             message: 'Xếp lịch ôn',

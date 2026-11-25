@@ -41,7 +41,7 @@ def test_assess_matches_the_contract_example(client, auth):
         "sd_work_hours": 6.0, "sd_free_hours": 8.25, "sd_week_hours": 6.64, "msw": "03:30",
         "msf": "05:52", "msf_sc": "05:04", "oversleep_corrected": True, "social_jetlag_hours": 2.38,
         "chronotype": "bear"}
-    assert body["phi_prior_hours"] == pytest.approx(18.39, abs=0.01)
+    assert body["phi_prior_hours"] == pytest.approx(17.49, abs=0.01)
     assert (body["natural_sleep_time"], body["natural_wake_time"]) == ("01:45", "08:24")
     assert body["sleep_shortfall_hours"] == pytest.approx(0.36, abs=0.01)
     week = body["typical_week"]
@@ -94,23 +94,26 @@ def test_profile_lifecycle(client, auth):
 # ─────────────────────────── H3–H6 ───────────────────────────
 
 def test_sleep_log_crud_and_overlap(client, auth):
-    night = today() - timedelta(days=1)
-    created = add_log(client, auth, at(night, 23, 30), at(today(), 7), quality=4)
+    night, day = today() - timedelta(days=2), today() - timedelta(days=1)  # wake times must be in the past
+    created = add_log(client, auth, at(night, 23, 30), at(day, 7), quality=4)
     assert created.status_code == 201, created.text
     log = created.json()
     assert (log["duration_minutes"], log["source"], log["confirmed"]) == (450, "manual", True)
 
-    overlap = add_log(client, auth, at(today(), 6), at(today(), 8))
+    overlap = add_log(client, auth, at(day, 6), at(day, 8))
     assert (overlap.status_code, overlap.json()["code"]) == (409, "SLEEP_LOG_OVERLAP")
-    assert add_log(client, auth, at(today(), 7), at(today(), 1)).status_code == 422
-    assert add_log(client, auth, at(night, 6), at(today(), 7)).status_code == 422  # > 16 h
+    assert add_log(client, auth, at(day, 7), at(day, 1)).status_code == 422
+    assert add_log(client, auth, at(night, 6), at(day, 7)).status_code == 422  # > 16 h
 
     url = f"{API}/sleep-logs/{log['id']}"
-    updated = client.patch(url, json={"wake_at": at(today(), 7, 30).isoformat(), "note": "ngủ ngon"},
+    updated = client.patch(url, json={"wake_at": at(day, 7, 30).isoformat(), "note": "ngủ ngon"},
                            headers=auth).json()
     assert (updated["duration_minutes"], updated["note"]) == (480, "ngủ ngon")
     backwards = client.patch(url, json={"wake_at": at(night, 22).isoformat()}, headers=auth)
     assert (backwards.status_code, backwards.json()["code"]) == (400, "INVALID_RANGE")
+    future = client.patch(url, json={"wake_at": (datetime.now(TZ) + timedelta(hours=2)).isoformat()},
+                          headers=auth)
+    assert (future.status_code, future.json()["code"]) == (400, "INVALID_RANGE")
 
     listed = client.get(f"{API}/sleep-logs", headers=auth).json()["items"]
     assert [item["id"] for item in listed] == [log["id"]]
@@ -126,15 +129,22 @@ def test_sleep_log_crud_and_overlap(client, auth):
 def test_sleep_debt(client, auth):
     put_profile(client, auth)
     yesterday = today() - timedelta(days=1)
-    add_log(client, auth, at(yesterday - timedelta(days=1), 23), at(yesterday, 5))   # 6 h
-    add_log(client, auth, at(yesterday, 23), at(today(), 8))                          # 9 h
+    add_log(client, auth, at(yesterday - timedelta(days=2), 23), at(yesterday - timedelta(days=1), 5))  # 6 h
+    add_log(client, auth, at(yesterday - timedelta(days=1), 23), at(yesterday, 8))                      # 9 h
     body = client.get(f"{API}/sleep-debt", params={"days": 3}, headers=auth).json()
-    assert [d["has_data"] for d in body["daily"]] == [False, True, True]
-    assert [d["debt_minutes"] for d in body["daily"]] == [0, 120, -60]
+    assert [d["has_data"] for d in body["daily"]] == [True, True, False]
+    assert [d["debt_minutes"] for d in body["daily"]] == [120, -60, 0]
     assert body["total_debt_minutes"] == 60
     assert body["average_sleep_minutes"] == 450
-    assert body["daily"][2]["mid_sleep"] == "03:30"
+    assert body["daily"][1]["mid_sleep"] == "03:30"
     assert 0 <= body["current_process_s"] <= 1
+
+
+def test_sleep_log_rejects_a_future_wake_time(client, auth):
+    now = datetime.now(TZ)
+    future = add_log(client, auth, now - timedelta(hours=6), now + timedelta(hours=2))
+    assert future.status_code == 422
+    assert add_log(client, auth, now - timedelta(hours=8), now + timedelta(minutes=1)).status_code == 201  # clock skew
 
 
 def test_sleep_debt_needs_a_profile(client, auth):
@@ -181,7 +191,7 @@ def test_biorhythm_with_sleep_logs(client, auth, monkeypatch):
     late_evening = at(today(), 23, 50)
     monkeypatch.setattr("app.service.biorhythm_service.now_utc", lambda: late_evening)
     put_profile(client, auth)
-    add_log(client, auth, at(today() - timedelta(days=1), 23), at(today(), 6, 30))
+    add_log(client, auth, at(today() - timedelta(days=2), 23), at(today() - timedelta(days=1), 6, 30))
     body = client.get(f"{API}/biorhythm", params={"days": 2}, headers=auth).json()
     assert "TYPICAL_WEEK" not in body["warnings"]
     assert "NO_RECENT_SLEEP_DATA" in body["warnings"]

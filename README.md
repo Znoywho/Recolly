@@ -19,6 +19,7 @@
 - [Kiến trúc hệ thống](#-kiến-trúc-hệ-thống)
 - [Lộ trình triển khai](#-lộ-trình-triển-khai)
 - [Cài đặt & chạy thử](#-cài-đặt--chạy-thử)
+- [Theo dõi log & demo](#-theo-dõi-log--demo)
 - [Thành viên nhóm](#-thành-viên-nhóm)
 - [Giấy phép](#-giấy-phép)
 
@@ -58,7 +59,8 @@ Tích hợp Google Calendar để đồng bộ thời khóa biểu và các sự
 ### 😴 Module 2: Chronotype & nợ ngủ
 - Từ giờ ngủ ngày học và ngày nghỉ, xếp người dùng vào 1 trong 3 nhóm: 🦁 Sư tử, 🐻 Gấu, 🐺 Sói. Các nhóm này chỉ giúp dễ hiển thị, không phải chẩn đoán.
 - Tính nợ ngủ 7 ngày gần nhất: `max(0, tổng của (số giờ cần ngủ − số giờ ngủ thật))`.
-- Ước lượng mức tỉnh táo trong ngày bằng **Two-Process Model of Sleep Regulation** (Process S – áp lực ngủ, Process C – nhịp sinh học) của Borbély để làm cơ sở xếp lịch.
+- Ước lượng mức tỉnh táo trong ngày bằng **Two-Process Model of Sleep Regulation** (Process S – áp lực ngủ, Process C – nhịp sinh học) của Borbély để làm cơ sở xếp lịch. Hằng số lấy đúng bộ của Daan, Beersma & Borbély (1984) theo [Skeldon & Dijk (2025)](https://doi.org/10.1038/s44323-025-00039-z), Hình 1: χs = 4.2 h, χw = 18.2 h, H0+ = 0.67, H0− = 0.17, a = 0.12.
+- Nguồn của từng công thức, hằng số và phần nào còn là giả định của nhóm (ví dụ `KSS = 7.5 − 9·A`): [`docs/sleep-model.md`](docs/sleep-model.md).
 
 ### 🔔 Module 3: Giao diện trực quan, nhắc nhở & động lực
 - Nhắc giờ ngủ và các deadline sắp tới.
@@ -79,11 +81,14 @@ Tích hợp Google Calendar để đồng bộ thời khóa biểu và các sự
 | Cơ sở dữ liệu | PostgreSQL |
 | Lịch | Google Calendar API (OAuth 2.0) |
 | Xếp lịch tối ưu | OR-Tools CP-SAT |
-| Nhận diện văn bản (OCR) | Vintern-1B-v3_5 |
-| Nhận diện giọng nói (ASR) | [PhoWhisper](https://huggingface.co/vinai/PhoWhisper-small) |
-| LLM | Qwen2.5 chạy qua [Ollama](https://ollama.com) (giọng nói → todo); Google Gemini (dự kiến, cho quote) |
+| Nhận diện văn bản (OCR) | [Vintern-1B-v3_5](https://huggingface.co/5CD-AI/Vintern-1B-v3_5) trên GPU Kaggle (giấy phép CC BY-NC 4.0: chỉ dùng phi thương mại) |
+| Nhận diện giọng nói (ASR) | [PhoWhisper-medium](https://huggingface.co/vinai/PhoWhisper-medium) trên GPU Kaggle |
+| LLM | Qwen2.5 chạy qua [Ollama](https://ollama.com) trên GPU Kaggle (giọng nói → todo); Google Gemini (dự kiến, cho quote) |
+| Thông báo đẩy | Firebase Cloud Messaging (HTTP v1) |
+| Hạ tầng | Docker Compose, Redis (rate limit, chống gửi trùng), Cloudflare quick tunnel (webhook Google), ngrok (app kết nối server khi demo), [Dozzle](https://dozzle.dev) (xem log) |
 
-PhoWhisper và Qwen2.5 đã chạy trong server (`/voice/transcribe`). Vintern và Gemini chưa được tích hợp.
+PhoWhisper, Vintern và Qwen2.5 chạy trên GPU của Kaggle (notebook `server/notebooks/kaggle_ollama.ipynb`); server gọi qua tunnel
+Cloudflare, nên máy chạy server không cần GPU hay `torch`. Gemini chưa được tích hợp.
 
 ---
 
@@ -103,21 +108,24 @@ flowchart LR
         SCHED["Xếp lịch OR-Tools CP-SAT"]
         SYNC["Đồng bộ Google Calendar 2 chiều"]
         JOB["Job hằng ngày: gia hạn push, kéo dự phòng"]
-        VOICE["Giọng nói → bản nháp todo<br/>PhoWhisper + luật thời gian"]
+        VOICE["Giọng nói → bản nháp todo<br/>lưu ghi âm trước, luật thời gian"]
+        WORKER["voice-worker: thử lại ghi âm<br/>khi Kaggle tắt"]
+        REMIND["reminders: nhắc giờ ngủ, deadline"]
         OCR["OCR thời khóa biểu"]
         QUOTE["Quote khích lệ"]
     end
 
     DB[("🐘 PostgreSQL")]
     GCAL["📅 Google Calendar API"]
-    LLM["Qwen2.5 qua Ollama<br/>máy local / Kaggle GPU"]
-    VIN["Vintern-1B"]
+    KAGGLE["Kaggle GPU (qua tunnel)<br/>PhoWhisper-medium + Vintern-1B + Qwen2.5"]
+    REDIS[("Redis")]
+    FCM["Firebase Cloud Messaging"]
     GEM["Google Gemini"]
 
     UI -->|REST + JWT| AUTH
     UI -->|REST| CRUD
     IN -->|file âm thanh| VOICE
-    IN -.->|ảnh| OCR
+    IN -->|ảnh| OCR
 
     CRUD --> SLEEP
     SLEEP -->|đường tỉnh táo| SCHED
@@ -126,14 +134,24 @@ flowchart LR
     SYNC <-->|đẩy / kéo sự kiện, webhook| GCAL
     JOB --> SYNC
 
-    VOICE -->|tiêu đề, loại, ưu tiên| LLM
-    OCR -.-> VIN
+    VOICE -->|âm thanh, câu nói| KAGGLE
+    WORKER --> KAGGLE
+    WORKER -->|voice_ready| FCM
+    REMIND --> FCM
+    OCR -->|ảnh, bảng markdown| KAGGLE
     QUOTE -.-> GEM
 
     API --> DB
+    API --> REDIS
 ```
 
 Nét đứt là phần chưa tích hợp. Hợp đồng API nằm ở [`docs/openapi.yaml`](docs/openapi.yaml).
+
+Chi tiết từng pipeline:
+- 🎙️ Giọng nói → todo: [`docs/voice-pipeline.md`](docs/voice-pipeline.md)
+- 📷 Ảnh thời khoá biểu → môn học (OCR): [`docs/ocr-pipeline.md`](docs/ocr-pipeline.md)
+- 😴 Mô hình giấc ngủ — công thức, hằng số, nguồn và mức độ kiểm chứng: [`docs/sleep-model.md`](docs/sleep-model.md)
+- 📅 Đồng bộ Google Calendar: [`docs/google-calendar-sync.md`](docs/google-calendar-sync.md)
 
 ---
 
@@ -157,9 +175,11 @@ Bảng dưới đây chỉ nói về backend.
 
 | Tính năng | Backend |
 |---|---|
-| Thông báo nhắc giờ ngủ và deadline | Một phần: đã lưu cài đặt và thiết bị, chưa gửi thông báo |
+| Thông báo nhắc giờ ngủ và deadline | Đã có: service `reminders` (mỗi 5 phút) gửi push FCM, chống gửi trùng qua Redis |
 | Đồng bộ hai chiều với Google Calendar | Đã có: `/calendar/sync`, `/calendar/conflicts`, `/calendar/webhook`; job hằng ngày gia hạn kênh push và kéo dữ liệu dự phòng |
-| Nhập bằng giọng nói → bản nháp todo | Đã có: `/voice/transcribe` (PhoWhisper + Qwen2.5; khi Ollama tắt thì chỉ dùng luật). Chi tiết ở [`server/README.md`](server/README.md) |
+| Nhập bằng giọng nói → bản nháp todo | Đã có: `/voice/transcribe` (PhoWhisper + Qwen2.5 trên Kaggle; khi Ollama tắt thì chỉ dùng luật). **Ghi âm được lưu trước**: Kaggle tắt thì trả `202`, service `voice-worker` thử lại mỗi phút và gửi push `voice_ready`; xem trạng thái ở `/voice/jobs/{id}`. Chi tiết ở [`server/README.md`](server/README.md) |
+| OCR ảnh thời khoá biểu | Đã có: `POST /ocr/timetable` trả `202` ngay, Vintern (Kaggle) đọc ảnh thành bảng markdown, Qwen2.5 chuyển thành môn học; app hỏi `/ocr/jobs/{id}` mỗi ~2 s rồi lưu bằng `POST /timetable`. Kaggle tắt thì job `failed` với `OCR_MODEL_ERROR`. Chi tiết ở [`docs/ocr-pipeline.md`](docs/ocr-pipeline.md) |
+| Giới hạn tần suất gọi API | Đã có: 120 request/phút mỗi người, riêng `/schedule/generate` 10/phút và tối đa 2 lần giải cùng lúc. Webhook Google `/calendar/webhook` cũng bị giới hạn 120/phút theo IP (IP của Google, dùng chung): ổn cho demo, cần xem lại khi nhiều người dùng |
 
 ### Giai đoạn 3 – Hoàn thiện
 
@@ -167,7 +187,7 @@ Bảng dưới đây chỉ nói về backend.
 |---|---|
 | Quote khích lệ | Một phần: `/quotes/random` dùng bộ câu có sẵn, chưa dùng LLM |
 
-**Về app Flutter:** nhánh `UI-Rework` đã được merge vào `main`. App đã có các màn hình Today, Biorhythm, Sleep, Todo (danh sách + form), Calendar, Personal và màn hình chào (`client/lib/features/`).
+**Về app Flutter:** app đã có các màn hình Today, Biorhythm, Sleep, Todo (danh sách + form), Calendar (tuần, lịch đề xuất, chi tiết sự kiện), kết nối Google Calendar, nhập/quét thời khóa biểu, Personal và màn hình chào (`client/lib/features/`).
 
 ---
 
@@ -195,7 +215,18 @@ cp .env.example .env            # điền POSTGRES_USER, POSTGRES_PASSWORD, POST
 docker compose up --build       # PostgreSQL ở cổng 5433, Redis ở 127.0.0.1:6380, API ở cổng 8765
 ```
 
-Service `reminders` gửi nhắc giờ ngủ / deadline mỗi 5 phút (`python -m app.jobs.send_reminders --loop`).
+| Service | Việc |
+|---|---|
+| `db`, `redis` | PostgreSQL 18, Redis 7 |
+| `server` | API FastAPI, cổng 8765 |
+| `reminders` | Nhắc giờ ngủ / deadline mỗi 5 phút (`python -m app.jobs.send_reminders --loop`) |
+| `voice-worker` | Thử lại các ghi âm lưu lúc Kaggle tắt (mỗi phút), xoá ghi âm sau 7 ngày (`python -m app.jobs.process_voice --loop`) |
+| `logs` | Dozzle, xem log mọi container: http://localhost:8888 (chỉ máy này) |
+| `tunnel` | Cloudflare tunnel cho webhook Google Calendar; chỉ chạy khi `docker compose --profile tunnel up` |
+
+Ghi âm nằm trong volume `voice-audio` (không mất khi `docker compose down`; `down -v` thì mất cả DB).
+
+Service `reminders` không có key FCM thì chỉ ghi log.
 Không có key FCM thì nó chỉ ghi log. Muốn push thật tới điện thoại, tạo `docker-compose.override.yml`
 (đã gitignore, chỉ nằm trên máy bạn; không commit key):
 
@@ -237,12 +268,17 @@ GOOGLE_CLIENT_SECRET=<OAuth client secret>
 
 # Tùy chọn
 WEBHOOK_BASE_URL=<URL HTTPS công khai cho push của Google Calendar>
-OLLAMA_BASE_URL=http://localhost:11434
 VOICE_LLM_MODEL=qwen2.5:14b     # máy yếu: qwen2.5:7b và VOICE_REPAIR_TRANSCRIPT=0
-PHOWHISPER_MODEL=vinai/PhoWhisper-small
+
+# Giọng nói: 5 dòng do notebook Kaggle in ra mỗi lần chạy (xem mục "Theo dõi log & demo")
+OLLAMA_BASE_URL=https://<...>.trycloudflare.com
+OLLAMA_MODEL=qwen2.5:14b
+ASR_BASE_URL=https://<...>.trycloudflare.com
+ASR_TOKEN=<token của session Kaggle>
+PHOWHISPER_MODEL=vinai/PhoWhisper-medium
 ```
 
-Nhập giọng nói cần cài thêm `transformers` và `torch` (không có trong `requirements.txt`); thiếu thì server vẫn chạy bình thường.
+Không có Kaggle thì server vẫn chạy; `/voice/transcribe` lưu ghi âm và trả `202`, xử lý sau khi Kaggle bật lại.
 
 ```bash
 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
@@ -258,6 +294,63 @@ cd client
 flutter pub get
 flutter run
 ```
+
+---
+
+## 🔎 Theo dõi log & demo
+
+### Kết nối app với server qua ngrok
+
+Server chạy trên máy cá nhân nên app (emulator hoặc điện thoại) vào qua một domain ngrok cố định. Mặc định mọi thứ đều tắt.
+
+1. `docker compose up -d`, chờ khoảng 30 giây, rồi kiểm tra `curl localhost:8765/api/v1/health` trả `status: ok, db: ok, redis: ok`.
+2. Mở tunnel (port **8765**): `ngrok http 8765 --url=https://<domain-của-bạn>.ngrok-free.dev`. Giữ terminal này mở suốt buổi demo.
+3. Kiểm tra tunnel: `curl -H "ngrok-skip-browser-warning: true" https://<domain-của-bạn>.ngrok-free.dev/api/v1/health`.
+4. Chạy app (`-d` nhận device ID, xem bằng `flutter devices`):
+
+```bash
+cd client && flutter run -d emulator-5554 \
+  --dart-define=USE_MOCK_API=false \
+  --dart-define=API_BASE_URL=https://<domain-của-bạn>.ngrok-free.dev/api/v1 \
+  --dart-define=GOOGLE_SERVER_CLIENT_ID=<web-client-id>.apps.googleusercontent.com
+```
+
+`GOOGLE_SERVER_CLIENT_ID` phải trùng Web client ID mà server dùng. Thiếu nó thì app báo "Đăng nhập Google lỗi" và server không thấy request `POST /auth/google`.
+
+| Triệu chứng | Cách xử lý |
+|---|---|
+| ngrok `502` / lỗi `8012` | Docker hoặc server chưa lên: bật compose, chờ ~30 giây |
+| `curl: (56) Connection reset` ngay sau compose up | Server đang khởi động, thử lại sau |
+| ngrok lỗi `6024` (trang cảnh báo gói free) | Thêm header `ngrok-skip-browser-warning: true` |
+
+Chỉ tunnel port 8765, **không** tunnel Dozzle (8888). Đừng bật "Protect it" của ngrok vì nó chặn app hoặc xung đột với header `Authorization: Bearer`; API đã có JWT và giới hạn tần suất. Authtoken ngrok và client secret không ghi vào README hay commit.
+
+### Bật Kaggle (giọng nói + OCR)
+
+1. Mở `server/notebooks/kaggle_ollama.ipynb` trên Kaggle, chọn **GPU T4 x2**, bật **Internet**, rồi *Run All*.
+2. Cell tunnel in ra 5 dòng (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `ASR_BASE_URL`, `ASR_TOKEN`, `PHOWHISPER_MODEL`): dán vào `server/.env`, rồi `docker compose restart server voice-worker`.
+3. Kiểm tra: `curl $ASR_BASE_URL/health` trả `{"status": "ok", ...}`. OCR dùng chung `ASR_BASE_URL`/`ASR_TOKEN`: `curl -H "Authorization: Bearer $ASR_TOKEN" --data-binary @tkb.jpg $ASR_BASE_URL/ocr` trả bảng markdown.
+
+URL và token đổi mỗi session. Không dán chúng lên chat/issue/PR và không commit notebook còn output. Demo xong thì tắt session Kaggle.
+
+### Xem log bằng Dozzle
+
+Mở http://localhost:8888 và chọn container:
+
+| Container | Thấy gì |
+|---|---|
+| `recolly-server-container` | Mỗi request một dòng (`POST /api/v1/schedule/generate 200 812ms user:<id>`), đăng nhập, xếp lịch, đồng bộ Google, `Ollama … ok` / `ASR via … ok` |
+| `recolly-voice-worker-container` | `Voice run: {...}` mỗi phút |
+| `recolly-reminders-container` | `Push sent …`, `Reminders run: {...}` |
+| `recolly-tunnel-container` | URL webhook (khi bật `--profile tunnel`) |
+
+Vàng = WARNING (lỗi 4xx, Kaggle không tới được), đỏ = ERROR (lỗi 5xx). Server không ghi nội dung câu nói, chỉ ghi độ dài.
+Chạy server bằng `uvicorn` (không Docker) thì log hiện ở terminal.
+
+### Kết quả đánh giá model
+
+`cd server && python scripts/notebook_report.py` tạo `notebooks/report.html` từ `notebooks/outputs/*.jsonl`
+(ASR, parser, quote; có ô tìm kiếm). Không commit file này.
 
 ---
 

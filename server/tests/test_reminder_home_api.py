@@ -1,8 +1,12 @@
+import json
 from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
+import httpx
 import pytest
 
+from app.service import quotes
+from app.service.llm.ollama_client import OllamaClient
 from tests.conftest import bearer, make_user
 
 API = "/api/v1"
@@ -50,12 +54,52 @@ def test_devices(client, auth, db):
     assert db.query(Device).count() == 0
 
 
-def test_quotes(client, auth):
+def fake_ollama(reply: str | None, seen: list[dict]) -> OllamaClient:
+    """An OllamaClient that answers `reply` (None = server down) and records the request payloads."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(request.content))
+        if reply is None:
+            return httpx.Response(503)
+        return httpx.Response(200, json={"message": {"content": reply}})
+    return OllamaClient(base_url="http://fake", transport=httpx.MockTransport(handler))
+
+
+def test_quotes(client, auth, monkeypatch):
+    monkeypatch.setattr(quotes, "default_client", lambda: fake_ollama(None, []))
     quote = client.get(f"{API}/quotes/random", params={"context": "sleep"}, headers=auth).json()
     assert (quote["source"], quote["context"]) == ("fallback", "sleep")
     assert quote["text"]
     assert client.get(f"{API}/quotes/random", headers=auth).json()["context"] == "general"
     assert client.get(f"{API}/quotes/random", params={"context": "nope"}, headers=auth).status_code == 422
+
+
+def test_llm_quote_uses_sleep_debt_and_next_deadline(client, auth, monkeypatch):
+    seen = []
+    monkeypatch.setattr(quotes, "default_client", lambda: fake_ollama('"Lock in đi ní, báo cáo AI sắp tới hạn."', seen))
+    due = datetime.now(TZ) + timedelta(days=1)
+    client.post(f"{API}/todos", headers=auth, json={"title": "Báo cáo AI", "deadline_at": due.isoformat()})
+    client.put(f"{API}/health-profile", headers=auth,
+               json={"usual_sleep_time": "23:00", "usual_wake_time": "06:30"})
+
+    quote = client.get(f"{API}/quotes/random", params={"context": "deadline"}, headers=auth).json()
+    assert quote == {"text": "Lock in đi ní, báo cáo AI sắp tới hạn.", "author": None,
+                     "source": "llm", "context": "deadline"}
+    system_prompt = seen[0]["messages"][0]["content"]
+    assert f"Báo cáo AI, {due:%H:%M %d/%m}" in system_prompt
+    assert "giờ ngủ trong 7 ngày qua" in system_prompt
+
+
+def test_llm_quote_falls_back_on_empty_or_too_long_reply():
+    for reply in ("  ", "x" * 500):
+        assert quotes.llm_quote("progress", None, None, fake_ollama(reply, []))["source"] == "fallback"
+
+
+def test_quote_prompt_warns_against_staying_up_only_with_high_debt():
+    rule = "không khuyên thức khuya"
+    assert rule in quotes.build_quote_prompt("genz", 3.5, None, "sleep")
+    assert rule not in quotes.build_quote_prompt("genz", 1.0, None, "sleep")
+    unknown = quotes.build_quote_prompt("genz", None, None)
+    assert "không có deadline nào" in unknown and "Phải nhắc tới deadline" not in unknown
 
 
 def test_home_overview(client, auth):

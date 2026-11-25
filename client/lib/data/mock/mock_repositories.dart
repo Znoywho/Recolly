@@ -636,6 +636,25 @@ class MockEventRepository extends _Mock implements EventRepository {
         todoId: 'mock-todo-1',
         syncStatus: SyncStatus.pending,
       ),
+      // R33 picker: not pushed yet / failed last time
+      _event(
+        newId(),
+        'Nghỉ ngắn',
+        _at(2, 15, 30),
+        _at(2, 15, 45),
+        source: EventSource.scheduler,
+        kind: EventKind.rest,
+        syncStatus: SyncStatus.notSynced,
+      ),
+      _event(
+        newId(),
+        'Đi ngủ',
+        _at(2, 23, 30),
+        _at(3, 7),
+        source: EventSource.scheduler,
+        kind: EventKind.bedtime,
+        syncStatus: SyncStatus.error,
+      ),
       _event(
         newId(),
         'Họp CLB Tin học',
@@ -850,13 +869,15 @@ class MockVoiceRepository extends _Mock implements VoiceRepository {
   MockVoiceRepository({Duration latency = Duration.zero}) : super(latency);
 
   @override
-  Future<VoiceTranscription> transcribe(
+  Future<VoiceJob> transcribe(
     Uint8List audio, {
     required String filename,
     DateTime? referenceTime,
   }) async {
     await delay();
-    return VoiceTranscription(
+    return VoiceJob(
+      status: JobStatus.succeeded,
+      result: VoiceTranscription(
       transcript: 'Thứ sáu nộp bài tập lớn cấu trúc dữ liệu',
       todoDraft: TodoDraft(
         title: 'Nộp bài tập lớn cấu trúc dữ liệu',
@@ -865,7 +886,14 @@ class MockVoiceRepository extends _Mock implements VoiceRepository {
         priority: Priority.medium,
       ),
       parser: 'gemini',
+      ),
     );
+  }
+
+  @override
+  Future<VoiceJob> getVoiceJob(String jobId) async {
+    await delay();
+    return const VoiceJob(status: JobStatus.failed, error: 'VOICE_JOB_NOT_FOUND');
   }
 }
 
@@ -972,11 +1000,14 @@ class MockCalendarSyncRepository extends _Mock
     connected: true,
     googleEmail: _user.email,
     calendarId: 'primary',
-    twoWaySync: true,
+    twoWaySync: false,
     lastSyncedAt: DateTime.now().subtract(const Duration(hours: 3)),
-    pendingCount: 1,
+    pendingCount: 3,
     conflictCount: 1,
   );
+
+  // Conflict ids already resolved (R46)
+  final Set<String> _resolved = {};
 
   @override
   Future<CalendarStatus> getStatus() async {
@@ -1022,7 +1053,13 @@ class MockCalendarSyncRepository extends _Mock
   @override
   Future<SyncResult> sync({List<String>? eventIds}) async {
     await delay();
-    return const SyncResult(pushed: 1, pulled: 0, failed: 0, conflicts: 1);
+    // Picked events all go through (statuses are not tracked in the mock)
+    return SyncResult(
+      pushed: eventIds?.length ?? 1,
+      pulled: 0,
+      failed: 0,
+      conflicts: 0,
+    );
   }
 
   @override
@@ -1036,6 +1073,7 @@ class MockCalendarSyncRepository extends _Mock
       location: 'Hội trường E',
       syncStatus: SyncStatus.conflict,
     );
+    if (_resolved.contains('mock-conflict-1')) return [];
     return [
       SyncConflict(
         id: 'mock-conflict-1',
@@ -1063,6 +1101,11 @@ class MockCalendarSyncRepository extends _Mock
       orElse: () => throw notFound('CONFLICT_NOT_FOUND'),
     );
     final g = conflict.google;
+    _resolved.add(id);
+    _status = CalendarStatus.fromJson({
+      ..._status.toJson(),
+      'conflict_count': 0,
+    });
     return CalendarEvent.fromJson({
       ...conflict.local.toJson(),
       if (keep == ConflictResolution.google) ...{

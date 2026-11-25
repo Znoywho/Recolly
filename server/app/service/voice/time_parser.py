@@ -111,10 +111,12 @@ def to_24_hour(hour: int, part_of_day: str | None) -> int:
     """Apply the spoken part of day to a 12h clock hour.
 
     chiều/tối: h < 12 → h + 12 · trưa: h ≤ 4 → h + 12 (một giờ trưa = 13) · đêm/khuya: 6 ≤ h < 12 → h + 12
-    sáng or no part of day: unchanged
+    12 tối/đêm/khuya → 24 (midnight at the end of that day) · sáng or no part of day: unchanged
     """
     if hour >= 13 or part_of_day is None or part_of_day == "sáng":
         return hour
+    if hour == 12 and part_of_day in ("tối", "đêm", "khuya"):
+        return 24
     if part_of_day in ("chiều", "tối"):
         return hour + 12 if hour < 12 else hour
     if part_of_day == "trưa":
@@ -176,7 +178,9 @@ class VietnameseTimeParser:
         reference = reference if reference.tzinfo else reference.replace(tzinfo=VIETNAM_TIMEZONE)
         reference = reference.astimezone(VIETNAM_TIMEZONE)
         today = reference.date()
-        clock = clock_time(expression.hour, expression.minute) if expression.has_clock() else None
+        # "24 giờ" / "12 giờ đêm" = 00:00 of the next day
+        midnight_rollover = timedelta(days=1) if expression.hour == 24 else timedelta(0)
+        clock = clock_time(expression.hour % 24, expression.minute) if expression.has_clock() else None
 
         if expression.date_type == "calendar_date":
             target_day = date_from_day_and_month(today, expression.day_of_month, expression.month)
@@ -185,14 +189,14 @@ class VietnameseTimeParser:
         elif expression.date_type == "weekday":
             target_day = date_from_weekday(today, expression.weekday, expression.week_offset)
         elif clock is not None:
-            today_at_clock = datetime.combine(today, clock, VIETNAM_TIMEZONE)
+            today_at_clock = datetime.combine(today, clock, VIETNAM_TIMEZONE) + midnight_rollover
             target_day = today if today_at_clock > reference else today + timedelta(days=1)
         else:
             return None
 
         if target_day is None:
             return None
-        return datetime.combine(target_day, clock or END_OF_DAY, VIETNAM_TIMEZONE)
+        return datetime.combine(target_day + midnight_rollover, clock or END_OF_DAY, VIETNAM_TIMEZONE)
 
     def extract_deadline(self, text: str, reference: datetime) -> datetime | None:
         """parse() + resolve() in one call."""

@@ -9,12 +9,13 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentUser, DbSession, response_context, user_tz
 from app.core.errors import ApiError, not_found
-from app.core.timeutil import day_start, today
+from app.core.timeutil import day_start, now_utc, today
 from app.models.enums import SleepSource
 from app.models.health import SleepLog
 from app.models.user import User
 from app.repository.base_repository import BaseRepository
 from app.schemas.health import (
+    FUTURE_SKEW,
     MAX_SLEEP_HOURS,
     SleepDebtSummary,
     SleepLogCreate,
@@ -106,6 +107,8 @@ def update_sleep_log(id: uuid.UUID, body: SleepLogUpdate, user: CurrentUser, db:
         setattr(log, field, value)
     if log.wake_at <= log.sleep_at or log.wake_at - log.sleep_at > timedelta(hours=MAX_SLEEP_HOURS):
         raise ApiError(400, "INVALID_RANGE", f"wake_at must be after sleep_at, at most {MAX_SLEEP_HOURS} h")
+    if log.wake_at > now_utc() + FUTURE_SKEW:
+        raise ApiError(400, "INVALID_RANGE", "wake_at cannot be in the future")
     if _overlapping(db, user, log.sleep_at, log.wake_at, exclude=log.id):
         raise _overlap_error()
     log.confirmed = True

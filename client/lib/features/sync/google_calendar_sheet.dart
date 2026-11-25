@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../auth/google_auth.dart';
+import 'calendar_push_page.dart';
+import 'conflict_auto_resolver.dart';
 import '../../widgets/widgets.dart';
 
 // R32: Google Calendar connect sheet (Figma "Google Calendar – Đã kết nối"
@@ -11,8 +14,6 @@ import '../../widgets/widgets.dart';
 // Open it with GoogleCalendarSheet.show(context).
 
 const calendarScopes = ['https://www.googleapis.com/auth/calendar.events'];
-
-bool googleReady = false;
 
 class GoogleCalendarSheet extends StatefulWidget {
   const GoogleCalendarSheet({super.key});
@@ -53,7 +54,8 @@ class _GoogleCalendarSheetState extends State<GoogleCalendarSheet> {
       error = null;
     });
     try {
-      final s = await repo.getStatus();
+      var s = await repo.getStatus();
+      s = await keepTwoWay(s);
       if (!mounted) return;
       setState(() {
         status = s;
@@ -68,6 +70,18 @@ class _GoogleCalendarSheetState extends State<GoogleCalendarSheet> {
     }
   }
 
+  // R46: turn on two-way sync and clear conflicts quietly, errors ignored
+  Future<CalendarStatus> keepTwoWay(CalendarStatus s) async {
+    if (!s.connected) return s;
+    try {
+      if (!s.twoWaySync) s = await repo.updateSettings(twoWaySync: true);
+      if (s.conflictCount > 0 && await resolveAllConflicts(repo) > 0) {
+        s = await repo.getStatus();
+      }
+    } catch (_) {}
+    return s;
+  }
+
   void showSnack(String text) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -77,12 +91,7 @@ class _GoogleCalendarSheetState extends State<GoogleCalendarSheet> {
   // Ask Google for a server auth code with the calendar scope.
   Future<String?> getGoogleCode() async {
     if (ApiConfig.useMock) return 'mock-server-auth-code';
-    if (!googleReady) {
-      await GoogleSignIn.instance.initialize(
-        serverClientId: ApiConfig.googleServerClientId,
-      );
-      googleReady = true;
-    }
+    await ensureGoogleReady();
     final account = await GoogleSignIn.instance.authenticate(
       scopeHint: calendarScopes,
     );
@@ -121,44 +130,65 @@ class _GoogleCalendarSheetState extends State<GoogleCalendarSheet> {
     if (mounted) setState(() => busy = false);
   }
 
-  Future<void> syncNow() async {
-    setState(() => busy = true);
-    try {
-      final r = await repo.sync();
-      final s = await repo.getStatus();
-      if (!mounted) return;
-      setState(() => status = s);
-      var text = 'Đã đồng bộ ${r.pushed} sự kiện.';
-      if (r.failed > 0) text += ' ${r.failed} sự kiện lỗi.';
-      showSnack(text);
-    } on ApiException catch (e) {
-      showSnack(
-        e.code == 'GOOGLE_SCOPE_MISSING'
-            ? 'Quyền Google hết hạn, hãy kết nối lại.'
-            : 'Không đồng bộ được, thử lại nhé.',
-      );
-    } catch (e) {
-      showSnack('Không đồng bộ được, thử lại nhé.');
-    }
-    if (mounted) setState(() => busy = false);
+  // R33: pick which events to push, then reload the status
+  Future<void> openPush() async {
+    final pushed = await Navigator.of(context, rootNavigator: true).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => CalendarPushPage(email: status?.googleEmail),
+      ),
+    );
+    if (pushed == true && mounted) load();
   }
 
   Future<void> disconnect() async {
+    // Figma 331:51, tap outside = cancel
     final ok = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Ngắt kết nối Google Calendar?'),
-        content: const Text('Lịch trong app vẫn giữ nguyên.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Huỷ'),
+      barrierColor: AppColors.ink.withValues(alpha: 0.22),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: AppTheme.brutalBox(color: AppColors.cream),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Ngắt kết nối Google Calendar?',
+                style: AppTypography.subtitle.copyWith(fontSize: 20),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              const Text(
+                'Lịch trong app vẫn giữ nguyên. Các sự kiện sẽ không còn '
+                'được đẩy lên Google.',
+                style: AppTypography.body,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                children: [
+                  Expanded(
+                    child: BrutalButton(
+                      label: 'Hủy',
+                      color: AppColors.white,
+                      onPressed: () => Navigator.pop(context, false),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: BrutalButton(
+                      label: 'Ngắt',
+                      color: AppColors.coral,
+                      onPressed: () => Navigator.pop(context, true),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Ngắt'),
-          ),
-        ],
+        ),
       ),
     );
     if (ok != true || !mounted) return;
@@ -282,7 +312,10 @@ class _GoogleCalendarSheetState extends State<GoogleCalendarSheet> {
         children: [
           tag('Đã kết nối', AppColors.green),
           if (s.pendingCount > 0)
-            tag('${s.pendingCount} sự kiện chờ', AppColors.yellow),
+            GestureDetector(
+              onTap: busy ? null : openPush,
+              child: tag('${s.pendingCount} sự kiện chờ', AppColors.yellow),
+            ),
         ],
       ),
       const SizedBox(height: AppSpacing.lg),
@@ -291,7 +324,7 @@ class _GoogleCalendarSheetState extends State<GoogleCalendarSheet> {
         icon: Icons.sync,
         leadingIcon: true,
         color: AppColors.teal,
-        onPressed: busy ? null : syncNow,
+        onPressed: busy ? null : openPush,
       ),
       const SizedBox(height: AppSpacing.sm),
       disconnectButton(),
