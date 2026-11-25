@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../auth/google_auth.dart';
+import 'calendar_push_page.dart';
 import '../../widgets/widgets.dart';
 
 // R32: Google Calendar connect sheet (Figma "Google Calendar – Đã kết nối"
@@ -115,44 +116,65 @@ class _GoogleCalendarSheetState extends State<GoogleCalendarSheet> {
     if (mounted) setState(() => busy = false);
   }
 
-  Future<void> syncNow() async {
-    setState(() => busy = true);
-    try {
-      final r = await repo.sync();
-      final s = await repo.getStatus();
-      if (!mounted) return;
-      setState(() => status = s);
-      var text = 'Đã đồng bộ ${r.pushed} sự kiện.';
-      if (r.failed > 0) text += ' ${r.failed} sự kiện lỗi.';
-      showSnack(text);
-    } on ApiException catch (e) {
-      showSnack(
-        e.code == 'GOOGLE_SCOPE_MISSING'
-            ? 'Quyền Google hết hạn, hãy kết nối lại.'
-            : 'Không đồng bộ được, thử lại nhé.',
-      );
-    } catch (e) {
-      showSnack('Không đồng bộ được, thử lại nhé.');
-    }
-    if (mounted) setState(() => busy = false);
+  // R33: pick which events to push, then reload the status
+  Future<void> openPush() async {
+    final pushed = await Navigator.of(context, rootNavigator: true).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => CalendarPushPage(email: status?.googleEmail),
+      ),
+    );
+    if (pushed == true && mounted) load();
   }
 
   Future<void> disconnect() async {
+    // Figma 331:51, tap outside = cancel
     final ok = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Ngắt kết nối Google Calendar?'),
-        content: const Text('Lịch trong app vẫn giữ nguyên.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Huỷ'),
+      barrierColor: AppColors.ink.withValues(alpha: 0.22),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: AppTheme.brutalBox(color: AppColors.cream),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Ngắt kết nối Google Calendar?',
+                style: AppTypography.subtitle.copyWith(fontSize: 20),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              const Text(
+                'Lịch trong app vẫn giữ nguyên. Các sự kiện sẽ không còn '
+                'được đẩy lên Google.',
+                style: AppTypography.body,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                children: [
+                  Expanded(
+                    child: BrutalButton(
+                      label: 'Hủy',
+                      color: AppColors.white,
+                      onPressed: () => Navigator.pop(context, false),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: BrutalButton(
+                      label: 'Ngắt',
+                      color: AppColors.coral,
+                      onPressed: () => Navigator.pop(context, true),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Ngắt'),
-          ),
-        ],
+        ),
       ),
     );
     if (ok != true || !mounted) return;
@@ -276,7 +298,10 @@ class _GoogleCalendarSheetState extends State<GoogleCalendarSheet> {
         children: [
           tag('Đã kết nối', AppColors.green),
           if (s.pendingCount > 0)
-            tag('${s.pendingCount} sự kiện chờ', AppColors.yellow),
+            GestureDetector(
+              onTap: busy ? null : openPush,
+              child: tag('${s.pendingCount} sự kiện chờ', AppColors.yellow),
+            ),
         ],
       ),
       const SizedBox(height: AppSpacing.lg),
@@ -285,7 +310,7 @@ class _GoogleCalendarSheetState extends State<GoogleCalendarSheet> {
         icon: Icons.sync,
         leadingIcon: true,
         color: AppColors.teal,
-        onPressed: busy ? null : syncNow,
+        onPressed: busy ? null : openPush,
       ),
       const SizedBox(height: AppSpacing.sm),
       disconnectButton(),

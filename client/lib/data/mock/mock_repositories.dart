@@ -636,6 +636,25 @@ class MockEventRepository extends _Mock implements EventRepository {
         todoId: 'mock-todo-1',
         syncStatus: SyncStatus.pending,
       ),
+      // R33 picker: not pushed yet / failed last time
+      _event(
+        newId(),
+        'Nghỉ ngắn',
+        _at(2, 15, 30),
+        _at(2, 15, 45),
+        source: EventSource.scheduler,
+        kind: EventKind.rest,
+        syncStatus: SyncStatus.notSynced,
+      ),
+      _event(
+        newId(),
+        'Đi ngủ',
+        _at(2, 23, 30),
+        _at(3, 7),
+        source: EventSource.scheduler,
+        kind: EventKind.bedtime,
+        syncStatus: SyncStatus.error,
+      ),
       _event(
         newId(),
         'Họp CLB Tin học',
@@ -974,7 +993,7 @@ class MockCalendarSyncRepository extends _Mock
     calendarId: 'primary',
     twoWaySync: true,
     lastSyncedAt: DateTime.now().subtract(const Duration(hours: 3)),
-    pendingCount: 1,
+    pendingCount: 3,
     conflictCount: 1,
   );
 
@@ -1022,7 +1041,13 @@ class MockCalendarSyncRepository extends _Mock
   @override
   Future<SyncResult> sync({List<String>? eventIds}) async {
     await delay();
-    return const SyncResult(pushed: 1, pulled: 0, failed: 0, conflicts: 1);
+    // Picked events all go through (statuses are not tracked in the mock)
+    return SyncResult(
+      pushed: eventIds?.length ?? 1,
+      pulled: 0,
+      failed: 0,
+      conflicts: 0,
+    );
   }
 
   @override
