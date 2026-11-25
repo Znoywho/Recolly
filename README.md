@@ -81,14 +81,14 @@ Tích hợp Google Calendar để đồng bộ thời khóa biểu và các sự
 | Cơ sở dữ liệu | PostgreSQL |
 | Lịch | Google Calendar API (OAuth 2.0) |
 | Xếp lịch tối ưu | OR-Tools CP-SAT |
-| Nhận diện văn bản (OCR) | Vintern-1B-v3_5 |
+| Nhận diện văn bản (OCR) | [Vintern-1B-v3_5](https://huggingface.co/5CD-AI/Vintern-1B-v3_5) trên GPU Kaggle (giấy phép CC BY-NC 4.0: chỉ dùng phi thương mại) |
 | Nhận diện giọng nói (ASR) | [PhoWhisper-medium](https://huggingface.co/vinai/PhoWhisper-medium) trên GPU Kaggle |
 | LLM | Qwen2.5 chạy qua [Ollama](https://ollama.com) trên GPU Kaggle (giọng nói → todo); Google Gemini (dự kiến, cho quote) |
 | Thông báo đẩy | Firebase Cloud Messaging (HTTP v1) |
 | Hạ tầng | Docker Compose, Redis (rate limit, chống gửi trùng), Cloudflare quick tunnel (webhook Google), ngrok (app kết nối server khi demo), [Dozzle](https://dozzle.dev) (xem log) |
 
-PhoWhisper và Qwen2.5 chạy trên GPU của Kaggle (notebook `server/notebooks/kaggle_ollama.ipynb`); server gọi qua tunnel
-Cloudflare, nên máy chạy server không cần GPU hay `torch`. Vintern và Gemini chưa được tích hợp.
+PhoWhisper, Vintern và Qwen2.5 chạy trên GPU của Kaggle (notebook `server/notebooks/kaggle_ollama.ipynb`); server gọi qua tunnel
+Cloudflare, nên máy chạy server không cần GPU hay `torch`. Gemini chưa được tích hợp.
 
 ---
 
@@ -117,16 +117,15 @@ flowchart LR
 
     DB[("🐘 PostgreSQL")]
     GCAL["📅 Google Calendar API"]
-    KAGGLE["Kaggle GPU (qua tunnel)<br/>PhoWhisper-medium + Qwen2.5"]
+    KAGGLE["Kaggle GPU (qua tunnel)<br/>PhoWhisper-medium + Vintern-1B + Qwen2.5"]
     REDIS[("Redis")]
     FCM["Firebase Cloud Messaging"]
-    VIN["Vintern-1B"]
     GEM["Google Gemini"]
 
     UI -->|REST + JWT| AUTH
     UI -->|REST| CRUD
     IN -->|file âm thanh| VOICE
-    IN -.->|ảnh| OCR
+    IN -->|ảnh| OCR
 
     CRUD --> SLEEP
     SLEEP -->|đường tỉnh táo| SCHED
@@ -139,7 +138,7 @@ flowchart LR
     WORKER --> KAGGLE
     WORKER -->|voice_ready| FCM
     REMIND --> FCM
-    OCR -.-> VIN
+    OCR -->|ảnh, bảng markdown| KAGGLE
     QUOTE -.-> GEM
 
     API --> DB
@@ -150,6 +149,7 @@ Nét đứt là phần chưa tích hợp. Hợp đồng API nằm ở [`docs/ope
 
 Chi tiết từng pipeline:
 - 🎙️ Giọng nói → todo: [`docs/voice-pipeline.md`](docs/voice-pipeline.md)
+- 📷 Ảnh thời khoá biểu → môn học (OCR): [`docs/ocr-pipeline.md`](docs/ocr-pipeline.md)
 - 😴 Mô hình giấc ngủ — công thức, hằng số, nguồn và mức độ kiểm chứng: [`docs/sleep-model.md`](docs/sleep-model.md)
 - 📅 Đồng bộ Google Calendar: [`docs/google-calendar-sync.md`](docs/google-calendar-sync.md)
 
@@ -178,6 +178,7 @@ Bảng dưới đây chỉ nói về backend.
 | Thông báo nhắc giờ ngủ và deadline | Đã có: service `reminders` (mỗi 5 phút) gửi push FCM, chống gửi trùng qua Redis |
 | Đồng bộ hai chiều với Google Calendar | Đã có: `/calendar/sync`, `/calendar/conflicts`, `/calendar/webhook`; job hằng ngày gia hạn kênh push và kéo dữ liệu dự phòng |
 | Nhập bằng giọng nói → bản nháp todo | Đã có: `/voice/transcribe` (PhoWhisper + Qwen2.5 trên Kaggle; khi Ollama tắt thì chỉ dùng luật). **Ghi âm được lưu trước**: Kaggle tắt thì trả `202`, service `voice-worker` thử lại mỗi phút và gửi push `voice_ready`; xem trạng thái ở `/voice/jobs/{id}`. Chi tiết ở [`server/README.md`](server/README.md) |
+| OCR ảnh thời khoá biểu | Đã có: `POST /ocr/timetable` trả `202` ngay, Vintern (Kaggle) đọc ảnh thành bảng markdown, Qwen2.5 chuyển thành môn học; app hỏi `/ocr/jobs/{id}` mỗi ~2 s rồi lưu bằng `POST /timetable`. Kaggle tắt thì job `failed` với `OCR_MODEL_ERROR`. Chi tiết ở [`docs/ocr-pipeline.md`](docs/ocr-pipeline.md) |
 | Giới hạn tần suất gọi API | Đã có: 120 request/phút mỗi người, riêng `/schedule/generate` 10/phút và tối đa 2 lần giải cùng lúc. Webhook Google `/calendar/webhook` cũng bị giới hạn 120/phút theo IP (IP của Google, dùng chung): ổn cho demo, cần xem lại khi nhiều người dùng |
 
 ### Giai đoạn 3 – Hoàn thiện
@@ -324,11 +325,11 @@ cd client && flutter run -d emulator-5554 \
 
 Chỉ tunnel port 8765, **không** tunnel Dozzle (8888). Đừng bật "Protect it" của ngrok vì nó chặn app hoặc xung đột với header `Authorization: Bearer`; API đã có JWT và giới hạn tần suất. Authtoken ngrok và client secret không ghi vào README hay commit.
 
-### Bật Kaggle (giọng nói)
+### Bật Kaggle (giọng nói + OCR)
 
 1. Mở `server/notebooks/kaggle_ollama.ipynb` trên Kaggle, chọn **GPU T4 x2**, bật **Internet**, rồi *Run All*.
 2. Cell tunnel in ra 5 dòng (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `ASR_BASE_URL`, `ASR_TOKEN`, `PHOWHISPER_MODEL`): dán vào `server/.env`, rồi `docker compose restart server voice-worker`.
-3. Kiểm tra: `curl $ASR_BASE_URL/health` trả `{"status": "ok", ...}`.
+3. Kiểm tra: `curl $ASR_BASE_URL/health` trả `{"status": "ok", ...}`. OCR dùng chung `ASR_BASE_URL`/`ASR_TOKEN`: `curl -H "Authorization: Bearer $ASR_TOKEN" --data-binary @tkb.jpg $ASR_BASE_URL/ocr` trả bảng markdown.
 
 URL và token đổi mỗi session. Không dán chúng lên chat/issue/PR và không commit notebook còn output. Demo xong thì tắt session Kaggle.
 
