@@ -7,14 +7,17 @@ mixin BrutalPressFeedback<T extends StatefulWidget> on State<T> {
   static const Duration minimumPressedDuration = Duration(milliseconds: 100);
 
   bool isPressed = false;
-  DateTime? _pressedAt;
-  Timer? _releaseTimer;
+  bool _fingerDown = false;
+
+  // Runs for [minimumPressedDuration] after a press. A Timer (not the wall
+  // clock) so a quick tap still shows the pressed state, also in tests.
+  Timer? _minimumTimer;
 
   bool get isPressEnabled;
 
   @override
   void dispose() {
-    _releaseTimer?.cancel();
+    _minimumTimer?.cancel();
     super.dispose();
   }
 
@@ -25,25 +28,22 @@ mixin BrutalPressFeedback<T extends StatefulWidget> on State<T> {
     child: child,
   );
 
+  // Sinks the button and keeps it down for at least the minimum time.
   void _press() {
     if (!isPressEnabled) return;
-    _releaseTimer?.cancel();
-    _pressedAt = DateTime.now();
+    _fingerDown = true;
+    _minimumTimer?.cancel();
+    _minimumTimer = Timer(minimumPressedDuration, () {
+      _minimumTimer = null;
+      if (!_fingerDown && mounted) setState(() => isPressed = false);
+    });
     if (!isPressed) setState(() => isPressed = true);
   }
 
+  // Lifts the button now, or when the minimum time is over.
   void _release() {
-    final pressedAt = _pressedAt;
-    if (!isPressed || pressedAt == null) return;
-    final remaining =
-        minimumPressedDuration - DateTime.now().difference(pressedAt);
-    _releaseTimer?.cancel();
-    if (remaining <= Duration.zero) {
-      setState(() => isPressed = false);
-      return;
-    }
-    _releaseTimer = Timer(remaining, () {
-      if (mounted) setState(() => isPressed = false);
-    });
+    if (!isPressed) return;
+    _fingerDown = false;
+    if (_minimumTimer == null) setState(() => isPressed = false);
   }
 }

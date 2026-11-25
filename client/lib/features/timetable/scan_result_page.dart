@@ -19,10 +19,15 @@ class ScanResultPage extends StatefulWidget {
 
 class _ScanResultPageState extends State<ScanResultPage> {
   late final List<SubjectDraft> subjects = [...widget.subjects];
-  bool saving = false;
 
-  // Figma 2:1374: teal / yellow in turn, flagged cards are white
-  static const cardColors = [AppColors.teal, AppColors.yellow];
+  // Parallel to [subjects]: only ticked rows are saved.
+  late final List<bool> picked = [for (final _ in widget.subjects) true];
+
+  List<SubjectDraft> get pickedSubjects => [
+    for (var i = 0; i < subjects.length; i++)
+      if (picked[i]) subjects[i],
+  ];
+  bool saving = false;
 
   // OCR rows under this confidence get the "Kiểm tra lại" badge
   static const lowConfidence = 0.7;
@@ -35,7 +40,10 @@ class _ScanResultPageState extends State<ScanResultPage> {
     if (result is SubjectDraft) {
       setState(() => subjects[index] = result);
     } else if (result == EditSubjectSheet.delete) {
-      setState(() => subjects.removeAt(index));
+      setState(() {
+        subjects.removeAt(index);
+        picked.removeAt(index);
+      });
     }
   }
 
@@ -54,7 +62,10 @@ class _ScanResultPageState extends State<ScanResultPage> {
     );
     final result = await showEditSubjectSheet(context, empty, isNew: true);
     if (result is SubjectDraft) {
-      setState(() => subjects.add(result));
+      setState(() {
+        subjects.add(result);
+        picked.add(true);
+      });
     }
   }
 
@@ -71,7 +82,7 @@ class _ScanResultPageState extends State<ScanResultPage> {
           return;
         }
       }
-      await repo.saveSubjects(subjects, replaceExisting: true);
+      await repo.saveSubjects(pickedSubjects, replaceExisting: true);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
@@ -89,7 +100,7 @@ class _ScanResultPageState extends State<ScanResultPage> {
         title: const Text('Thay thời khóa biểu cũ?'),
         content: Text(
           'Bạn đang có $oldCount môn trong thời khóa biểu. '
-          'Lưu sẽ xóa các môn cũ và thay bằng ${subjects.length} môn mới.',
+          'Lưu sẽ xóa các môn cũ và thay bằng ${pickedSubjects.length} môn mới.',
         ),
         actions: [
           TextButton(
@@ -105,77 +116,26 @@ class _ScanResultPageState extends State<ScanResultPage> {
     );
   }
 
-  Widget subjectCard(int index) {
-    final s = subjects[index];
-    final check = needsCheck(s);
-    final room = s.room;
-    // Color index counts only the cards that are not flagged
-    final colorIndex = subjects.take(index).where((x) => !needsCheck(x)).length;
-    const text = TextStyle(
-      fontFamily: AppTypography.fontFamily,
-      fontSize: 15,
-      height: 1.3,
-      color: AppColors.ink,
-    );
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: GestureDetector(
-        onTap: saving ? null : () => edit(index),
-        child: BrutalCard(
-          color: check
-              ? AppColors.white
-              : cardColors[colorIndex % cardColors.length],
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      s.name,
-                      style: text.copyWith(fontWeight: AppTypography.semiBold),
-                    ),
-                  ),
-                  // Figma shows the pencil only on cards to check
-                  if (check) const Icon(Icons.edit_outlined, size: 20),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              if (room != null && room.isNotEmpty) ...[
-                Text('· $room', style: text),
-                const SizedBox(height: AppSpacing.xxs),
-              ],
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '· ${dayName(s.dayOfWeek)} · '
-                      '${s.startTime.toJson()}-${s.endTime.toJson()}',
-                      style: text,
-                    ),
-                  ),
-                  if (check)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 5,
-                      ),
-                      decoration: AppTheme.brutalBox(color: AppColors.coral),
-                      child: const Text(
-                        'Kiểm tra lại',
-                        style: AppTypography.label,
-                      ),
-                    ),
-                ],
-              ),
+  // The OCR result as a table: tick what to keep, tap a row to fix it.
+  Widget subjectTable() {
+    return BrutalConfirmTable(
+      headers: const ['Thứ', 'Giờ', 'Môn', 'Phòng'],
+      columnFlex: const [2, 3, 4, 2],
+      rows: [
+        for (var i = 0; i < subjects.length; i++)
+          ConfirmRow(
+            cells: [
+              dayName(subjects[i].dayOfWeek),
+              '${subjects[i].startTime.toJson()}\n${subjects[i].endTime.toJson()}',
+              subjects[i].name,
+              subjects[i].room ?? '',
             ],
+            selected: picked[i],
+            needsCheck: needsCheck(subjects[i]),
+            onSelected: saving ? null : (v) => setState(() => picked[i] = v),
+            onTap: saving ? null : () => edit(i),
           ),
-        ),
-      ),
+      ],
     );
   }
 
@@ -230,7 +190,16 @@ class _ScanResultPageState extends State<ScanResultPage> {
                         style: AppTypography.body,
                       ),
                     ),
-                  for (var i = 0; i < subjects.length; i++) subjectCard(i),
+                  if (subjects.isNotEmpty) ...[
+                    const Text(
+                      'Bỏ tick môn đọc sai, chạm vào dòng để sửa. '
+                      'Dòng đỏ là chỗ máy chưa chắc.',
+                      style: AppTypography.body,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    subjectTable(),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
                   BrutalButton(
                     label: 'Thêm môn',
                     icon: Icons.add,
@@ -249,8 +218,10 @@ class _ScanResultPageState extends State<ScanResultPage> {
                 AppSpacing.lg,
               ),
               child: BrutalButton(
-                label: saving ? 'Đang lưu...' : 'Lưu thời khóa biểu',
-                onPressed: saving || subjects.isEmpty ? null : save,
+                label: saving
+                    ? 'Đang lưu...'
+                    : 'Đúng rồi, lưu ${pickedSubjects.length} môn',
+                onPressed: saving || pickedSubjects.isEmpty ? null : save,
               ),
             ),
           ],

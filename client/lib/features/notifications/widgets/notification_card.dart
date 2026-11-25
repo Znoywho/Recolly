@@ -1,3 +1,4 @@
+import 'package:client/data/data.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -6,9 +7,16 @@ import '../../today/today_format.dart';
 import '../notifications_data.dart';
 
 class NotificationCard extends StatelessWidget {
-  const NotificationCard({super.key, required this.notification});
+  const NotificationCard({
+    super.key,
+    required this.notification,
+    this.chronotype,
+  });
 
   final AppNotification notification;
+
+  /// The user's animal reminds them; falls back to the category icon.
+  final Chronotype? chronotype;
 
   @override
   Widget build(BuildContext context) {
@@ -20,14 +28,17 @@ class NotificationCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              BrutalIconTile(
-                icon: category.icon,
-                color: category.color,
-                size: 44,
-                iconSize: 24,
-                shape: BrutalButtonShape.square,
-                hasShadow: false,
-              ),
+              if (chronotype case final chronotype?)
+                AnimalMascot(animal: MascotAnimal.of(chronotype), size: 52)
+              else
+                BrutalIconTile(
+                  icon: category.icon,
+                  color: category.color,
+                  size: 44,
+                  iconSize: 24,
+                  shape: BrutalButtonShape.square,
+                  hasShadow: false,
+                ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(

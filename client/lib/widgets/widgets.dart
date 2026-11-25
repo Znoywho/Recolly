@@ -6,3 +6,5 @@ export 'brutal_progress_bar.dart';
 export 'chronotype_badge.dart';
 export 'brutal_icon_button.dart';
 export 'brutal_icon_tile.dart';
+export 'animal_mascot.dart';
+export 'brutal_confirm_table.dart';

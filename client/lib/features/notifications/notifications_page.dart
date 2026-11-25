@@ -141,7 +141,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
         )
       else
         for (final notification in notifications) ...[
-          NotificationCard(notification: notification),
+          NotificationCard(
+            notification: notification,
+            chronotype: snapshot.requireData.chronotype,
+          ),
           const SizedBox(height: AppSpacing.md),
         ],
     ];

@@ -42,16 +42,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(SleepProfilePage), findsOneWidget);
 
-    await tester.tap(find.bySemanticsLabel('Trước 23h'));
-    await tester.pump();
-    await tester.ensureVisible(find.text('Tiếp tục'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Tiếp tục'));
-    await tester.pumpAndSettle();
+    // School days -> free days -> sleep quality -> animal -> save.
+    for (final button in [
+      'Tiếp tục',
+      'Tiếp tục',
+      'Xem con vật của bạn',
+      'Lưu và tiếp tục',
+    ]) {
+      await tester.ensureVisible(find.text(button));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(button));
+      await tester.pumpAndSettle();
+    }
 
     expect(find.byType(TimetableImportPage), findsOneWidget);
     final saved = await repositories.sleep.getHealthProfile();
-    expect(saved?.chronotype, Chronotype.lion);
+    expect(saved?.chronotype, Chronotype.bear);
+    expect(saved?.mctq, isNotNull);
   });
 
   testWidgets(

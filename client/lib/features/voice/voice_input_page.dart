@@ -53,7 +53,9 @@ class _VoiceInputPageState extends State<VoiceInputPage> {
 
   Future<void> startRecording() async {
     if (!await recorder.hasPermission()) {
-      showError('Bạn chưa cho Recolly dùng micro. Hãy bật quyền micro rồi thử lại.');
+      showError(
+        'Bạn chưa cho Recolly dùng micro. Hãy bật quyền micro rồi thử lại.',
+      );
       return;
     }
     audio.clear();
@@ -175,9 +177,64 @@ class _VoiceInputPageState extends State<VoiceInputPage> {
               ));
     final saved = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder: (_) => TodoFormPage(draft: d, badge: '2 / 2')),
+      MaterialPageRoute(
+        builder: (_) => TodoFormPage(draft: d, badge: '2 / 2'),
+      ),
     );
     if (saved == true && mounted) Navigator.pop(context, true);
+  }
+
+  bool saving = false;
+
+  // The draft is confirmed as-is: save it without opening the form.
+  Future<void> saveDraft(TodoDraft draft) async {
+    setState(() => saving = true);
+    try {
+      await RepositoryScope.of(context).todos.createTodo(
+        TodoCreate(
+          title: draft.title,
+          description: draft.description,
+          category: draft.category,
+          priority: draft.priority,
+          deadlineAt: draft.deadlineAt,
+          estimatedMinutes: draft.estimatedMinutes,
+          difficulty: draft.difficulty,
+        ),
+      );
+      if (mounted) Navigator.pop(context, true);
+    } on ApiException {
+      if (!mounted) return;
+      setState(() => saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không lưu được, thử lại nhé')),
+      );
+    }
+  }
+
+  // What the server understood, laid out for the user to confirm.
+  Widget draftTable(TodoDraft d) {
+    final deadline = d.deadlineAt;
+    final minutes = d.estimatedMinutes;
+    return BrutalConfirmTable(
+      headers: const ['Mục', 'Máy hiểu là'],
+      columnFlex: const [2, 3],
+      rows: [
+        ConfirmRow(cells: ['Tên việc', d.title]),
+        ConfirmRow(cells: ['Loại', categoryName(d.category)]),
+        ConfirmRow(cells: ['Ưu tiên', priorityName(d.priority)]),
+        ConfirmRow(
+          cells: [
+            'Hạn chót',
+            deadline == null
+                ? 'Chưa có'
+                : '${weekdayName(deadline)} ${dayMonth(deadline)} '
+                      '${hourMinute(deadline)}',
+          ],
+          needsCheck: deadline == null,
+        ),
+        if (minutes != null) ConfirmRow(cells: ['Ước tính', '$minutes phút']),
+      ],
+    );
   }
 
   @override
@@ -201,6 +258,12 @@ class _VoiceInputPageState extends State<VoiceInputPage> {
             statusLine(),
             const SizedBox(height: AppSpacing.lg),
             resultCard(),
+            if (step == VoiceStep.done && result?.todoDraft != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              const Text('Kiểm tra lại nhé', style: AppTypography.subtitle),
+              const SizedBox(height: AppSpacing.xs),
+              draftTable(result!.todoDraft!),
+            ],
             const SizedBox(height: AppSpacing.lg),
             ...buttons(),
           ],
@@ -301,11 +364,7 @@ class _VoiceInputPageState extends State<VoiceInputPage> {
         'Bản ghi đã được lưu. Nếu máy chủ bận, app sẽ tự hỏi lại sau vài giây.',
         true,
       ),
-      VoiceStep.done => (
-        'Nội dung nhận được',
-        result?.transcript ?? '',
-        false,
-      ),
+      VoiceStep.done => ('Nội dung nhận được', result?.transcript ?? '', false),
       VoiceStep.error => ('Có lỗi xảy ra', errorText, false),
     };
     return BrutalCard(
@@ -361,24 +420,36 @@ class _VoiceInputPageState extends State<VoiceInputPage> {
         ];
       case VoiceStep.processing:
         return [
-          BrutalButton(
-            label: 'Hủy',
-            color: AppColors.white,
-            onPressed: cancel,
-          ),
+          BrutalButton(label: 'Hủy', color: AppColors.white, onPressed: cancel),
         ];
       case VoiceStep.done:
+        final draft = result?.todoDraft;
         return [
           BrutalButton(
             label: 'Nói lại',
             color: AppColors.white,
-            onPressed: () => setState(() => step = VoiceStep.ready),
+            onPressed: saving
+                ? null
+                : () => setState(() => step = VoiceStep.ready),
           ),
           gap,
-          BrutalButton(
-            label: 'Dùng kết quả này',
-            onPressed: () => openForm(result?.todoDraft),
-          ),
+          if (draft == null)
+            BrutalButton(
+              label: 'Dùng kết quả này',
+              onPressed: () => openForm(null),
+            )
+          else ...[
+            BrutalButton(
+              label: 'Sửa lại',
+              color: AppColors.yellow,
+              onPressed: saving ? null : () => openForm(draft),
+            ),
+            gap,
+            BrutalButton(
+              label: saving ? 'Đang lưu...' : 'Đúng rồi, lưu',
+              onPressed: saving ? null : () => saveDraft(draft),
+            ),
+          ],
         ];
       case VoiceStep.error:
         return [
