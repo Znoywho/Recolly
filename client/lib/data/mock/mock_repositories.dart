@@ -869,13 +869,15 @@ class MockVoiceRepository extends _Mock implements VoiceRepository {
   MockVoiceRepository({Duration latency = Duration.zero}) : super(latency);
 
   @override
-  Future<VoiceTranscription> transcribe(
+  Future<VoiceJob> transcribe(
     Uint8List audio, {
     required String filename,
     DateTime? referenceTime,
   }) async {
     await delay();
-    return VoiceTranscription(
+    return VoiceJob(
+      status: JobStatus.succeeded,
+      result: VoiceTranscription(
       transcript: 'Thứ sáu nộp bài tập lớn cấu trúc dữ liệu',
       todoDraft: TodoDraft(
         title: 'Nộp bài tập lớn cấu trúc dữ liệu',
@@ -884,7 +886,14 @@ class MockVoiceRepository extends _Mock implements VoiceRepository {
         priority: Priority.medium,
       ),
       parser: 'gemini',
+      ),
     );
+  }
+
+  @override
+  Future<VoiceJob> getVoiceJob(String jobId) async {
+    await delay();
+    return const VoiceJob(status: JobStatus.failed, error: 'VOICE_JOB_NOT_FOUND');
   }
 }
 
