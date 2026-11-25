@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../widgets/widgets.dart';
-import '../calendar/calendar_page_demo.dart';
+import '../calendar/week_calendar_page.dart';
 import '../personal/personal_page.dart';
 import '../sleep/sleep_page.dart';
+import '../timetable/timetable_import_page.dart';
 import '../today/today_page.dart';
 
 class NavigationPreviewPage extends StatefulWidget {
@@ -22,7 +23,11 @@ class _NavigationPreviewPageState extends State<NavigationPreviewPage> {
     BrutalNavTab.today => TodayPage(
       onProfilePressed: () => _selectTab(BrutalNavTab.personal),
     ),
-    BrutalNavTab.calendar => const CalendarPage(),
+    BrutalNavTab.calendar => WeekCalendarPage(
+      onImportTimetable: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const TimetableImportPage()),
+      ),
+    ),
     BrutalNavTab.sleep => const SleepPage(),
     BrutalNavTab.personal => const PersonalPage(),
   };
