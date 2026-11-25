@@ -277,3 +277,46 @@ class VoiceTranscription {
     'parser': parser,
   };
 }
+
+/// Voice job (V1 answer or V2 `GET /voice/jobs/{id}`).
+/// V1 gives `succeeded` + [result] right away, or `queued` (202) when the
+/// speech server is down; then poll V2 until [JobStatus.isFinished].
+class VoiceJob {
+  const VoiceJob({
+    this.jobId,
+    required this.status,
+    this.error,
+    this.result,
+  });
+
+  /// V1 body: a TranscribeResponse (200) or `{job_id, status}` (202).
+  factory VoiceJob.fromTranscribe(Json json) {
+    if (json.containsKey('transcript')) {
+      return VoiceJob(
+        jobId: json['job_id'] as String?,
+        status: JobStatus.succeeded,
+        result: VoiceTranscription.fromJson(json),
+      );
+    }
+    return VoiceJob(
+      jobId: json['job_id'] as String?,
+      status: JobStatus.fromJson(json['status']),
+    );
+  }
+
+  factory VoiceJob.fromJson(Json json) => VoiceJob(
+    jobId: json['job_id'] as String?,
+    status: JobStatus.fromJson(json['status']),
+    error: json['error'] as String?,
+    result: json['result'] == null
+        ? null
+        : VoiceTranscription.fromJson(json['result'] as Json),
+  );
+
+  final String? jobId;
+  final JobStatus status;
+
+  /// `VOICE_ASR_UNAVAILABLE` or `VOICE_BAD_AUDIO` when failed.
+  final String? error;
+  final VoiceTranscription? result;
+}
