@@ -100,6 +100,7 @@ Hiện tại φ **chỉ lấy từ quiz** (`biorhythm_service.phi_prior`; `model
 
 | Công thức / hằng số | Giá trị | Nguồn | Kiểm chứng |
 |---|---|---|---|
+| Thang KSS (Karolinska Sleepiness Scale): 9 mức, 1 = "extremely alert" … 5 = "neither alert nor sleepy" … 9 = "very sleepy, great effort to keep awake, fighting sleep"; chấm cho **10 phút vừa qua**; bản sửa đổi có thêm mức 10 | 1–9 | Åkerstedt & Gillberg 1990 (bài gốc); mô tả và bảng đầy đủ: Shahid et al. 2012, chương 47, tr. 209–210. Độ hiệu lực: "highly correlated to EEG and behavioral variables" (Kaida et al. 2006, theo chương sách) | ✅ Toàn văn chương sách; 📄 bài gốc 1990 và Kaida 2006 chưa đọc |
 | Mức tỉnh táo `A(t) = H+(t) − H(t)` (khoảng cách tới ngưỡng ngủ) | — | Định nghĩa của nhóm dựa trên 2PM | ⚠️ Giả định nhóm |
 | `KSS = 7.5 − 9·A` | 7.5, 9 | Không có nguồn. Ingre 2014 có công thức tuyến tính cùng dạng (`KSS ≈ 9.68 − 0.46·score`) nhưng cho thang của TPM, **không chuyển sang 2PM được**. Hệ quả: KSS lúc bắt đầu ngủ luôn = 7.5 (vì A = 0) | ⚠️ Giả định nhóm — chưa hiệu chỉnh |
 | Điểm tỉnh táo UI `= 100·(9 − KSS)/8` | — | Đổi thang tuyến tính | ⚠️ Quy ước hiển thị |
@@ -107,6 +108,8 @@ Hiện tại φ **chỉ lấy từ quiz** (`biorhythm_service.phi_prior`; `model
 | Giờ vàng = các bước đang thức có KSS ≤ phân vị 25 % của ngày, dài ≥ 30 phút (`MIN_WINDOW_STEPS`) | — | — | ⚠️ Giả định nhóm |
 | Bỏ 30 phút đầu sau khi dậy (`INERTIA_STEPS = 6`) | 30 phút | Lý do: 2PM không mô hình hoá quán tính (`typical_week.py` trích Van Dongen et al. 2007, Discussion). Ingre 2014: quán tính thật "much smaller" so với mặc định của TPM | 📄 Trích dẫn — Tassi & Muzet 2000, Jewett et al. 1999 chưa đọc |
 | Khoảng đệm tuần mẫu: sau khi dậy 0.5 h, trước khi ngủ 1 h, khối đỉnh 1.5 h (`typical_week.py`; `energy.py` có bản sao nhưng **API chưa gọi** `day_energy`) | — | — | ⚠️ Giả định nhóm |
+
+**Bản quyền thang KSS:** chương sách ghi "Copyright © Torbjörn Åkerstedt, 1990 … Reproduction, duplication or adaptation without the written consent of Torbjörn Åkerstedt is strictly prohibited." Nếu app hiển thị nguyên văn 9 mức (màn tự chấm KSS), cần xin phép tác giả hoặc chỉ hiển thị số 1–9 kèm mô tả tự viết, và ghi nguồn. App hiện chưa có màn này.
 
 ![KSS dự đoán trong ngày của user demo](figures/1_kss_trong_ngay.png)
 
@@ -147,19 +150,23 @@ Dữ liệu thật (NHANES 18–24): ngủ bù cuối tuần 0.71 h — đúng v
 3. Ingre M, Van Leeuwen W, Klemets T, Ullvetter C, Hough S, Kecklund G, Karlsson D, Åkerstedt T (2014). Validating and extending the three process model of alertness in airline operations. *PLoS ONE* 9(10): e108679. [doi:10.1371/journal.pone.0108679](https://doi.org/10.1371/journal.pone.0108679)
 4. *Hormones and Behavior* 64(2):270–279 (2013), Fig. 2 (chú thích về tham số Daan 1984). [doi:10.1016/j.yhbeh.2013.01.013](https://doi.org/10.1016/j.yhbeh.2013.01.013) — chỉ đọc chú thích hình
 5. CDC/NCHS. NHANES 2017–March 2020 Pre-Pandemic: [P_SLQ](https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2017/DataFiles/P_SLQ.htm) (Sleep Disorders), P_DEMO (Demographics). Phân tích có trọng số `WTINTPRP`; kiểm tra: cả nhóm 18+ ra 7.61 / 8.26 h, khớp số đã công bố 7.59 / 8.24 h
+6. Shahid A, Wilkinson K, Marcu S, Shapiro CM (eds.) (2012). Karolinska Sleepiness Scale (KSS). In *STOP, THAT and One Hundred Other Sleep Scales*, ch. 47, pp. 209–210. Springer. [doi:10.1007/978-1-4419-9893-4_47](https://doi.org/10.1007/978-1-4419-9893-4_47)
 
-Trích trong code, **chưa đọc toàn văn**:
-6. Daan S, Beersma DGM, Borbély AA (1984). Timing of human sleep: recovery process gated by a circadian pacemaker. *Am J Physiol* 246:R161–R183
-7. Borbély AA et al. (2016). The two-process model of sleep regulation: a reappraisal. *J Sleep Res* (link trong README)
-8. Roenneberg T, Wirz-Justice A, Merrow M (2003). Life between clocks: daily temporal patterns of human chronotypes. *J Biol Rhythms* (MCTQ)
-9. Wittmann M et al. (2006). Social jetlag. *Chronobiol Int*
-10. Adan A, Almirall H (1991). Horne & Östberg morningness-eveningness questionnaire: a reduced scale (rMEQ)
-11. Watson NF et al. (2015). Recommended amount of sleep for a healthy adult. *Sleep* 38(6)
-12. Van Dongen HPA et al. (2007) — như trích trong `typical_week.py`
-13. Tassi P, Muzet A (2000). Sleep inertia. *Sleep Med Rev*; Jewett ME et al. (1999). *J Sleep Res* — về quán tính giấc ngủ
+Chưa đọc toàn văn (trích trong code, hoặc qua nguồn thứ cấp):
+7. Daan S, Beersma DGM, Borbély AA (1984). Timing of human sleep: recovery process gated by a circadian pacemaker. *Am J Physiol* 246:R161–R183
+8. Borbély AA et al. (2016). The two-process model of sleep regulation: a reappraisal. *J Sleep Res* (link trong README)
+9. Roenneberg T, Wirz-Justice A, Merrow M (2003). Life between clocks: daily temporal patterns of human chronotypes. *J Biol Rhythms* (MCTQ)
+10. Wittmann M et al. (2006). Social jetlag. *Chronobiol Int*
+11. Adan A, Almirall H (1991). Horne & Östberg morningness-eveningness questionnaire: a reduced scale (rMEQ)
+12. Watson NF et al. (2015). Recommended amount of sleep for a healthy adult. *Sleep* 38(6)
+13. Van Dongen HPA et al. (2007) — như trích trong `typical_week.py`
+14. Tassi P, Muzet A (2000). Sleep inertia. *Sleep Med Rev*; Jewett ME et al. (1999). *J Sleep Res* — về quán tính giấc ngủ
+15. Åkerstedt T, Gillberg M (1990). Subjective and objective sleepiness in the active individual. *Int J Neurosci* 52:29–37. [doi:10.3109/00207459008994241](https://doi.org/10.3109/00207459008994241)
+16. Kaida K et al. (2006). Validation of the Karolinska sleepiness scale against performance and EEG variables. *Clin Neurophysiol* 117:1574–1581
 
 ## 10. Việc còn mở
 
+- [ ] Bản quyền thang KSS trước khi làm màn tự chấm KSS (xin phép Åkerstedt hoặc dùng mô tả tự viết).
 - [ ] Đọc toàn văn các nguồn 📄 (ưu tiên: MCTQ Roenneberg 2003 cho công thức MSFsc; Tassi & Muzet / Jewett cho 30 phút).
 - [ ] `MCTQ_PHI_BIAS_HOURS = 0.9`: tìm nguồn hoặc bỏ.
 - [ ] `KSS = 7.5 − 9·A`: hiệu chỉnh khi có KSS tự chấm thật.
