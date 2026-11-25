@@ -256,10 +256,7 @@ class _VoiceInputPageState extends State<VoiceInputPage> {
   Widget statusLine() {
     final (text, dot) = switch (step) {
       VoiceStep.ready => ('Bấm micro để nói', AppColors.inkMuted),
-      VoiceStep.listening => (
-        'Đang nghe... 0:${seconds.toString().padLeft(2, '0')}',
-        AppColors.coral,
-      ),
+      VoiceStep.listening => ('Đang nghe...', AppColors.coral),
       VoiceStep.processing => ('Đang chuyển thành chữ...', AppColors.yellow),
       VoiceStep.done => ('Đã nhận xong', AppColors.green),
       VoiceStep.error => ('Không nhận được giọng nói', AppColors.coral),
@@ -295,9 +292,9 @@ class _VoiceInputPageState extends State<VoiceInputPage> {
         true,
       ),
       VoiceStep.listening => (
-        'Nội dung nhận được',
-        'Nói xong thì bấm Dừng. Tối đa $maxSeconds giây.',
-        true,
+        'Đang ghi âm',
+        '${clock(seconds)} / ${clock(maxSeconds)} · Nói xong thì bấm Dừng',
+        false,
       ),
       VoiceStep.processing => (
         'Đang xử lý',
@@ -351,8 +348,6 @@ class _VoiceInputPageState extends State<VoiceInputPage> {
             color: AppColors.teal,
             onPressed: startRecording,
           ),
-          gap,
-          const BrutalButton(label: 'Dùng kết quả này', onPressed: null),
         ];
       case VoiceStep.listening:
         return [
@@ -363,8 +358,6 @@ class _VoiceInputPageState extends State<VoiceInputPage> {
             color: AppColors.coral,
             onPressed: stopAndSend,
           ),
-          gap,
-          const BrutalButton(label: 'Dùng kết quả này', onPressed: null),
         ];
       case VoiceStep.processing:
         return [
@@ -404,6 +397,9 @@ class _VoiceInputPageState extends State<VoiceInputPage> {
     }
   }
 }
+
+// 7 -> "0:07"
+String clock(int s) => '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
 
 // 44-byte wav header in front of 16-bit mono PCM
 Uint8List wavFile(Uint8List pcm) {
