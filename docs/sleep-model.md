@@ -1,6 +1,7 @@
 # Mô hình giấc ngủ — công thức, số liệu và nguồn
 
 > Owner: Backend — Member 1 (R18–R20, H7, H8). Ghi ngày 2026-11-25, theo code trên `main` (`server/app/service/sleep/`, `server/app/service/biorhythm_service.py`).
+> Hình trong `docs/figures/` được tạo bằng script ở workspace nghiên cứu (`src/make_figures.py`, matplotlib), từ đúng số liệu ghi trong tài liệu này.
 > Mục đích: mỗi công thức và hằng số trong app đều ghi rõ **lấy từ đâu** và **đã kiểm chứng tới mức nào**, để báo cáo đồ án trung thực về mặt khoa học.
 
 ## 0. Cách đọc cột "Kiểm chứng"
@@ -54,6 +55,8 @@ Bài gốc Daan, Beersma & Borbély 1984 (*Am J Physiol* 246:R161–R183) **chư
 
 Độ nhạy (mô phỏng, đổi ±10 % từng hằng số): H0+ ảnh hưởng mạnh nhất (giấc ngủ ±0.7 h, giờ giữa giấc ±1.2 h) > χw > χs > H0− > a. Skeldon & Dijk 2025 tr. 7 cũng ghi biên độ "has minimal change in the percentage of time spent asleep".
 
+![Độ nhạy hằng số 2PM](figures/4_do_nhay_hang_so.png)
+
 ### 2.3 Những gì **không** đưa vào mô hình
 
 | Quyết định | Bằng chứng | Kiểm chứng |
@@ -91,6 +94,8 @@ Hiện tại φ **chỉ lấy từ quiz** (`biorhythm_service.phi_prior`; `model
 | Thang 5 mức (spectrum) 03:00 / 04:30 / 05:30 / 06:30 | — | ⚠️ Giả định nhóm |
 | rMEQ → con vật: ≥ 18 sư tử, ≥ 12 gấu, còn lại sói | — | ⚠️ Giả định nhóm |
 
+![NHANES 18–24 tuổi: phân bố MSFsc và mốc con vật](figures/3_nhanes_msfsc.png)
+
 ## 5. Mức tỉnh táo, KSS và giờ vàng — `two_process.py`, `timeline.py`
 
 | Công thức / hằng số | Giá trị | Nguồn | Kiểm chứng |
@@ -102,6 +107,10 @@ Hiện tại φ **chỉ lấy từ quiz** (`biorhythm_service.phi_prior`; `model
 | Giờ vàng = các bước đang thức có KSS ≤ phân vị 25 % của ngày, dài ≥ 30 phút (`MIN_WINDOW_STEPS`) | — | — | ⚠️ Giả định nhóm |
 | Bỏ 30 phút đầu sau khi dậy (`INERTIA_STEPS = 6`) | 30 phút | Lý do: 2PM không mô hình hoá quán tính (`typical_week.py` trích Van Dongen et al. 2007, Discussion). Ingre 2014: quán tính thật "much smaller" so với mặc định của TPM | 📄 Trích dẫn — Tassi & Muzet 2000, Jewett et al. 1999 chưa đọc |
 | Khoảng đệm tuần mẫu: sau khi dậy 0.5 h, trước khi ngủ 1 h, khối đỉnh 1.5 h (`typical_week.py`; `energy.py` có bản sao nhưng **API chưa gọi** `day_energy`) | — | — | ⚠️ Giả định nhóm |
+
+![KSS dự đoán trong ngày của user demo](figures/1_kss_trong_ngay.png)
+
+*User demo với giờ ngủ giả (script `server/scripts/demo_sleep_flow.py`), dữ liệu lấy từ `GET /api/v1/biorhythm`, không phải người thật.*
 
 ## 6. Nợ ngủ — `debt.py`, `biorhythm_service.debt_summary`
 
@@ -125,6 +134,8 @@ Các câu khuyên trích nguồn ngay trong code: Watson et al. 2015 (*Sleep* 38
 | Fit H0+ riêng từng người từ thời lượng ngủ ngày nghỉ | Sai số KSS ban ngày 0.33 → 0.14 nếu không ngủ bù; nhưng ngủ bù ≥ 0.5 h thì **tệ hơn** dùng chung | Giữ H0+ chung |
 | Fit (H0+, φ) theo cả tuần có báo thức | 0.14; chịu được ~0.5 h ngủ bù ngoài mô hình, 1 h thì thua | Lợi tối đa ~0.2 KSS, nhỏ hơn dải ±1.47 của app |
 | Chỉ dùng giờ đi ngủ | Không hơn dùng chung | Giờ đi ngủ không tách được H0+ và φ |
+
+![Sai số theo cách fit và mức ngủ bù](figures/2_ca_nhan_hoa_vs_ngu_bu.png)
 
 Dữ liệu thật (NHANES 18–24): ngủ bù cuối tuần 0.71 h — đúng vùng mà cá nhân hoá hết lợi. Cá nhân hoá nên làm sau, khi có KSS tự chấm trong ngày.
 
