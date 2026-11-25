@@ -3,12 +3,30 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/widgets.dart';
+import '../../sleep/sleep_profile_page.dart';
 
 class LoadErrorCard extends StatelessWidget {
   const LoadErrorCard({super.key, required this.error, required this.onRetry});
 
   final Object error;
   final VoidCallback onRetry;
+
+  bool get _isMissingSleepProfile =>
+      error is ApiException && (error as ApiException).isNotFound;
+
+  void _openSleepProfile(BuildContext context) {
+    final navigator = Navigator.of(context);
+    navigator.push(
+      MaterialPageRoute<void>(
+        builder: (_) => SleepProfilePage(
+          onCompleted: (_) {
+            navigator.pop();
+            onRetry();
+          },
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,14 +52,11 @@ class LoadErrorCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: AppTheme.brutalBox(
-              color: AppColors.coral,
-              borderRadius: AppRadii.pillAll,
-            ),
-            child: Icon(icon, size: 30),
+          BrutalIconTile(
+            icon: icon,
+            color: AppColors.coral,
+            size: 64,
+            iconSize: 30,
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
@@ -52,7 +67,13 @@ class LoadErrorCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(message, textAlign: TextAlign.center, style: AppTypography.body),
           const SizedBox(height: AppSpacing.lg),
-          BrutalButton(label: 'Thử lại', onPressed: onRetry),
+          if (_isMissingSleepProfile)
+            BrutalButton(
+              label: 'Tạo hồ sơ giấc ngủ',
+              onPressed: () => _openSleepProfile(context),
+            )
+          else
+            BrutalButton(label: 'Thử lại', onPressed: onRetry),
         ],
       ),
     );

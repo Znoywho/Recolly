@@ -14,15 +14,7 @@ class SleepEmptyCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: AppTheme.brutalBox(
-              color: AppColors.teal,
-              borderRadius: AppRadii.pillAll,
-            ),
-            child: const Icon(Icons.bedtime_outlined, size: 28),
-          ),
+          const BrutalIconTile(icon: Icons.bedtime_outlined),
           const SizedBox(height: AppSpacing.md),
           const Text(
             'Chưa có dữ liệu giấc ngủ',

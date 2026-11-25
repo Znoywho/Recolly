@@ -5,3 +5,4 @@ export 'brutal_card.dart';
 export 'brutal_progress_bar.dart';
 export 'chronotype_badge.dart';
 export 'brutal_icon_button.dart';
+export 'brutal_icon_tile.dart';

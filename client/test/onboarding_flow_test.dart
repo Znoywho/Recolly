@@ -78,8 +78,9 @@ void main() {
       expect(find.byType(BrutalBottomNavBar), findsOneWidget);
 
       await tester.tap(find.bySemanticsLabel('Cá nhân'));
+      await tester.pump();
       await tester.pump(const Duration(seconds: 1));
-      await tester.tap(find.text('Google Calendar'));
+      await tester.tap(find.text('Tài khoản Google'));
       await tester.pump(const Duration(seconds: 1));
       expect(find.byType(GoogleCalendarSheet), findsOneWidget);
     },

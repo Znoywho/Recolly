@@ -16,8 +16,12 @@ class NavigationPreviewPage extends StatefulWidget {
 
 class _NavigationPreviewPageState extends State<NavigationPreviewPage> {
   BrutalNavTab _currentTab = BrutalNavTab.today;
+  final Set<BrutalNavTab> _openedTabs = {BrutalNavTab.today};
 
-  void _selectTab(BrutalNavTab tab) => setState(() => _currentTab = tab);
+  void _selectTab(BrutalNavTab tab) => setState(() {
+    _currentTab = tab;
+    _openedTabs.add(tab);
+  });
 
   Widget _pageFor(BrutalNavTab tab) => switch (tab) {
     BrutalNavTab.today => TodayPage(
@@ -38,7 +42,10 @@ class _NavigationPreviewPageState extends State<NavigationPreviewPage> {
       extendBody: true,
       body: IndexedStack(
         index: _currentTab.index,
-        children: [for (final tab in BrutalNavTab.values) _pageFor(tab)],
+        children: [
+          for (final tab in BrutalNavTab.values)
+            _openedTabs.contains(tab) ? _pageFor(tab) : const SizedBox.shrink(),
+        ],
       ),
       bottomNavigationBar: BrutalBottomNavBar(
         currentTab: _currentTab,
