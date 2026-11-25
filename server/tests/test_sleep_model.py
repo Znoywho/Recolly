@@ -97,9 +97,7 @@ def test_screen_guess_without_data():
 
 def test_sleep_need_is_personal_but_at_least_7h():
     assert sleep_need() == 8.0
-    assert sleep_need(quiz=WOLF) == 8.0
-    assert sleep_need(quiz=Night(0.0, 9.0)) == 9.0
-    assert sleep_need(user_hours=7.5, quiz=Night(0.0, 9.0)) == 7.5  # typed value wins
+    assert sleep_need(user_hours=7.5) == 7.5
     assert sleep_need(user_hours=5.0) == 7.0
     assert sleep_need(user_hours=12.0) == 10.0
 

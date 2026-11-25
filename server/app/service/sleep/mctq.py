@@ -21,9 +21,6 @@ from app.service.sleep.two_process import circular_diff_hours, phi_from_mid_slee
 LION_BEFORE_MSF_SC = 4.0
 WOLF_FROM_MSF_SC = 6.0
 
-# In synthetic experiment 1 MCTQ put the phase ~55 min too early, so phi from MCTQ is
-# shifted later by this much. Re-calibrate on real data.
-MCTQ_PHI_BIAS_HOURS = 0.9
 PHI_SD_HOURS = 1.0
 PHI_SD_UNCERTAIN_HOURS = 1.5    # alarm on free days, rMEQ or self-report only
 PHI_SD_DISAGREEMENT_HOURS = 0.5  # added when MCTQ says lion and rMEQ says wolf (or vice versa)
@@ -230,7 +227,7 @@ def assess(mctq: MctqAnswers | None = None, rmeq_score: int | None = None,
             mctq=r,
             rmeq_score=rmeq_score,
             rmeq_category=rmeq_cat,
-            phi_hours=(phi_from_mid_sleep(r.msf_sc) + MCTQ_PHI_BIAS_HOURS) % 24,
+            phi_hours=phi_from_mid_sleep(r.msf_sc),
             phi_sd_hours=phi_sd,
             natural_sleep_time=(r.msf_sc - r.sd_week / 2) % 24,
             natural_wake_time=(r.msf_sc + r.sd_week / 2) % 24,
