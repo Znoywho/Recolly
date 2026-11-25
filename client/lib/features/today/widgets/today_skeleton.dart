@@ -27,6 +27,8 @@ class TodaySkeleton extends StatelessWidget {
                   ),
                 ),
                 _Block(width: 48, height: 48, isRound: true),
+                SizedBox(width: AppSpacing.sm),
+                _Block(width: 48, height: 48, isRound: true),
               ],
             ),
             SizedBox(height: AppSpacing.lg),

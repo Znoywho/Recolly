@@ -21,6 +21,7 @@ class SleepPage extends StatefulWidget {
 }
 
 class _SleepPageState extends State<SleepPage> {
+  static const double _maxContentWidth = 520;
   static const int _debtTipThresholdMinutes = 60;
   static const int _debtTipEarlierMinutes = 30;
 
@@ -119,16 +120,20 @@ class _SleepPageState extends State<SleepPage> {
                   : snapshot.requireData.withReminderSettings(savedSettings),
             );
           }
+          final screenWidth = MediaQuery.sizeOf(context).width;
+          final sidePadding = screenWidth > _maxContentWidth + AppSpacing.lg * 2
+              ? (screenWidth - _maxContentWidth) / 2
+              : AppSpacing.lg;
           return RefreshIndicator(
             color: AppColors.ink,
             backgroundColor: AppColors.white,
             onRefresh: _refresh,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
+              padding: EdgeInsets.fromLTRB(
+                sidePadding,
                 AppSpacing.lg,
-                AppSpacing.md,
+                sidePadding,
                 AppSpacing.lg,
               ),
               children: [

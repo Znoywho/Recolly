@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/widgets.dart';
+import '../../notifications/notifications_page.dart';
 
 class TodayHeader extends StatelessWidget {
   const TodayHeader({
@@ -26,6 +27,14 @@ class TodayHeader extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: AppTypography.title,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        BrutalIconButton(
+          icon: Icons.notifications_none_rounded,
+          iconSize: 26,
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const NotificationsPage()),
           ),
         ),
         const SizedBox(width: AppSpacing.sm),

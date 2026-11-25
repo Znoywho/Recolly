@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
-import '../core/theme/app_theme.dart';
 
-// Shape
+import '../core/theme/app_theme.dart';
+import 'brutal_press_feedback.dart';
+
 enum BrutalButtonShape { circle, square }
 
 class BrutalIconButton extends StatefulWidget {
   const BrutalIconButton({
     super.key,
-    required this.icon, // Changes icon
+    required this.icon,
     required this.onPressed,
     this.color = AppColors.white,
     this.iconColor,
-    this.size = 48.0, // Defaut size
+    this.size = 48.0,
     this.iconSize = 20.0,
     this.hasBorder = true,
     this.hasShadow = true,
-    this.shape = BrutalButtonShape.circle, //Defaute is circle shape
+    this.shape = BrutalButtonShape.circle,
   });
 
   final IconData icon;
@@ -32,57 +33,46 @@ class BrutalIconButton extends StatefulWidget {
   State<BrutalIconButton> createState() => _BrutalIconButtonState();
 }
 
-class _BrutalIconButtonState extends State<BrutalIconButton> {
-  static const Duration _pressDuration = Duration(milliseconds: 70);
-
-  bool _isPressed = false;
-
-  bool get _isEnabled => widget.onPressed != null;
+class _BrutalIconButtonState extends State<BrutalIconButton>
+    with BrutalPressFeedback {
+  @override
+  bool get isPressEnabled => widget.onPressed != null;
 
   Color get _foregroundColor =>
-      widget.iconColor ?? (_isEnabled ? AppColors.ink : AppColors.inkMuted);
-
-  void _setPressed(bool isPressed) {
-    if (!_isEnabled || _isPressed == isPressed) return;
-    setState(() => _isPressed = isPressed);
-  }
+      widget.iconColor ?? (isPressEnabled ? AppColors.ink : AppColors.inkMuted);
 
   @override
   Widget build(BuildContext context) {
-    final showShadow = _isEnabled && !_isPressed && widget.hasShadow;
-    final travel = _isPressed ? AppShadows.offset : Offset.zero;
-
-    // Radius
+    final travel = isPressed ? AppShadows.offset : Offset.zero;
     final borderRadius = widget.shape == BrutalButtonShape.circle
         ? BorderRadius.circular(widget.size / 2)
         : AppRadii.cardAll;
 
     return Semantics(
       button: true,
-      enabled: _isEnabled,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onPressed,
-        onTapDown: (_) => _setPressed(true),
-        onTapUp: (_) => _setPressed(false),
-        onTapCancel: () => _setPressed(false),
-        child: AnimatedContainer(
-          duration: _pressDuration,
-          curve: Curves.easeOut,
-          transform: Matrix4.translationValues(travel.dx, travel.dy, 0),
-          width: widget.size,
-          height: widget.size,
-          decoration: AppTheme.brutalBox(
-            color: _isEnabled ? widget.color : AppColors.disabled,
-            borderRadius: borderRadius,
-            hasShadow: showShadow,
-            hasBorder: widget.hasBorder,
-          ),
-          child: Center(
-            child: Icon(
-              widget.icon,
-              size: widget.iconSize,
-              color: _foregroundColor,
+      enabled: isPressEnabled,
+      child: pressListener(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onPressed,
+          child: AnimatedContainer(
+            duration: BrutalPressFeedback.pressAnimationDuration,
+            curve: Curves.easeOut,
+            transform: Matrix4.translationValues(travel.dx, travel.dy, 0),
+            width: widget.size,
+            height: widget.size,
+            decoration: AppTheme.brutalBox(
+              color: isPressEnabled ? widget.color : AppColors.disabled,
+              borderRadius: borderRadius,
+              hasShadow: isPressEnabled && !isPressed && widget.hasShadow,
+              hasBorder: widget.hasBorder,
+            ),
+            child: Center(
+              child: Icon(
+                widget.icon,
+                size: widget.iconSize,
+                color: _foregroundColor,
+              ),
             ),
           ),
         ),

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../widgets/widgets.dart';
-import '../calendar/calendar_page_demo.dart';
+import '../calendar/week_calendar_page.dart';
 import '../personal/personal_page.dart';
 import '../sleep/sleep_page.dart';
+import '../timetable/timetable_import_page.dart';
 import '../today/today_page.dart';
 
 class NavigationPreviewPage extends StatefulWidget {
@@ -15,14 +16,22 @@ class NavigationPreviewPage extends StatefulWidget {
 
 class _NavigationPreviewPageState extends State<NavigationPreviewPage> {
   BrutalNavTab _currentTab = BrutalNavTab.today;
+  final Set<BrutalNavTab> _openedTabs = {BrutalNavTab.today};
 
-  void _selectTab(BrutalNavTab tab) => setState(() => _currentTab = tab);
+  void _selectTab(BrutalNavTab tab) => setState(() {
+    _currentTab = tab;
+    _openedTabs.add(tab);
+  });
 
   Widget _pageFor(BrutalNavTab tab) => switch (tab) {
     BrutalNavTab.today => TodayPage(
       onProfilePressed: () => _selectTab(BrutalNavTab.personal),
     ),
-    BrutalNavTab.calendar => const CalendarPage(),
+    BrutalNavTab.calendar => WeekCalendarPage(
+      onImportTimetable: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const TimetableImportPage()),
+      ),
+    ),
     BrutalNavTab.sleep => const SleepPage(),
     BrutalNavTab.personal => const PersonalPage(),
   };
@@ -33,7 +42,10 @@ class _NavigationPreviewPageState extends State<NavigationPreviewPage> {
       extendBody: true,
       body: IndexedStack(
         index: _currentTab.index,
-        children: [for (final tab in BrutalNavTab.values) _pageFor(tab)],
+        children: [
+          for (final tab in BrutalNavTab.values)
+            _openedTabs.contains(tab) ? _pageFor(tab) : const SizedBox.shrink(),
+        ],
       ),
       bottomNavigationBar: BrutalBottomNavBar(
         currentTab: _currentTab,

@@ -1,5 +1,6 @@
-import 'package:client/features/calendar/add_schedule_screen.dart';
+import 'package:client/features/sleep/sleep_profile_page.dart';
 import 'package:client/features/theme_gallery/navigation_preview_page.dart';
+import 'package:client/features/timetable/timetable_import_page.dart';
 import 'package:client/widgets/brutal_button.dart';
 import 'package:client/widgets/brutal_card.dart';
 import 'package:flutter/material.dart';
@@ -23,10 +24,25 @@ class Startscreen extends StatelessWidget {
               BrutalButton(
                 label: "Bắt đầu",
                 onPressed: () {
-                  Navigator.push(
-                    context,
+                  final navigator = Navigator.of(context);
+                  navigator.push(
                     MaterialPageRoute(
-                      builder: (context) => AddScheduleScreen(),
+                      builder: (_) => SleepProfilePage(
+                        onCompleted: (_) async {
+                          final isTimetableSaved = await navigator.push<bool>(
+                            MaterialPageRoute(
+                              builder: (_) => const TimetableImportPage(),
+                            ),
+                          );
+                          if (isTimetableSaved != true) return;
+                          navigator.pushAndRemoveUntil(
+                            MaterialPageRoute(
+                              builder: (_) => const NavigationPreviewPage(),
+                            ),
+                            (route) => false,
+                          );
+                        },
+                      ),
                     ),
                   );
                 },
@@ -67,8 +83,7 @@ class Startscreen extends StatelessWidget {
                     ),
                   ),
                   SizedBox(width: AppSpacing.xs),
-                  Text('1/3',
-                    style: AppTypography.label,),
+                  Text('1/3', style: AppTypography.label),
                 ],
               ),
               SizedBox(height: AppSpacing.md),
