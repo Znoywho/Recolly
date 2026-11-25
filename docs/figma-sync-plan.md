@@ -8,9 +8,13 @@ Quy tắc dịch Figma → Flutter: [figma-design-rules.md](figma-design-rules.m
 - [~] Hạo 2 — bind layer vào Variables — 2026-11-25
   - [x] Màu: 2.310 fill/stroke trên 1.878 layer đã gắn `color/*` (chỉ màu khớp chính xác; bỏ qua layer trong instance)
   - [ ] Chữ: **chưa gán** `text/*` — chỉ 30/~700 đoạn chữ khớp đúng style. Figma dùng line-height `auto` gần hết, và có kiểu code không có: 15 SemiBold (82+), 13 Regular (27+), 20 ExtraBold (20). Cần Member 3 chốt: thêm style vào `AppTypography` hay sửa Figma theo code.
-- [ ] Hạo 3 — component hóa + đổi tên
-- [ ] Hạo 4 — Code Connect
-- [ ] Hạo 5 — danh sách lệch từng màn
+- [x] Hạo 3 — component hóa + đổi tên — 2026-11-25
+  - Section **Components** trên Page 1: `BrutalBottomNavBar` (biến thể `Active` = Hôm nay/Lịch/Giấc ngủ/Cá nhân), `StatusBar`, `BrutalButton`, `BrutalCard`, `BrutalBadge`, `BrutalIconButton` — gắn sẵn biến màu/spacing/radius/border + `shadow/hard`.
+  - 25 "Điều hướng nổi" và 25 "Thanh trạng thái" trên các màn giờ là instance. 11 thanh trạng thái khác thiết kế (Splash, Giới thiệu, GCal…) giữ nguyên.
+  - Đổi tên: `Frame 2` → `Ghi chú – Quyền camera`, `Sack bar` → `Snackbar`, `Group 4` → `Ghi chú – Snackbar`.
+- [x] Hạo 4 — Code Connect — **gói Figma hiện tại không cho publish** ("MCP publishing is not available on this plan", cần gói Organization + Code Connect CLI). Thay thế: đường dẫn Dart ghi trong description từng component + bảng mapping ở `figma-design-rules.md` §3.
+- [x] Hạo 5 — danh sách lệch từng màn → [figma-diff-list.md](figma-diff-list.md)
+- [ ] Member 3 — chốt các quyết định chung trong `figma-diff-list.md` (kiểu chữ 20/800, 15/600, 13/400; `#E4DFD2`)
 - [ ] Member 2 — bước 1–4 bên dưới
 
 Màu lệch token đang có trong Figma (chưa gán biến, cần quyết định): `#E4DFD2` (27 lần, ≈ `skeleton #E5DFD2`), `#737373`, `#60635C`, `#E97373`, `#000000`, `#FFF5E4`, `#ADA99F`, `#535650`, `#C7CCD9`, `#F5C842`, `#F07070`, `#A8D5A2`, `#6BB259`, `#EDE8DE`.
@@ -34,8 +38,8 @@ Nguyên tắc chia việc (theo `.claude/CLAUDE.md`):
 3. **Component hóa** + đổi tên: tạo component `BrutalCard`, `BrutalButton`, `BrutalIconButton`, `BrutalBadge`, `BrutalProgressBar`, `BrutalBottomNavBar` (thay "Điều hướng nổi" vẽ lại ở mỗi màn), "Thanh trạng thái"; đổi tên `Group 4`, `Frame 2`, `Sack bar` → tên có nghĩa (vd `Snackbar`).
 4. **Code Connect** (lưu trong Figma qua `add_code_connect_map`, không tạo file trong repo): map mỗi component ở bước 3 → `client/lib/widgets/brutal_*.dart`; `Auth / *` → `client/lib/features/auth/widgets/*`. Trước khi làm, kiểm tra Code Connect có nhận label Flutter không; nếu không, ghi mapping vào bảng trong tài liệu rules thay thế.
 5. **Đối chiếu từng màn (đọc)**: với mỗi màn chạy `get_design_context` + `get_screenshot`, so với code, xuất **danh sách lệch** (màn, node-id, file:dòng, lệch gì, owner). Chia theo owner:
-   - Member 2: auth, calendar, sync, todo, timetable/scan, voice.
-   - Member 3: today/home, biorhythm, sleep, welcome/onboarding, personal, motivation popup, notifications.
+   - Member 2: auth, calendar, sync, todo list, timetable import/scan result/edit subject, voice, personal (R61).
+   - Member 3: today/home, biorhythm, sleep, welcome/onboarding, motivation popup, notifications, todo form (R57), scanning/scan failed (R62).
 
 ## Người 2 — Member 2 (code trong feature của mình)
 1. Nhận danh sách lệch phần của mình, sửa trong `client/lib/features/{auth,calendar,sync,todo,timetable}/` — thay `Color(0x…)`/số cứng bằng `AppColors`/`AppSpacing`/`AppRadii`, thay widget tự vẽ bằng `Brutal*` có sẵn.

@@ -58,7 +58,21 @@ BrutalButton(label: 'Lưu', onPressed: _save, color: AppColors.green);
 - Architecture: plain `StatelessWidget`/`StatefulWidget`, constructor params with token defaults. Pressed state = shift by `AppShadows.offset` and drop the shadow (see `brutal_button.dart`).
 - Widgets used by one feature only go in `features/<feature>/widgets/`. Promote to `lib/widgets/` only when 2+ features need it.
 - No Storybook. The living catalog is `features/theme_gallery/theme_gallery_page.dart` (palette, type scale, cards, buttons, badges, Material samples). Add new shared widgets there.
-- Code Connect: none set up yet. If added, map Figma components to the widgets in the table above.
+- Code Connect cannot be published on the current Figma plan. Fallback mapping (also in each Figma component's description), all in the **Components** section of Page 1:
+
+| Figma component (node) | Flutter |
+|---|---|
+| `BrutalBottomNavBar` (349:113), variant `Active` | `widgets/brutal_bottom_nav_bar.dart` |
+| `BrutalButton` (350:640), `Auth / Primary button` (251:54) | `widgets/brutal_button.dart` |
+| `Auth / Google` (251:35) | `BrutalButton(color: AppColors.white, leading: GoogleLogo())` |
+| `BrutalCard` (350:642) | `widgets/brutal_card.dart` |
+| `BrutalBadge` (350:645) | `widgets/brutal_badge.dart` |
+| `BrutalIconButton` (350:647) | `widgets/brutal_icon_button.dart` |
+| `Auth / Text field` (251:47) | `features/auth/widgets/inset_text_field.dart` (`InsetTextField`) |
+| `StatusBar` (349:549) | none — system UI, do not build |
+| `Ô tích` (331:37) | none yet — checkbox widget to be added by Member 3 |
+
+Figma variables `color/*`, `spacing/*`, `radius/*`, `border/width`, text styles `text/*` and effect `shadow/hard` map 1-1 to `AppColors`, `AppSpacing`, `AppRadii`, `AppBorders`, `AppTypography`, `AppShadows`.
 
 ## 4. Project structure
 ```
