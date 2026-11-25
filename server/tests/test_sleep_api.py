@@ -41,7 +41,7 @@ def test_assess_matches_the_contract_example(client, auth):
         "sd_work_hours": 6.0, "sd_free_hours": 8.25, "sd_week_hours": 6.64, "msw": "03:30",
         "msf": "05:52", "msf_sc": "05:04", "oversleep_corrected": True, "social_jetlag_hours": 2.38,
         "chronotype": "bear"}
-    assert body["phi_prior_hours"] == pytest.approx(18.39, abs=0.01)
+    assert body["phi_prior_hours"] == pytest.approx(17.49, abs=0.01)
     assert (body["natural_sleep_time"], body["natural_wake_time"]) == ("01:45", "08:24")
     assert body["sleep_shortfall_hours"] == pytest.approx(0.36, abs=0.01)
     week = body["typical_week"]

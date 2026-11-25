@@ -75,9 +75,8 @@ info:
     * **KSS** (Karolinska Sleepiness Scale, 1 = very alert … 9 = fighting sleep): `KSS = 7.5 − 9·A + ε`.
     * Personal parameters `θ = (φ, χw)` have a grid posterior (φ: 96 × 0.25 h, χw: 12–26 h step 0.5),
       updated from KSS check-ins. Other constants are fixed: χs 4.2 h, μ 1, H0⁺ 0.67, H0⁻ 0.17, a 0.12.
-    * Priors: population φ ~ N(17.4 h, 1.5 h); questionnaire φ ~ N(φ_MCTQ + 0.9 h, 1.0 h);
-      χw ~ N(18.2 h, 2.5 h). The +0.9 h corrects the systematic ~50–55 min early bias of MCTQ found
-      in the research (synthetic data; recalibrate on real data).
+    * Priors: population φ ~ N(17.4 h, 1.5 h); questionnaire φ ~ N(φ_MCTQ, 1.0 h);
+      χw ~ N(18.2 h, 2.5 h).
     * `alertness_score = round(100 · (9 − kss_pred) / 8)`, clamped to 0–100 — the UI-friendly number.
 
     **Course-project scope (draft 2.1).** The app ships with the questionnaire path only:
@@ -267,7 +266,7 @@ paths:
           required (`422 RMEQ_REQUIRED`).
         * `sleep_concern`: `dolphin` when F1 or F2 is `3+` nights and F3 is `>3m`; `watch` when `3+`
           but shorter. Screening flag only, never a diagnosis; it does not change the animal.
-        * `phi_prior_hours = φ(MSFsc) + 0.9 h` (bias correction, see the model notes in `info`).
+        * `phi_prior_hours = φ(MSFsc)` (see the model notes in `info`).
         * If `work_days` is omitted, it is the number of distinct weekdays in the saved timetable (fallback 5).
       x-task-ids: [R18, R55]
       requestBody:
@@ -1888,13 +1887,13 @@ components:
           social_jetlag_hours: 2.38
           chronotype: bear
         rmeq_category: null
-        phi_prior_hours: 18.39
+        phi_prior_hours: 17.49
         phi_prior_sd_hours: 1.0
         natural_sleep_time: '01:45'
         natural_wake_time: '08:24'
         sleep_shortfall_hours: 0.36
         typical_week:
-          phi_hours: 18.39
+          phi_hours: 17.49
           school_onset_shift_minutes: 0
           days:
             - day: 0

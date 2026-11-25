@@ -14,7 +14,6 @@ from app.service.sleep.mctq import (
     score_mctq,
     sleep_concern,
 )
-from app.service.sleep.two_process import phi_from_mid_sleep
 from app.service.sleep.typical_week import schedule_from_mctq, simulate_typical_week
 
 LION = MctqAnswers(22.5, 6.0, 23.0, 7.0, work_days=5)
@@ -36,7 +35,7 @@ def test_mctq_scoring_matches_api_contract_example():
     assert r.msf_sc == pytest.approx(5.07, abs=0.01)
     assert r.social_jetlag == pytest.approx(2.38, abs=0.01)
     assert r.oversleep_corrected
-    assert assess(MctqAnswers(0.5, 6.5, 1.75, 10.0)).phi_hours == pytest.approx(18.39, abs=0.01)
+    assert assess(MctqAnswers(0.5, 6.5, 1.75, 10.0)).phi_hours == pytest.approx(17.49, abs=0.01)
 
 
 @pytest.mark.parametrize("answers, animal", [(LION, Animal.LION), (BEAR, Animal.BEAR), (WOLF, Animal.WOLF)])
@@ -92,9 +91,9 @@ def test_dolphin_does_not_change_the_animal():
     assert r.dolphin and r.animal is Animal.WOLF
 
 
-def test_typical_week_matches_research_prototype_without_bias():
-    """Same numbers as the research prototype when phi has no MCTQ bias correction."""
-    wolf = week(WOLF, phi_from_mid_sleep(score_mctq(WOLF).msf_sc))
+def test_typical_week_matches_research_prototype():
+    """Same numbers as the research prototype (phi straight from MSFsc)."""
+    wolf = week(WOLF)
     monday = wolf.days[MONDAY]
     assert monday.kss_at[8] == pytest.approx(4.7, abs=0.05)
     assert monday.kss_at[22] == pytest.approx(6.6, abs=0.05)

@@ -74,7 +74,7 @@ Hiện tại φ **chỉ lấy từ quiz** (`biorhythm_service.phi_prior`; `model
 | Công thức / hằng số | Giá trị | Nguồn | Kiểm chứng |
 |---|---|---|---|
 | `φ = (MSFsc + offset) mod 24`, `offset = φ − giờ giữa giấc khi chạy tự do` (`mid_sleep_offset`) | offset ≈ 12.42 h | Suy ra từ chính 2PM (mô hình bất biến khi dịch thời gian) | ✅ Tự kiểm bằng mô phỏng (12.41 h) |
-| `MCTQ_PHI_BIAS_HOURS` — cộng thêm vào φ khi φ tính từ MCTQ | +0.9 h | Một thí nghiệm mô phỏng cũ của nhóm ("synthetic experiment 1") | ⚠️ Giả định nhóm — chưa có nguồn, cần kiểm lại |
+| ~~`MCTQ_PHI_BIAS_HOURS`~~ — từng cộng +0.9 h vào φ khi φ tính từ MCTQ | **đã bỏ** (25/11/2026) | Chỉ từ một thí nghiệm mô phỏng cũ của nhóm, không có nguồn | ❌ Đã xoá khỏi code: φ = φ(MSFsc) |
 | `PHI_SD_HOURS` / `PHI_SD_UNCERTAIN_HOURS` / `PHI_SD_DISAGREEMENT_HOURS` | 1.0 / 1.5 / 0.5 h | — | ⚠️ Giả định nhóm |
 | `ANIMAL_MID_SLEEP` (khi chỉ có rMEQ hoặc tự chọn con vật) | 03:00 / 05:00 / 07:00 | — | ⚠️ Giả định nhóm |
 | `PRIOR_NIGHTS` — quiz nặng bằng 7 đêm thật khi cập nhật φ bằng log ngủ ngày nghỉ (`chronotype.estimate`) | 7 | — | ⚠️ Giả định nhóm — **có trong code nhưng API chưa gọi** |
@@ -124,7 +124,7 @@ Hiện tại φ **chỉ lấy từ quiz** (`biorhythm_service.phi_prior`; `model
 | Kẹp nhu cầu trong 7–10 h | 7 h | Watson et al. 2015, *Sleep* 38(6) — người lớn cần ít nhất 7 h | 📄 Trích dẫn |
 | | 10 h | — | ⚠️ Giả định nhóm |
 
-Lưu ý: hàm `sleep_need()` có nhánh lấy thời lượng ngủ ngày nghỉ trong quiz làm nhu cầu, nhưng API thật **không gọi nhánh này** (cột `sleep_need_hours` luôn có giá trị). Không nên bật nhánh đó: NHANES cho thấy người 18–24 tuổi ngủ bù cuối tuần trung bình 0.71 h (25 % bù ≥ 2 h), nên lấy giờ ngủ ngày nghỉ làm nhu cầu sẽ tạo "nợ ảo" khoảng 5 × 0.71 ≈ 3.5 h/tuần.
+Lưu ý: `sleep_need()` chỉ nhận số user nhập (`sleep_need_hours`, mặc định 8.0 h). Nhánh cũ lấy thời lượng ngủ ngày nghỉ trong quiz làm nhu cầu **đã bị xoá** (25/11/2026) vì: NHANES cho thấy người 18–24 tuổi ngủ bù cuối tuần trung bình 0.71 h (25 % bù ≥ 2 h), nên lấy giờ ngủ ngày nghỉ làm nhu cầu sẽ tạo "nợ ảo" khoảng 5 × 0.71 ≈ 3.5 h/tuần.
 
 ## 7. Lời khuyên hiển thị — `advice.py`
 
@@ -168,7 +168,7 @@ Chưa đọc toàn văn (trích trong code, hoặc qua nguồn thứ cấp):
 
 - [ ] Bản quyền thang KSS trước khi làm màn tự chấm KSS (xin phép Åkerstedt hoặc dùng mô tả tự viết).
 - [ ] Đọc toàn văn các nguồn 📄 (ưu tiên: MCTQ Roenneberg 2003 cho công thức MSFsc; Tassi & Muzet / Jewett cho 30 phút).
-- [ ] `MCTQ_PHI_BIAS_HOURS = 0.9`: tìm nguồn hoặc bỏ.
+- [x] `MCTQ_PHI_BIAS_HOURS = 0.9`: không tìm được nguồn → đã bỏ (25/11/2026).
 - [ ] `KSS = 7.5 − 9·A`: hiệu chỉnh khi có KSS tự chấm thật.
 - [ ] Góc pha theo chronotype (Skeldon & Dijk 2025 tr. 6; Duffy et al. 1999 chưa đọc).
 - [ ] Mốc con vật: fit lại trên dữ liệu sinh viên Việt Nam.
