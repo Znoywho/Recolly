@@ -991,11 +991,14 @@ class MockCalendarSyncRepository extends _Mock
     connected: true,
     googleEmail: _user.email,
     calendarId: 'primary',
-    twoWaySync: true,
+    twoWaySync: false,
     lastSyncedAt: DateTime.now().subtract(const Duration(hours: 3)),
     pendingCount: 3,
     conflictCount: 1,
   );
+
+  // Conflict ids already resolved (R46)
+  final Set<String> _resolved = {};
 
   @override
   Future<CalendarStatus> getStatus() async {
@@ -1061,6 +1064,7 @@ class MockCalendarSyncRepository extends _Mock
       location: 'Hội trường E',
       syncStatus: SyncStatus.conflict,
     );
+    if (_resolved.contains('mock-conflict-1')) return [];
     return [
       SyncConflict(
         id: 'mock-conflict-1',
@@ -1088,6 +1092,11 @@ class MockCalendarSyncRepository extends _Mock
       orElse: () => throw notFound('CONFLICT_NOT_FOUND'),
     );
     final g = conflict.google;
+    _resolved.add(id);
+    _status = CalendarStatus.fromJson({
+      ..._status.toJson(),
+      'conflict_count': 0,
+    });
     return CalendarEvent.fromJson({
       ...conflict.local.toJson(),
       if (keep == ConflictResolution.google) ...{
