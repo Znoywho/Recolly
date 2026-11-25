@@ -28,7 +28,8 @@ void main() {
     await repos.calendarSync.disconnect();
     expect((await repos.calendarSync.getStatus()).connected, isFalse);
     final voice = await repos.voice.transcribe(Uint8List(1), filename: 'a.m4a');
-    expect(voice.todoDraft, isNotNull);
+    expect(voice.status, JobStatus.succeeded);
+    expect(voice.result?.todoDraft, isNotNull);
   });
 
   test('events of the current week', () async {
