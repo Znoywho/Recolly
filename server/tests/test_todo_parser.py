@@ -65,3 +65,12 @@ def test_prompt_contains_calendar_and_category_rules():
     assert "Thứ Ba, 2026-11-10 14:00" in prompt
     assert "- Thứ Ba 2026-11-24 (+14 ngày, tuần sau nữa)" in prompt
     assert "1. exam: CHỈ KHI" in prompt
+
+
+def test_title_from_the_llm_is_cleaned_and_fits_the_todo_limit():
+    reply = {"title": "Nộp\u202e\nbài " + "x" * 400, "category": "assignment", "priority": "high"}
+    parser = VoiceTodoParser(fake_ollama(reply, []), model_name="qwen2.5:7b", repair_transcript=False)
+
+    title = parser.parse("mai nộp bài", TUESDAY_2PM).title
+
+    assert title.startswith("Nộp bài x") and len(title) == 255

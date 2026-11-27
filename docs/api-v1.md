@@ -431,7 +431,7 @@ data counts, `reset_at`. For the Biorhythm screen's personalisation-progress car
 
 ### OCR & timetable
 
-OCR runs asynchronously (Vintern is slow). Flutter uploads, then polls T2 every ~2s.
+OCR runs asynchronously (the model call can take several seconds). Flutter uploads, then polls T2 every ~2s.
 
 **T1 `POST /ocr/timetable`** — `multipart/form-data`, field `image` (jpg/png/heic, max 10 MB)
 

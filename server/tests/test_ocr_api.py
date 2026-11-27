@@ -12,8 +12,12 @@ from sqlalchemy import update
 from app.core.timeutil import now_utc
 from app.models.ocr import OcrJob
 from app.service.llm.ollama_client import OllamaClient, OllamaError
-from app.service.ocr import ocr_jobs
-from app.service.ocr.timetable_parser import FILLED_CONFIDENCE, PERIOD_TIMES, READ_CONFIDENCE, rows_to_subjects
+from app.service.llm.providers import provider_from_env
+from app.service.ocr import ocr_jobs, readers
+from app.service.llm.gemini_client import GeminiBadReply, GeminiClient, GeminiUnavailable
+from app.service.llm.guard import UNTRUSTED_DATA_RULE
+from app.service.ocr.timetable_parser import (FILLED_CONFIDENCE, MAX_ROWS, PERIOD_TIMES, READ_CONFIDENCE,
+                                              SYSTEM_PROMPT, rows_to_subjects)
 from app.service.ocr.vintern_client import OcrRejected, OcrUnavailable, VinternClient
 from tests.conftest import bearer, make_user
 
@@ -140,6 +144,60 @@ def test_a_job_stuck_after_a_restart_fails(client, auth, db, ocr):
     assert (job["status"], job["error"]) == ("failed", "OCR_MODEL_ERROR")
 
 
+# ─────────────────────────── OCR_PROVIDER=gemini ───────────────────────────
+
+GEMINI_ROW = {**ROW, "day": "Thứ 5", "day_of_week": None}
+
+
+def use_gemini(monkeypatch, reply=None, error=None):
+    """Switch the provider to Gemini with a fake API call."""
+    def fake_call(self, system_prompt, request, image_bytes, mime_type, json_schema):
+        assert mime_type == "image/jpeg" and image_bytes == JPEG
+        if error:
+            raise error
+        return reply
+
+    monkeypatch.setattr(readers, "OCR_PROVIDER", "gemini")
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setattr(GeminiClient, "generate_json_from_image", fake_call)
+
+
+def test_gemini_provider_reads_the_photo_without_kaggle(client, auth, ocr, monkeypatch):
+    use_gemini(monkeypatch, reply={"subjects": [GEMINI_ROW]})
+    job = poll(client, auth, upload(client, auth).json()["job_id"]).json()
+
+    assert job["status"] == "succeeded"
+    assert job["result"]["subjects"][0]["day_of_week"] == 4  # "Thứ 5"
+
+
+@pytest.mark.parametrize("reply, error, code", [
+    (None, GeminiUnavailable("down"), "OCR_MODEL_ERROR"),
+    (None, GeminiBadReply("junk"), "OCR_LOW_QUALITY"),
+    ({"subjects": []}, None, "OCR_NO_TABLE_FOUND"),
+])
+def test_gemini_failures_use_the_contract_codes(client, auth, ocr, monkeypatch, reply, error, code):
+    use_gemini(monkeypatch, reply=reply, error=error)
+    job = poll(client, auth, upload(client, auth).json()["job_id"]).json()
+
+    assert (job["status"], job["error"]) == ("failed", code)
+
+
+def test_gemini_without_a_key_is_503(client, auth, monkeypatch):
+    monkeypatch.setattr(readers, "OCR_PROVIDER", "gemini")
+    response = upload(client, auth)
+    assert (response.status_code, response.json()["code"]) == (503, "OCR_UNAVAILABLE")
+
+
+def test_provider_defaults_to_the_first_and_rejects_typos(monkeypatch):
+    monkeypatch.delenv("X_PROVIDER", raising=False)
+    assert provider_from_env("X_PROVIDER", ("vintern", "gemini")) == "vintern"
+    monkeypatch.setenv("X_PROVIDER", " Gemini ")
+    assert provider_from_env("X_PROVIDER", ("vintern", "gemini")) == "gemini"
+    monkeypatch.setenv("X_PROVIDER", "gemni")
+    with pytest.raises(ValueError, match="vintern, gemini"):
+        provider_from_env("X_PROVIDER", ("vintern", "gemini"))
+
+
 # ─────────────────────────── row → subject ───────────────────────────
 
 def test_rows_use_clock_times_when_the_table_has_them():
@@ -164,6 +222,16 @@ def test_broken_rows_are_dropped():
         ROW,
     ]
     assert [s.name for s in rows_to_subjects(rows, TODAY)] == ["Giải tích 1"]
+
+
+def test_hidden_characters_are_removed_from_text_fields():
+    [subject] = rows_to_subjects([{**ROW, "name": "Giải\u202e\ntích", "room": "\u200b", "code": " MA\x00 1 "}], TODAY)
+    assert (subject.name, subject.room, subject.code) == ("Giải tích", None, "MA 1")
+
+
+def test_a_flood_of_rows_is_capped_and_the_prompt_treats_input_as_data():
+    assert len(rows_to_subjects([ROW] * (MAX_ROWS + 40), TODAY)) == MAX_ROWS
+    assert UNTRUSTED_DATA_RULE in SYSTEM_PROMPT
 
 
 # ─────────────────────────── Kaggle client ───────────────────────────
