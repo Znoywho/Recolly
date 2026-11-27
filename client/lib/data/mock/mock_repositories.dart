@@ -540,7 +540,22 @@ class MockTimetableRepository extends _Mock implements TimetableRepository {
         : OcrJob(
             jobId: jobId,
             status: JobStatus.succeeded,
-            subjects: _sampleSubjects(),
+            subjects: [
+              ..._sampleSubjects(),
+              // Like real Gemini output: a second session of the same
+              // subject, read from a one-week photo (start == end).
+              SubjectDraft(
+                name: 'Giải tích',
+                code: 'MA003',
+                room: 'A2.05 - CS1 (P.Thạnh Mỹ Tây, TP.HCM)',
+                dayOfWeek: 4,
+                startTime: const ClockTime(7, 30),
+                endTime: const ClockTime(9, 45),
+                startDate: DateTime(2026, 11, 26),
+                endDate: DateTime(2026, 11, 26),
+                confidence: 0.9,
+              ),
+            ],
           );
   }
 
@@ -878,14 +893,14 @@ class MockVoiceRepository extends _Mock implements VoiceRepository {
     return VoiceJob(
       status: JobStatus.succeeded,
       result: VoiceTranscription(
-      transcript: 'Thứ sáu nộp bài tập lớn cấu trúc dữ liệu',
-      todoDraft: TodoDraft(
-        title: 'Nộp bài tập lớn cấu trúc dữ liệu',
-        category: TodoCategory.assignment,
-        deadlineAt: _thisWeek(5, 23, 59),
-        priority: Priority.medium,
-      ),
-      parser: 'gemini',
+        transcript: 'Thứ sáu nộp bài tập lớn cấu trúc dữ liệu',
+        todoDraft: TodoDraft(
+          title: 'Nộp bài tập lớn cấu trúc dữ liệu',
+          category: TodoCategory.assignment,
+          deadlineAt: _thisWeek(5, 23, 59),
+          priority: Priority.medium,
+        ),
+        parser: 'gemini',
       ),
     );
   }
@@ -893,7 +908,10 @@ class MockVoiceRepository extends _Mock implements VoiceRepository {
   @override
   Future<VoiceJob> getVoiceJob(String jobId) async {
     await delay();
-    return const VoiceJob(status: JobStatus.failed, error: 'VOICE_JOB_NOT_FOUND');
+    return const VoiceJob(
+      status: JobStatus.failed,
+      error: 'VOICE_JOB_NOT_FOUND',
+    );
   }
 }
 

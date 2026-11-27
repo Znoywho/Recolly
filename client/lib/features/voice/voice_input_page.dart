@@ -38,6 +38,9 @@ class _VoiceInputPageState extends State<VoiceInputPage> {
 
   VoiceStep step = VoiceStep.ready;
   VoiceTranscription? result;
+
+  // The user's edited copy of result.todoDraft.
+  TodoDraft? draft;
   String errorText = '';
 
   VoiceRepository get repo => RepositoryScope.of(context).voice;
@@ -109,6 +112,7 @@ class _VoiceInputPageState extends State<VoiceInputPage> {
       poll?.cancel();
       setState(() {
         result = job.result;
+        draft = job.result!.todoDraft;
         step = VoiceStep.done;
       });
     } else if (job.status == JobStatus.failed) {
@@ -211,30 +215,187 @@ class _VoiceInputPageState extends State<VoiceInputPage> {
     }
   }
 
-  // What the server understood, laid out for the user to confirm.
+  // What the server understood; tap a row to fix that field in place.
   Widget draftTable(TodoDraft d) {
     final deadline = d.deadlineAt;
     final minutes = d.estimatedMinutes;
+    VoidCallback? tap(Future<void> Function() edit) => saving ? null : edit;
     return BrutalConfirmTable(
-      headers: const ['Mục', 'Máy hiểu là'],
+      headers: const ['Mục', 'Máy hiểu là (chạm để sửa)'],
       columnFlex: const [2, 3],
       rows: [
-        ConfirmRow(cells: ['Tên việc', d.title]),
-        ConfirmRow(cells: ['Loại', categoryName(d.category)]),
-        ConfirmRow(cells: ['Ưu tiên', priorityName(d.priority)]),
+        ConfirmRow(cells: ['Tên việc', '${d.title} ✎'], onTap: tap(editTitle)),
+        ConfirmRow(
+          cells: ['Loại', '${categoryName(d.category)} ✎'],
+          onTap: tap(
+            () => pickOne(
+              'Loại việc',
+              TodoCategory.values,
+              categoryName,
+              d.category,
+              (v) => editDraft(category: v),
+            ),
+          ),
+        ),
+        ConfirmRow(
+          cells: ['Ưu tiên', '${priorityName(d.priority)} ✎'],
+          onTap: tap(
+            () => pickOne(
+              'Ưu tiên',
+              Priority.values,
+              priorityName,
+              d.priority,
+              (v) => editDraft(priority: v),
+            ),
+          ),
+        ),
         ConfirmRow(
           cells: [
             'Hạn chót',
             deadline == null
-                ? 'Chưa có'
+                ? 'Chưa có, chạm để thêm ✎'
                 : '${weekdayName(deadline)} ${dayMonth(deadline)} '
-                      '${hourMinute(deadline)}',
+                      '${hourMinute(deadline)} ✎',
           ],
           needsCheck: deadline == null,
+          onTap: tap(editDeadline),
         ),
-        if (minutes != null) ConfirmRow(cells: ['Ước tính', '$minutes phút']),
+        ConfirmRow(
+          cells: [
+            'Ước tính',
+            minutes == null ? 'Chưa có ✎' : '$minutes phút ✎',
+          ],
+          onTap: tap(
+            () => pickOne(
+              'Ước tính',
+              const [15, 30, 60, 90, 120],
+              (m) => '$m phút',
+              minutes,
+              (v) => editDraft(estimatedMinutes: v),
+            ),
+          ),
+        ),
       ],
     );
+  }
+
+  // Replaces some fields of [draft] and redraws.
+  void editDraft({
+    String? title,
+    TodoCategory? category,
+    Priority? priority,
+    DateTime? deadlineAt,
+    int? estimatedMinutes,
+  }) {
+    final d = draft!;
+    setState(
+      () => draft = TodoDraft(
+        title: title ?? d.title,
+        description: d.description,
+        category: category ?? d.category,
+        priority: priority ?? d.priority,
+        deadlineAt: deadlineAt ?? d.deadlineAt,
+        estimatedMinutes: estimatedMinutes ?? d.estimatedMinutes,
+        difficulty: d.difficulty,
+      ),
+    );
+  }
+
+  // Dialog with a text field for the todo title.
+  Future<void> editTitle() async {
+    // No controller: disposing one right after pop breaks the closing animation.
+    var typed = draft!.title;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Tên việc'),
+        content: TextFormField(
+          initialValue: typed,
+          autofocus: true,
+          onChanged: (v) => typed = v,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Xong'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true && typed.trim().isNotEmpty) editDraft(title: typed.trim());
+  }
+
+  // Date picker, then time picker; keeps the old time when there was one.
+  Future<void> editDeadline() async {
+    final now = DateTime.now();
+    final old = draft!.deadlineAt;
+    final day = await showDatePicker(
+      context: context,
+      initialDate: old ?? now,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 5),
+    );
+    if (day == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(old ?? DateTime(0, 1, 1, 23, 59)),
+    );
+    if (time == null) return;
+    editDraft(
+      deadlineAt: DateTime(
+        day.year,
+        day.month,
+        day.day,
+        time.hour,
+        time.minute,
+      ),
+    );
+  }
+
+  // Bottom sheet of chips; the tapped one is applied.
+  Future<void> pickOne<T>(
+    String title,
+    List<T> options,
+    String Function(T) name,
+    T? current,
+    void Function(T) apply,
+  ) async {
+    final picked = await showModalBottomSheet<T>(
+      context: context,
+      backgroundColor: AppColors.cream,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        side: AppBorders.side,
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: AppTypography.subtitle),
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: [
+                for (final o in options)
+                  TodoChip(
+                    label: name(o),
+                    selected: o == current,
+                    onTap: () => Navigator.pop(context, o),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+    if (picked != null) apply(picked);
   }
 
   @override
@@ -258,11 +419,11 @@ class _VoiceInputPageState extends State<VoiceInputPage> {
             statusLine(),
             const SizedBox(height: AppSpacing.lg),
             resultCard(),
-            if (step == VoiceStep.done && result?.todoDraft != null) ...[
+            if (step == VoiceStep.done && draft != null) ...[
               const SizedBox(height: AppSpacing.md),
               const Text('Kiểm tra lại nhé', style: AppTypography.subtitle),
               const SizedBox(height: AppSpacing.xs),
-              draftTable(result!.todoDraft!),
+              draftTable(draft!),
             ],
             const SizedBox(height: AppSpacing.lg),
             ...buttons(),
@@ -385,7 +546,7 @@ class _VoiceInputPageState extends State<VoiceInputPage> {
               color: muted ? AppColors.inkMuted : AppColors.ink,
             ),
           ),
-          if (step == VoiceStep.done && result?.todoDraft == null) ...[
+          if (step == VoiceStep.done && draft == null) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Chưa tách được việc từ câu này, bạn điền thêm ở bước sau nhé.',
@@ -423,7 +584,7 @@ class _VoiceInputPageState extends State<VoiceInputPage> {
           BrutalButton(label: 'Hủy', color: AppColors.white, onPressed: cancel),
         ];
       case VoiceStep.done:
-        final draft = result?.todoDraft;
+        final draft = this.draft;
         return [
           BrutalButton(
             label: 'Nói lại',
@@ -440,7 +601,7 @@ class _VoiceInputPageState extends State<VoiceInputPage> {
             )
           else ...[
             BrutalButton(
-              label: 'Sửa lại',
+              label: 'Sửa chi tiết',
               color: AppColors.yellow,
               onPressed: saving ? null : () => openForm(draft),
             ),
