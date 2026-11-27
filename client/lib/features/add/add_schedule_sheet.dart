@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../widgets/widgets.dart';
+import '../sleep/sleep_log_form_page.dart';
 import '../timetable/subject_form_page.dart';
 import '../timetable/timetable_import_page.dart';
 import '../todo/todo_form_page.dart';
@@ -46,7 +47,8 @@ class _AddScheduleSheetState extends State<AddScheduleSheet> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Padding(
+      // Scrolls on short screens: 4 options + the manual chips are tall.
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -72,6 +74,13 @@ class _AddScheduleSheetState extends State<AddScheduleSheet> {
               title: 'Chụp thời khóa biểu',
               subtitle: 'Chụp ảnh lịch học, máy đọc ra các môn',
               onTap: () => open(const TimetableImportPage()),
+            ),
+            option(
+              icon: Icons.bedtime_outlined,
+              color: AppColors.green,
+              title: 'Ghi giấc ngủ',
+              subtitle: 'Giờ ngủ, giờ thức để tính nợ ngủ',
+              onTap: () => open(const SleepLogFormPage()),
             ),
             option(
               icon: Icons.edit_outlined,
