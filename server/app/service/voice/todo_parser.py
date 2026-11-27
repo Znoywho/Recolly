@@ -15,6 +15,7 @@ import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from app.service.llm.guard import clean_text
 from app.service.llm.ollama_client import OllamaClient
 from app.service.voice.time_parser import VIETNAM_TIMEZONE, VietnameseTimeParser
 
@@ -87,6 +88,9 @@ def describe_reference_time(reference: datetime) -> str:
     return f"{VIETNAMESE_WEEKDAYS[reference.weekday()]}, {reference:%Y-%m-%d %H:%M} (+07:00)"
 
 
+MAX_TITLE_CHARS = 255  # the limit of TodoInput.title, so a draft can always be saved
+
+
 def build_calendar_table(reference: datetime, days: int = CALENDAR_DAYS) -> str:
     """Next `days` dates with weekday, '+N ngày', 'tuần này/tuần sau/tuần sau nữa', 'hôm nay/mai/mốt'."""
     reference_week = reference.isocalendar()[1]
@@ -140,7 +144,7 @@ class VoiceTodoParser:
                                           schema, model_name=self.model_name)
         corrected = (reply.get("corrected_transcript") or transcript) if self.repair_transcript else transcript
         return TodoDraft(
-            title=str(reply.get("title") or "").strip(),
+            title=clean_text(str(reply.get("title") or ""), MAX_TITLE_CHARS),
             category=reply.get("category") if reply.get("category") in TODO_FIELDS["category"]["enum"] else "other",
             priority=reply.get("priority") if reply.get("priority") in TODO_FIELDS["priority"]["enum"] else "medium",
             deadline_at=self.time_parser.extract_deadline(corrected, reference),  # LLM deadline is ignored on purpose
