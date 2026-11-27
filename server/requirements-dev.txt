@@ -1,2 +1,3 @@
 -r requirements.txt
 pytest==9.2.0
+pillow==13.0.0  # synthetic timetable images (scripts/generate_timetables.py)
