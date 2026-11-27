@@ -19,10 +19,14 @@ class BrutalBottomNavBar extends StatelessWidget {
     super.key,
     required this.currentTab,
     required this.onTabSelected,
+    this.onAddPressed,
   });
 
   final BrutalNavTab currentTab;
   final ValueChanged<BrutalNavTab> onTabSelected;
+
+  /// Shows a raised "+" button in the middle of the bar when set.
+  final VoidCallback? onAddPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +43,10 @@ class BrutalBottomNavBar extends StatelessWidget {
         decoration: AppTheme.brutalBox(borderRadius: AppRadii.pillAll),
         child: Row(
           children: [
-            for (final tab in BrutalNavTab.values)
+            for (final tab in BrutalNavTab.values) ...[
+              // The add button sits between the 2nd and 3rd tab.
+              if (onAddPressed != null && tab.index == 2)
+                _AddButton(onPressed: onAddPressed!),
               Expanded(
                 child: _NavItem(
                   tab: tab,
@@ -47,6 +54,7 @@ class BrutalBottomNavBar extends StatelessWidget {
                   onTap: () => onTabSelected(tab),
                 ),
               ),
+            ],
           ],
         ),
       ),
@@ -96,6 +104,43 @@ class _NavItem extends StatelessWidget {
                 style: AppTypography.label.copyWith(fontSize: 11),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Round yellow "+" raised above the bar: the one place to add anything.
+class _AddButton extends StatelessWidget {
+  const _AddButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Thêm lịch',
+      excludeSemantics: true,
+      child: GestureDetector(
+        // Opaque: the whole slot is tappable, not only the raised circle.
+        behavior: HitTestBehavior.opaque,
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+          // Raised half out of the bar; the bar does not clip, so it shows.
+          child: Transform.translate(
+            offset: const Offset(0, -20),
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: AppTheme.brutalBox(
+                color: AppColors.yellow,
+                borderRadius: AppRadii.pillAll,
+              ),
+              child: const Icon(Icons.add, size: 32, color: AppColors.ink),
+            ),
           ),
         ),
       ),
