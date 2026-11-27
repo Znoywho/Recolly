@@ -12,16 +12,43 @@
 
 ## 📑 Mục lục
 
+- [Chạy nhanh](#-chạy-nhanh)
 - [Giới thiệu](#-giới-thiệu)
 - [Vấn đề & mục tiêu](#-vấn-đề--mục-tiêu)
 - [Tính năng chính](#-tính-năng-chính)
 - [Công nghệ sử dụng](#-công-nghệ-sử-dụng)
 - [Kiến trúc hệ thống](#-kiến-trúc-hệ-thống)
 - [Lộ trình triển khai](#-lộ-trình-triển-khai)
-- [Cài đặt & chạy thử](#-cài-đặt--chạy-thử)
+- [Cài đặt chi tiết](#-cài-đặt-chi-tiết)
+- [Cấu hình `server/.env`](#-cấu-hình-serverenv)
 - [Theo dõi log & demo](#-theo-dõi-log--demo)
+- [Gặp lỗi?](#-gặp-lỗi)
+- [Test & đánh giá model](#-test--đánh-giá-model)
 - [Thành viên nhóm](#-thành-viên-nhóm)
 - [Giấy phép](#-giấy-phép)
+
+---
+
+## ⚡ Chạy nhanh
+
+Cần Docker, Flutter và (cho tính năng AI) tài khoản Kaggle + một [Gemini API key](https://aistudio.google.com/apikey).
+
+| Bước | Việc | Lệnh / nơi làm |
+|:-:|---|---|
+| 1 | Lấy code | `git clone https://github.com/Znoywho/Recolly.git && cd Recolly` |
+| 2 | Tạo `.env` ở thư mục gốc | `cp .env.example .env` rồi điền `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` |
+| 3 | Tạo `server/.env` | Chép [mẫu bên dưới](#-cấu-hình-serverenv) |
+| 4 | Bật server | `docker compose up --build` → API docs: http://localhost:8765/docs |
+| 5 | Bật AI trên Kaggle (giọng nói, quote) | [Bật Kaggle](#bật-kaggle-giọng-nói--quote), dán 5 dòng vào `server/.env`, `docker compose up -d` |
+| 6 | Chạy app | `cd client && flutter pub get && flutter run` |
+
+| Tính năng AI | Chạy ở đâu | Cần |
+|---|---|---|
+| Giọng nói → todo | Kaggle: PhoWhisper + Qwen2.5 | bước 5 |
+| Quote khích lệ | Kaggle: Qwen2.5 (tắt thì dùng câu có sẵn) | bước 5 |
+| Quét ảnh thời khoá biểu | Google Gemini | `GEMINI_API_KEY` |
+
+Chưa có Kaggle hay Gemini thì server vẫn chạy, chỉ các tính năng AI tương ứng không dùng được.
 
 ---
 
@@ -67,7 +94,7 @@ Tích hợp Google Calendar để đồng bộ thời khóa biểu và các sự
 - Thông báo tiến độ học tập kèm các câu quote khích lệ sinh viên.
 
 ### 📸 Module 4: Nhập thời khóa biểu & lời nhắc nhanh
-- Tải ảnh thời khóa biểu → hệ thống tự trích xuất và tạo lịch (OCR tiếng Việt với [Vintern-1B-v3_5](https://huggingface.co/5CD-AI/Vintern-1B-v3_5)).
+- Tải ảnh thời khóa biểu → hệ thống trích xuất môn học để người dùng xem lại rồi lưu (Google Gemini).
 - Nhập lời nhắc bằng giọng nói tiếng Việt (PhoWhisper).
 
 ---
@@ -81,14 +108,14 @@ Tích hợp Google Calendar để đồng bộ thời khóa biểu và các sự
 | Cơ sở dữ liệu | PostgreSQL |
 | Lịch | Google Calendar API (OAuth 2.0) |
 | Xếp lịch tối ưu | OR-Tools CP-SAT |
-| Nhận diện văn bản (OCR) | [Vintern-1B-v3_5](https://huggingface.co/5CD-AI/Vintern-1B-v3_5) trên GPU Kaggle (giấy phép CC BY-NC 4.0: chỉ dùng phi thương mại) |
+| Đọc ảnh thời khoá biểu (OCR) | Google Gemini (`gemini-3.5-flash-lite`) qua REST API |
 | Nhận diện giọng nói (ASR) | [PhoWhisper-medium](https://huggingface.co/vinai/PhoWhisper-medium) trên GPU Kaggle |
-| LLM | Qwen2.5 chạy qua [Ollama](https://ollama.com) trên GPU Kaggle (giọng nói → todo); Google Gemini (dự kiến, cho quote) |
+| LLM | Qwen2.5 chạy qua [Ollama](https://ollama.com) trên GPU Kaggle (giọng nói → todo, quote) |
 | Thông báo đẩy | Firebase Cloud Messaging (HTTP v1) |
 | Hạ tầng | Docker Compose, Redis (rate limit, chống gửi trùng), Cloudflare quick tunnel (webhook Google), ngrok (app kết nối server khi demo), [Dozzle](https://dozzle.dev) (xem log) |
 
-PhoWhisper, Vintern và Qwen2.5 chạy trên GPU của Kaggle (notebook `server/notebooks/kaggle_ollama.ipynb`); server gọi qua tunnel
-Cloudflare, nên máy chạy server không cần GPU hay `torch`. Gemini chưa được tích hợp.
+PhoWhisper và Qwen2.5 chạy trên GPU của Kaggle (notebook `server/notebooks/kaggle_ollama.ipynb`), server gọi qua tunnel
+Cloudflare; ảnh thời khoá biểu gửi tới Gemini. Máy chạy server không cần GPU hay `torch`.
 
 ---
 
@@ -117,7 +144,7 @@ flowchart LR
 
     DB[("🐘 PostgreSQL")]
     GCAL["📅 Google Calendar API"]
-    KAGGLE["Kaggle GPU (qua tunnel)<br/>PhoWhisper-medium + Vintern-1B + Qwen2.5"]
+    KAGGLE["Kaggle GPU (qua tunnel)<br/>PhoWhisper-medium + Qwen2.5"]
     REDIS[("Redis")]
     FCM["Firebase Cloud Messaging"]
     GEM["Google Gemini"]
@@ -138,14 +165,14 @@ flowchart LR
     WORKER --> KAGGLE
     WORKER -->|voice_ready| FCM
     REMIND --> FCM
-    OCR -->|ảnh, bảng markdown| KAGGLE
-    QUOTE -.-> GEM
+    OCR -->|ảnh| GEM
+    QUOTE --> KAGGLE
 
     API --> DB
     API --> REDIS
 ```
 
-Nét đứt là phần chưa tích hợp. Hợp đồng API nằm ở [`docs/openapi.yaml`](docs/openapi.yaml).
+Hợp đồng API nằm ở [`docs/openapi.yaml`](docs/openapi.yaml).
 
 Chi tiết từng pipeline:
 - 🎙️ Giọng nói → todo: [`docs/voice-pipeline.md`](docs/voice-pipeline.md)
@@ -169,7 +196,7 @@ Bảng dưới đây chỉ nói về backend.
 | Sự kiện và todo/deadline | Đã có: `/events`, `/todos` |
 | Đẩy lịch lên Google Calendar | Đã có: `/calendar/sync` |
 | Nhập và sửa thời khóa biểu thủ công | Đã có: `/timetable` |
-| Chụp ảnh thời khóa biểu và trích xuất dữ liệu | Chưa có |
+| Chụp ảnh thời khóa biểu và trích xuất dữ liệu | Đã có: `/ocr/timetable` (xem giai đoạn 2) |
 
 ### Giai đoạn 2 – Mở rộng
 
@@ -178,20 +205,20 @@ Bảng dưới đây chỉ nói về backend.
 | Thông báo nhắc giờ ngủ và deadline | Đã có: service `reminders` (mỗi 5 phút) gửi push FCM, chống gửi trùng qua Redis |
 | Đồng bộ hai chiều với Google Calendar | Đã có: `/calendar/sync`, `/calendar/conflicts`, `/calendar/webhook`; job hằng ngày gia hạn kênh push và kéo dữ liệu dự phòng |
 | Nhập bằng giọng nói → bản nháp todo | Đã có: `/voice/transcribe` (PhoWhisper + Qwen2.5 trên Kaggle; khi Ollama tắt thì chỉ dùng luật). **Ghi âm được lưu trước**: Kaggle tắt thì trả `202`, service `voice-worker` thử lại mỗi phút và gửi push `voice_ready`; xem trạng thái ở `/voice/jobs/{id}`. Chi tiết ở [`server/README.md`](server/README.md) |
-| OCR ảnh thời khoá biểu | Đã có: `POST /ocr/timetable` trả `202` ngay, Vintern (Kaggle) đọc ảnh thành bảng markdown, Qwen2.5 chuyển thành môn học; app hỏi `/ocr/jobs/{id}` mỗi ~2 s rồi lưu bằng `POST /timetable`. Kaggle tắt thì job `failed` với `OCR_MODEL_ERROR`. Chi tiết ở [`docs/ocr-pipeline.md`](docs/ocr-pipeline.md) |
+| OCR ảnh thời khoá biểu | Đã có: `POST /ocr/timetable` trả `202` ngay, Gemini đọc ảnh thành môn học; app hỏi `/ocr/jobs/{id}` mỗi ~2 s rồi lưu bằng `POST /timetable`. Không gọi được model thì job `failed` với `OCR_MODEL_ERROR`. Chi tiết ở [`docs/ocr-pipeline.md`](docs/ocr-pipeline.md) |
 | Giới hạn tần suất gọi API | Đã có: 120 request/phút mỗi người, riêng `/schedule/generate` 10/phút và tối đa 2 lần giải cùng lúc. Webhook Google `/calendar/webhook` cũng bị giới hạn 120/phút theo IP (IP của Google, dùng chung): ổn cho demo, cần xem lại khi nhiều người dùng |
 
 ### Giai đoạn 3 – Hoàn thiện
 
 | Tính năng | Backend |
 |---|---|
-| Quote khích lệ | Một phần: `/quotes/random` dùng bộ câu có sẵn, chưa dùng LLM |
+| Quote khích lệ | Đã có: `/quotes/random` (Qwen2.5 qua Ollama theo nợ ngủ và deadline; lỗi thì dùng câu có sẵn) |
 
 **Về app Flutter:** app đã có các màn hình Today, Biorhythm, Sleep, Todo (danh sách + form), Calendar (tuần, lịch đề xuất, chi tiết sự kiện), kết nối Google Calendar, nhập/quét thời khóa biểu, Personal và màn hình chào (`client/lib/features/`).
 
 ---
 
-## 🚀 Cài đặt & chạy thử
+## 🚀 Cài đặt chi tiết
 
 ### Yêu cầu
 
@@ -211,7 +238,7 @@ cd Recolly
 
 ```bash
 cp .env.example .env            # điền POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
-# tạo server/.env như ở bước 4
+# tạo server/.env theo mục "Cấu hình server/.env"
 docker compose up --build       # PostgreSQL ở cổng 5433, Redis ở 127.0.0.1:6380, API ở cổng 8765
 ```
 
@@ -257,35 +284,14 @@ source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements-dev.txt
 ```
 
-Tạo file `server/.env` và không commit file này:
-
-```bash
-POSTGRES_DATABASE_URL=postgresql+psycopg2://<user>:<password>@localhost:5433/<db>
-JWT_SECRET=<chuỗi ngẫu nhiên, ít nhất 32 ký tự>
-TOKEN_ENCRYPTION_KEY=<kết quả của lệnh bên dưới>
-GOOGLE_CLIENT_ID=<OAuth client ID>
-GOOGLE_CLIENT_SECRET=<OAuth client secret>
-
-# Tùy chọn
-WEBHOOK_BASE_URL=<URL HTTPS công khai cho push của Google Calendar>
-VOICE_LLM_MODEL=qwen2.5:14b     # máy yếu: qwen2.5:7b và VOICE_REPAIR_TRANSCRIPT=0
-
-# Giọng nói: 5 dòng do notebook Kaggle in ra mỗi lần chạy (xem mục "Theo dõi log & demo")
-OLLAMA_BASE_URL=https://<...>.trycloudflare.com
-OLLAMA_MODEL=qwen2.5:14b
-ASR_BASE_URL=https://<...>.trycloudflare.com
-ASR_TOKEN=<token của session Kaggle>
-PHOWHISPER_MODEL=vinai/PhoWhisper-medium
-```
-
-Không có Kaggle thì server vẫn chạy; `/voice/transcribe` lưu ghi âm và trả `202`, xử lý sau khi Kaggle bật lại.
+Tạo `server/.env` theo mục [Cấu hình](#-cấu-hình-serverenv) bên dưới.
 
 ```bash
 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 uvicorn app.main:app --reload --port 8765
 ```
 
-API docs: `http://localhost:8765/docs`. Cách chạy test xem ở [`server/README.md`](server/README.md).
+API docs: `http://localhost:8765/docs`.
 
 ### 5. Chạy Mobile
 
@@ -294,6 +300,44 @@ cd client
 flutter pub get
 flutter run
 ```
+
+---
+
+## 🔧 Cấu hình `server/.env`
+
+Không commit file này.
+
+```bash
+# Bắt buộc
+POSTGRES_DATABASE_URL=postgresql+psycopg2://<user>:<password>@localhost:5433/<db>   # Docker tự ghi đè
+JWT_SECRET=<chuỗi ngẫu nhiên, ít nhất 32 ký tự>
+TOKEN_ENCRYPTION_KEY=<lệnh tạo ở bên dưới>
+GOOGLE_CLIENT_ID=<OAuth client ID>
+GOOGLE_CLIENT_SECRET=<OAuth client secret>
+
+# Quét ảnh thời khoá biểu (OCR_PROVIDER mặc định là gemini)
+GEMINI_API_KEY=<key từ https://aistudio.google.com/apikey>
+# GEMINI_MODEL=gemini-3.5-flash-lite
+
+# Giọng nói + quote: 5 dòng do notebook Kaggle in ra mỗi lần chạy
+OLLAMA_BASE_URL=https://<...>.trycloudflare.com
+OLLAMA_MODEL=qwen2.5:14b
+ASR_BASE_URL=https://<...>.trycloudflare.com
+ASR_TOKEN=<token của session Kaggle>
+PHOWHISPER_MODEL=vinai/PhoWhisper-medium
+VOICE_LLM_MODEL=qwen2.5:14b     # máy yếu: qwen2.5:7b và VOICE_REPAIR_TRANSCRIPT=0
+
+# Tùy chọn
+WEBHOOK_BASE_URL=<URL HTTPS công khai cho push của Google Calendar>
+```
+
+Tạo `TOKEN_ENCRYPTION_KEY`:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+> ⚠️ **Riêng tư với Gemini:** ở bản miễn phí, Google có thể dùng và cho người đọc dữ liệu gửi lên, và [điều khoản](https://aistudio.google.com/docs/terms) yêu cầu không gửi thông tin cá nhân. Demo bằng ảnh thử hoặc ảnh đã che tên, mã sinh viên; có người dùng thật thì phải bật thanh toán.
 
 ---
 
@@ -325,11 +369,11 @@ cd client && flutter run -d emulator-5554 \
 
 Chỉ tunnel port 8765, **không** tunnel Dozzle (8888). Đừng bật "Protect it" của ngrok vì nó chặn app hoặc xung đột với header `Authorization: Bearer`; API đã có JWT và giới hạn tần suất. Authtoken ngrok và client secret không ghi vào README hay commit.
 
-### Bật Kaggle (giọng nói + OCR)
+### Bật Kaggle (giọng nói + quote)
 
 1. Mở `server/notebooks/kaggle_ollama.ipynb` trên Kaggle, chọn **GPU T4 x2**, bật **Internet**, rồi *Run All*.
-2. Cell tunnel in ra 5 dòng (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `ASR_BASE_URL`, `ASR_TOKEN`, `PHOWHISPER_MODEL`): dán vào `server/.env`, rồi `docker compose restart server voice-worker`.
-3. Kiểm tra: `curl $ASR_BASE_URL/health` trả `{"status": "ok", ...}`. OCR dùng chung `ASR_BASE_URL`/`ASR_TOKEN`: `curl -H "Authorization: Bearer $ASR_TOKEN" --data-binary @tkb.jpg $ASR_BASE_URL/ocr` trả bảng markdown.
+2. Cell tunnel in ra 5 dòng (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `ASR_BASE_URL`, `ASR_TOKEN`, `PHOWHISPER_MODEL`): dán vào `server/.env`, rồi `docker compose up -d` (tạo lại container để đọc `.env` mới).
+3. Kiểm tra: `curl $ASR_BASE_URL/health` trả `{"status": "ok", ...}`.
 
 URL và token đổi mỗi session. Không dán chúng lên chat/issue/PR và không commit notebook còn output. Demo xong thì tắt session Kaggle.
 
@@ -347,10 +391,39 @@ Mở http://localhost:8888 và chọn container:
 Vàng = WARNING (lỗi 4xx, Kaggle không tới được), đỏ = ERROR (lỗi 5xx). Server không ghi nội dung câu nói, chỉ ghi độ dài.
 Chạy server bằng `uvicorn` (không Docker) thì log hiện ở terminal.
 
-### Kết quả đánh giá model
+---
 
-`cd server && python scripts/notebook_report.py` tạo `notebooks/report.html` từ `notebooks/outputs/*.jsonl`
-(ASR, parser, quote; có ô tìm kiếm). Không commit file này.
+## 🆘 Gặp lỗi?
+
+| Triệu chứng | Cách xử lý |
+|---|---|
+| Quét ảnh: `503 OCR_UNAVAILABLE` | Chưa có `GEMINI_API_KEY`. Sửa `.env`, `docker compose up -d` |
+| Quét ảnh: job `OCR_MODEL_ERROR` | Xem log server: sai key hoặc hết hạn mức (`429`, bản miễn phí 15 lượt/phút) |
+| Server không khởi động: `OCR_PROVIDER=... is not supported` | Giá trị chỉ nhận `gemini` hoặc `vintern` |
+| Đổi `.env` mà không thấy tác dụng | `docker compose up -d` (không dùng `restart`) |
+| Kaggle: `Speech server crashed` | Chạy `!tail -n 30 /kaggle/working/asr_server.log` ở cell mới để xem nguyên nhân |
+| Kaggle: `nvidia-smi: not found` | Chưa chọn GPU T4 x2 trong *Session options* |
+| Giọng nói trả `202`, chưa có kết quả | Kaggle đang tắt; ghi âm đã được lưu và `voice-worker` thử lại mỗi phút |
+
+---
+
+## 🧪 Test & đánh giá model
+
+Test (trong `server/`, cách bật database test xem [`server/README.md`](server/README.md)):
+
+```bash
+pytest
+```
+
+| Muốn đo | Lệnh (trong `server/`) |
+|---|---|
+| Sinh bộ ảnh thời khoá biểu giả | `python -m scripts.generate_timetables --zip` |
+| Gemini đọc ảnh | `python -m scripts.gemini_ocr_eval` |
+| So hai report OCR | `python -m scripts.ocr_eval <report> outputs/ocr_dataset/dev [report_2]` |
+| So quote Ollama với Gemini | `python -m scripts.quote_eval`, chấm CSV, rồi thêm `--score` |
+| Xem kết quả ASR, parser, quote dạng web | `python scripts/notebook_report.py` → `notebooks/report.html` |
+
+`server/outputs/` chứa kết quả sinh ra, không commit. Notebook đo Vintern cũ: `notebooks/kaggle_ocr_eval.ipynb`.
 
 ---
 
