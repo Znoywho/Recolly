@@ -29,12 +29,13 @@ class Startscreen extends StatelessWidget {
                     MaterialPageRoute(
                       builder: (_) => SleepProfilePage(
                         onCompleted: (_) async {
-                          final isTimetableSaved = await navigator.push<bool>(
+                          // Saved or skipped, go on to the app: the "+" in
+                          // the nav bar can add the timetable later.
+                          await navigator.push<bool>(
                             MaterialPageRoute(
                               builder: (_) => const TimetableImportPage(),
                             ),
                           );
-                          if (isTimetableSaved != true) return;
                           navigator.pushAndRemoveUntil(
                             MaterialPageRoute(
                               builder: (_) => const NavigationPreviewPage(),
