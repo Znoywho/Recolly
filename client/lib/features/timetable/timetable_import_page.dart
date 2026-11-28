@@ -5,7 +5,6 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../widgets/widgets.dart';
-import '../voice/voice_input_page.dart';
 import 'scan_page.dart';
 import 'scan_result_page.dart';
 
@@ -140,9 +139,7 @@ class _TimetableImportPageState extends State<TimetableImportPage> {
               label: 'Chụp ảnh',
               icon: Icons.photo_camera_outlined,
               leadingIcon: true,
-              onPressed: uploading
-                  ? null
-                  : () => pickPhoto(ImageSource.camera),
+              onPressed: uploading ? null : () => pickPhoto(ImageSource.camera),
             ),
             const SizedBox(height: AppSpacing.md),
             BrutalButton(
@@ -153,21 +150,6 @@ class _TimetableImportPageState extends State<TimetableImportPage> {
               onPressed: uploading
                   ? null
                   : () => pickPhoto(ImageSource.gallery),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            BrutalButton(
-              label: 'Nhập bằng giọng nói',
-              icon: Icons.mic_none,
-              leadingIcon: true,
-              color: AppColors.yellow,
-              onPressed: uploading
-                  ? null
-                  : () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const VoiceInputPage(),
-                      ),
-                    ),
             ),
             const SizedBox(height: AppSpacing.lg),
             const Text(

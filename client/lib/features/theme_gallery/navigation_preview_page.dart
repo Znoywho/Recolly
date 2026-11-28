@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../widgets/widgets.dart';
+import '../add/add_schedule_sheet.dart';
 import '../calendar/week_calendar_page.dart';
 import '../personal/personal_page.dart';
 import '../sleep/sleep_page.dart';
@@ -17,6 +18,14 @@ class NavigationPreviewPage extends StatefulWidget {
 class _NavigationPreviewPageState extends State<NavigationPreviewPage> {
   BrutalNavTab _currentTab = BrutalNavTab.today;
   final Set<BrutalNavTab> _openedTabs = {BrutalNavTab.today};
+
+  // Bumped after something is added, so the open tabs load their data again.
+  int _reloadTick = 0;
+
+  // Opens the "Thêm lịch" sheet and reloads the tabs if something was saved.
+  Future<void> _add() async {
+    if (await showAddScheduleSheet(context)) setState(() => _reloadTick++);
+  }
 
   void _selectTab(BrutalNavTab tab) => setState(() {
     _currentTab = tab;
@@ -40,16 +49,22 @@ class _NavigationPreviewPageState extends State<NavigationPreviewPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      body: IndexedStack(
-        index: _currentTab.index,
-        children: [
-          for (final tab in BrutalNavTab.values)
-            _openedTabs.contains(tab) ? _pageFor(tab) : const SizedBox.shrink(),
-        ],
+      body: KeyedSubtree(
+        key: ValueKey(_reloadTick),
+        child: IndexedStack(
+          index: _currentTab.index,
+          children: [
+            for (final tab in BrutalNavTab.values)
+              _openedTabs.contains(tab)
+                  ? _pageFor(tab)
+                  : const SizedBox.shrink(),
+          ],
+        ),
       ),
       bottomNavigationBar: BrutalBottomNavBar(
         currentTab: _currentTab,
         onTabSelected: _selectTab,
+        onAddPressed: _add,
       ),
     );
   }
