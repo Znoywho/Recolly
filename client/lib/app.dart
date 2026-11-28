@@ -1,5 +1,5 @@
 import 'package:client/data/data.dart';
-import 'package:client/features/welcome_screens/logoscreen.dart';
+import 'package:client/features/auth/auth_gate.dart';
 import 'package:flutter/material.dart';
 
 import 'core/di/repository_scope.dart';
@@ -26,7 +26,7 @@ class _RecollyAppState extends State<RecollyApp> {
         title: 'Recolly',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light(),
-        home: const Logoscreen(),
+        home: const AuthGate(),
       ),
     );
   }
