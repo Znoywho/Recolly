@@ -940,40 +940,50 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
           ? BrutalBorderStyle.dashed
           : BrutalBorderStyle.solid,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Row(
-            children: [
-              if (b.icon != null) ...[
-                Icon(b.icon, size: 18, color: b.textColor),
-                const SizedBox(width: AppSpacing.xs),
-              ],
-              Expanded(
-                child: Text(
-                  b.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.body.copyWith(
-                    color: b.textColor,
-                    height: 1.2,
-                  ),
+      // A short block with a large system font is clipped at the bottom
+      // instead of painting the "BOTTOM OVERFLOWED" stripes.
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: SingleChildScrollView(
+          physics: const NeverScrollableScrollPhysics(),
+          child: blockContent(b),
+        ),
+      ),
+    );
+  }
+
+  Widget blockContent(CalendarBlock b) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            if (b.icon != null) ...[
+              Icon(b.icon, size: 18, color: b.textColor),
+              const SizedBox(width: AppSpacing.xs),
+            ],
+            Expanded(
+              child: Text(
+                b.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.body.copyWith(
+                  color: b.textColor,
+                  height: 1.2,
                 ),
               ),
-            ],
-          ),
-          Text(
-            // Narrow column (overlapping events): start time only
-            b.cols > 1
-                ? hhmm(b.start)
-                : '${hhmm(b.start)} - ${hhmm(b.end)}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTypography.label.copyWith(color: b.textColor),
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
+        Text(
+          // Narrow column (overlapping events): start time only
+          b.cols > 1 ? hhmm(b.start) : '${hhmm(b.start)} - ${hhmm(b.end)}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTypography.label.copyWith(color: b.textColor),
+        ),
+      ],
     );
   }
 }
