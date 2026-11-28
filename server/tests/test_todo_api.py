@@ -20,6 +20,8 @@ def test_create_with_defaults(client, auth):
     assert todo["status"] == "todo"
     assert todo["scheduled_minutes"] == 0
     assert todo["completed_at"] is None
+    assert todo["difficulty"] == 1  # default of category `other`
+    assert (todo.pop("clashes"), todo.pop("rescheduled")) == ([], [])
     assert client.get(f"{API}/todos/{todo['id']}", headers=auth).json() == todo
 
 

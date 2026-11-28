@@ -9,13 +9,17 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentUser, DbSession, response_context, user_tz
 from app.core.errors import ApiError, not_found, validation_error
+from app.core.timeutil import now_utc
 from app.models.enums import EventKind, EventSource
 from app.models.event import Event
 from app.models.todo import Todo
 from app.models.user import User
 from app.repository.base_repository import BaseRepository
 from app.repository.event_repository import EventRepository
-from app.schemas.event import EventInput, EventList, EventRead, EventUpdate
+from app.schemas.event import ClashRead, EventInput, EventList, EventRead, EventSaved, EventUpdate
+from app.service import schedule_guard
+from app.service.calendar_sync import google_busy
+from app.service.google import GoogleClient, GoogleDep
 from app.service.event_service import (
     Occurrence,
     forget_google_copy,
@@ -40,6 +44,22 @@ def event_read(event: Event, ctx: dict, occurrence: Occurrence | None = None) ->
     return read.model_copy(update={"start_at": occurrence.start.astimezone(tz),
                                    "end_at": occurrence.end.astimezone(tz),
                                    "occurrence_start": occurrence.start.astimezone(tz)})
+
+
+def guarded(db: Session, user: User, event: Event, google: GoogleClient) -> tuple[list[ClashRead], list[EventRead]]:
+    """Check a just-saved event for clashes (app + Google busy times) and let CP-SAT blocks make room."""
+    busy = google_busy(user, google, *schedule_guard.check_range(event, now_utc()))
+    clashes, moved = schedule_guard.guard(db, user, event, busy)
+    ctx = response_context(user)
+    return ([ClashRead.model_validate(c, from_attributes=True, context=ctx) for c in clashes],
+            [event_read(m, ctx) for m in moved])
+
+
+def saved_read(db: Session, user: User, event: Event, google: GoogleClient) -> EventSaved:
+    """E2/E4 answer: the event, its clashes and the blocks moved out of its way."""
+    clashes, moved = guarded(db, user, event, google)
+    read = EventSaved.model_validate(event, context=response_context(user))
+    return read.model_copy(update={"clashes": clashes, "rescheduled": moved})
 
 
 def checked_rrule(rule: str | None, start_at: datetime, tz: ZoneInfo) -> str | None:
@@ -77,9 +97,9 @@ def list_events(
                             for o in occurrences(events, from_, to, user_tz(user))])
 
 
-@router.post("", response_model=EventRead, status_code=201)
-def create_event(body: EventInput, user: CurrentUser, db: DbSession):
-    """E2 · Create an event (`source = manual`)."""
+@router.post("", response_model=EventSaved, status_code=201)
+def create_event(body: EventInput, user: CurrentUser, db: DbSession, google: GoogleDep):
+    """E2 · Create an event (`source = manual`); CP-SAT blocks it overlaps are moved, other clashes listed."""
     check_todo(db, user, body.todo_id)
     event = EventRepository(db).create(Event(
         user_id=user.id,
@@ -95,7 +115,7 @@ def create_event(body: EventInput, user: CurrentUser, db: DbSession):
         todo_id=body.todo_id,
         sync_status=initial_sync_status(user),
     ))
-    return event_read(event, response_context(user))
+    return saved_read(db, user, event, google)
 
 
 def _get_event(db: Session, user: User, event_id: uuid.UUID) -> Event:
@@ -111,9 +131,9 @@ def get_event(id: uuid.UUID, user: CurrentUser, db: DbSession):
     return event_read(_get_event(db, user, id), response_context(user))
 
 
-@router.patch("/{id}", response_model=EventRead)
-def update_event(id: uuid.UUID, body: EventUpdate, user: CurrentUser, db: DbSession):
-    """E4 · Edit an event (or the whole series); a synced event becomes `pending`."""
+@router.patch("/{id}", response_model=EventSaved)
+def update_event(id: uuid.UUID, body: EventUpdate, user: CurrentUser, db: DbSession, google: GoogleDep):
+    """E4 · Edit an event (or the whole series); a synced event becomes `pending`; clashes as in E2."""
     event = _get_event(db, user, id)
     changes = body.changes()
     if changes.get("kind") is EventKind.CLASS and event.subject_id is None:
@@ -130,7 +150,7 @@ def update_event(id: uuid.UUID, body: EventUpdate, user: CurrentUser, db: DbSess
         setattr(event, field, value)
     mark_changed(event, user)
     db.flush()
-    return event_read(event, response_context(user))
+    return saved_read(db, user, event, google)
 
 
 @router.delete("/{id}", status_code=204)

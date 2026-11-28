@@ -10,9 +10,10 @@ from dateutil.rrule import rrule, rrulestr
 from sqlalchemy.orm import Session
 
 from app.models.calendar import CalendarDeletion
-from app.models.enums import SyncStatus
+from app.models.enums import EventKind, EventSource, SyncStatus, TodoStatus
 from app.models.event import Event
 from app.models.timetable import Subject
+from app.models.todo import Todo
 from app.models.user import User
 
 BYDAY = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
@@ -68,8 +69,9 @@ def occurrences(events: Iterable[Event], start: datetime, end: datetime,
             rule = parse_rrule(event.rrule, event.start_at, tz)
         except ValueError:
             continue  # a rule pulled from Google that dateutil cannot read
+        changed_on_google = {exception.original_start for exception in event.exceptions}
         for occ in rule.between(start.astimezone(tz) - duration, end.astimezone(tz), inc=True):
-            if occ < end and occ + duration > start:
+            if occ < end and occ + duration > start and occ not in changed_on_google:
                 result.append(Occurrence(event, occ, occ + duration, True))
     result.sort(key=lambda o: o.start)
     return result
@@ -112,3 +114,62 @@ def subject_event_fields(subject: Subject, tz: ZoneInfo) -> dict:
         "all_day": False,
         "rrule": f"FREQ=WEEKLY;BYDAY={BYDAY[subject.day_of_week - 1]};UNTIL={until:%Y%m%dT%H%M%SZ}",
     }
+
+
+def subject_follows_event(subject: Subject, event: Event, tz: ZoneInfo) -> None:
+    """A class series changed on Google: copy its name, room, weekday and times back to the subject.
+
+    Skipped when the series no longer fits a subject (all-day, or ends on another day).
+    """
+    start, end = event.start_at.astimezone(tz), event.end_at.astimezone(tz)
+    if event.all_day or start.date() != end.date():
+        return
+    subject.name = event.title
+    subject.room = event.location[:100] if event.location else None
+    subject.day_of_week = start.isoweekday()
+    subject.start_time, subject.end_time = start.timetz().replace(tzinfo=None), end.timetz().replace(tzinfo=None)
+
+
+def todo_event_fields(todo: Todo) -> dict | None:
+    """The todo's own calendar block: only a todo with a fixed slot has one, and not once done.
+
+    A deadline is a moment, not a block of time: it is shown by reminders and planned for by
+    CP-SAT study blocks, never as an event of its own.
+    """
+    if todo.status is TodoStatus.DONE or not (todo.start_at and todo.end_at):
+        return None
+    return {"title": todo.title, "description": todo.description, "start_at": todo.start_at,
+            "end_at": todo.end_at, "all_day": False, "rrule": None}
+
+
+def todo_own_event(todo: Todo) -> Event | None:
+    """The todo's own block on the calendar: its first linked `other` event."""
+    return next((event for event in todo.events if event.kind is EventKind.OTHER), None)
+
+
+def follow_todo(db: Session, user: User, todo: Todo) -> None:
+    """Keep a todo's events in line with it after a create or edit (pushed on the next sync):
+    its study blocks carry its title, and its own `other` event shows its slot or deadline."""
+    for event in todo.events:
+        if event.kind is EventKind.STUDY and event.title != todo.title:
+            event.title = todo.title
+            mark_changed(event, user)
+    own = todo_own_event(todo)
+    fields = todo_event_fields(todo)
+    if fields is None:
+        if own is not None:
+            delete_todo_event(db, user, own)
+        return
+    if own is None:
+        db.add(Event(user_id=user.id, todo=todo, kind=EventKind.OTHER, source=EventSource.MANUAL,
+                     sync_status=initial_sync_status(user), **fields))
+    elif any(getattr(own, field) != value for field, value in fields.items()):
+        for field, value in fields.items():
+            setattr(own, field, value)
+        mark_changed(own, user)
+
+
+def delete_todo_event(db: Session, user: User, event: Event) -> None:
+    """Delete a todo's own event; its Google copy goes on the next sync."""
+    forget_google_copy(db, user, event)
+    db.delete(event)

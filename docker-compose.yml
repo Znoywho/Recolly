@@ -1,6 +1,6 @@
 # Recolly local stack: `docker compose up --build`
 #   infra:     db, redis
-#   app:       server (API :8765), reminders, voice-worker — one image, three commands
+#   app:       server (API :8765), reminders, voice-worker, calendar-maintenance — one image, four commands
 #   dev tools: logs (Dozzle :8888), tunnel (only with `--profile tunnel`)
 # Machine-specific mounts (FCM key) live in the gitignored docker-compose.override.yml, see README.
 
@@ -70,6 +70,11 @@ services:
     command: python -m app.jobs.process_voice --loop
     volumes:
       - voice-audio:/data/voice
+
+  calendar-maintenance:  # two-way Google Calendar: renew webhook channels, pull when no channel is alive (daily)
+    <<: *app
+    container_name: recolly-calendar-maintenance-container
+    command: python -m app.jobs.calendar_maintenance --loop
 
   # ── Dev tools ──────────────────────────────────────────
   logs:  # browser log viewer: http://localhost:8888 (https://dozzle.dev)

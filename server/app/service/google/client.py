@@ -21,6 +21,8 @@ TOKEN_URL = "https://oauth2.googleapis.com/token"
 REVOKE_URL = "https://oauth2.googleapis.com/revoke"
 CALENDAR_API = "https://www.googleapis.com/calendar/v3"
 CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events"
+# Lets the app create its own "Recolly" calendar and manage the events on it (calendars.insert).
+APP_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.app.created"
 GOOGLE_ISSUERS = {"accounts.google.com", "https://accounts.google.com"}
 CHANNEL_TTL_SECONDS = 7 * 24 * 3600
 # Seconds to wait before each retry of a rate-limited Calendar call (exponential backoff, 7 s worst case).
@@ -217,6 +219,33 @@ class GoogleClient:
         data = self._call("GET", self._events_path(calendar_id), access_token, params=params) or {}
         return EventPage(items=data.get("items", []), next_page_token=data.get("nextPageToken"),
                          next_sync_token=data.get("nextSyncToken"))
+
+    def create_calendar(self, access_token: str, summary: str, time_zone: str) -> str:
+        """Create a secondary calendar owned by the user (needs APP_CALENDAR_SCOPE); returns its id."""
+        data = self._call("POST", "/calendars", access_token, json={"summary": summary, "timeZone": time_zone})
+        return data["id"]
+
+    def delete_calendar(self, access_token: str, calendar_id: str) -> None:
+        """Delete a secondary calendar (with APP_CALENDAR_SCOPE: only one this app created)."""
+        try:
+            self._call("DELETE", f"/calendars/{quote(calendar_id, safe='')}", access_token)
+        except GoogleError as exc:
+            if exc.status not in (404, 410):  # already gone
+                raise
+
+    def busy_events(self, access_token: str, calendar_id: str, time_min: datetime,
+                    time_max: datetime) -> list[dict[str, Any]]:
+        """Timed, opaque, confirmed events in [time_min, time_max) with recurring series expanded.
+
+        Only times, title and Recolly's own marker are asked for; nothing here is stored.
+        """
+        params = {"singleEvents": "true", "orderBy": "startTime", "maxResults": 250,
+                  "timeMin": time_min.astimezone(UTC).isoformat(), "timeMax": time_max.astimezone(UTC).isoformat(),
+                  "fields": "items(id,status,summary,start,end,transparency,extendedProperties)"}
+        data = self._call("GET", self._events_path(calendar_id), access_token, params=params) or {}
+        return [item for item in data.get("items", [])
+                if item.get("status") != "cancelled" and item.get("transparency") != "transparent"
+                and "dateTime" in item.get("start", {})]
 
     def can_write(self, access_token: str, calendar_id: str) -> bool:
         """True if the calendar exists and accepts event reads with the granted scope."""

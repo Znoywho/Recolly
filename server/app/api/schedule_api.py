@@ -10,7 +10,7 @@ from app.core.deps import CurrentUser, DbSession, response_context
 from app.core.errors import ApiError, validation_error
 from app.core.rate_limit import rate_limit
 from app.core.timeutil import now_utc
-from app.models.enums import EventKind, EventSource
+from app.models.enums import EventKind, EventSource, SyncMode
 from app.models.event import Event
 from app.models.todo import Todo
 from app.schemas.calendar import SyncResult
@@ -35,8 +35,9 @@ _solver_slots = threading.BoundedSemaphore(MAX_PARALLEL_SOLVES)
 
 @router.post("/generate", response_model=ScheduleSuggestion,
              dependencies=[Depends(rate_limit("schedule-generate", limit=10))])
-def generate_schedule(body: ScheduleGenerateRequest, user: CurrentUser, db: DbSession):
-    """S1 · CP-SAT study blocks for [from, to]; nothing is saved, the suggestion lives 1 hour."""
+def generate_schedule(body: ScheduleGenerateRequest, user: CurrentUser, db: DbSession, google: GoogleDep):
+    """S1 · CP-SAT study blocks for [from, to] around app events and Google busy times;
+    nothing is saved, the suggestion lives 1 hour."""
     if not _solver_slots.acquire(blocking=False):  # answer at once instead of queueing behind the solver
         raise ApiError(503, "SCHEDULER_BUSY", "The scheduler is busy, try again in a few seconds",
                        headers={"Retry-After": "5"})
@@ -44,8 +45,10 @@ def generate_schedule(body: ScheduleGenerateRequest, user: CurrentUser, db: DbSe
         profile = biorhythm_service.require_profile(user)
         days = scheduler.check_range(body.from_, body.to)
         timeline = biorhythm_service.timeline_for(db, user, profile, body.from_, days)
+        busy = calendar_sync.google_busy(user, google, timeline.time_at(timeline.first_index),
+                                         timeline.time_at(timeline.last_index))
         result = scheduler.generate(db, user, timeline, body.from_, body.to, body.todo_ids, body.options,
-                                    now_utc())
+                                    now_utc(), busy)
         result["model"] = biorhythm_service.model_summary(db, user, profile)
     finally:
         _solver_slots.release()
@@ -79,7 +82,8 @@ def apply_schedule(body: ScheduleApplyRequest, user: CurrentUser, db: DbSession,
     scheduler.discard_suggestion(body.suggestion_id)
 
     sync = None
-    if body.sync_to_google and user.calendar_connection is not None:
+    conn = user.calendar_connection
+    if body.sync_to_google and conn is not None and conn.sync_mode is not SyncMode.OFF:  # off: blocks stay pending
         sync = SyncResult(**asdict(calendar_sync.sync(db, user, google, [e.id for e in events])))
     logger.info("Schedule applied user=%s events=%d sync=%s", user.id, len(events), sync)
     ctx = response_context(user)

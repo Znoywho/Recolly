@@ -3,6 +3,8 @@
 A reminder is due when its trigger time is in [window_start, window_end):
 - bedtime: tonight's recommended_sleep_at − bedtime_reminder_minutes_before
 - deadline: deadline_at − h, for each h in deadline_reminder_hours_before (open todos only)
+- event_start: START_REMINDER_MINUTES before a study block or a todo's fixed slot begins (open todos
+  only; switched with the deadline reminders, there is no separate setting yet)
 Triggers inside quiet hours are dropped. Payloads follow the contract's PushPayload.
 """
 
@@ -13,7 +15,8 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.enums import TodoStatus
+from app.models.enums import EventKind, TodoStatus
+from app.models.event import Event
 from app.models.notification import ReminderSettings as ReminderSettingsRow
 from app.models.todo import Todo
 from app.models.user import User
@@ -92,11 +95,34 @@ def deadline_reminders(db: Session, user: User, settings: ReminderSettings,
     return due
 
 
+START_REMINDER_MINUTES = 15
+
+
+def start_reminders(db: Session, user: User, settings: ReminderSettings,
+                    window_start: datetime, window_end: datetime) -> list[dict[str, Any]]:
+    """"Starts in 15 min" for each study block / todo slot of an open todo whose start − 15 min is in the window."""
+    if not settings.deadline_reminder_enabled:
+        return []
+    lead = timedelta(minutes=START_REMINDER_MINUTES)
+    events = db.scalars(select(Event).join(Todo).where(
+        Event.user_id == user.id, Event.kind.in_((EventKind.STUDY, EventKind.OTHER)),
+        Todo.status != TodoStatus.DONE,
+        Event.start_at >= window_start + lead, Event.start_at < window_end + lead)).all()
+    tz = ZoneInfo(user.timezone)
+    return [{"type": "event_start", "title": f"{START_REMINDER_MINUTES} phút nữa: {event.title}",
+             "body": f"Bắt đầu lúc {event.start_at.astimezone(tz):%H:%M}"
+                     + (" — khối học Recolly xếp cho bạn." if event.kind is EventKind.STUDY else "."),
+             "deep_link": f"recolly://todos/{event.todo_id}", "ref_id": str(event.todo_id),
+             "scheduled_for": event.start_at.isoformat(), "trigger_at": event.start_at - lead}
+            for event in events]
+
+
 def due_reminders(db: Session, user: User, window_start: datetime, window_end: datetime) -> list[dict[str, Any]]:
     """Every PushPayload due for `user` in [window_start, window_end), quiet hours removed."""
     settings = reminder_settings_of(user.reminder_settings)
     due = (bedtime_reminders(db, user, settings, window_start, window_end)
-           + deadline_reminders(db, user, settings, window_start, window_end))
+           + deadline_reminders(db, user, settings, window_start, window_end)
+           + start_reminders(db, user, settings, window_start, window_end))
     tz = ZoneInfo(user.timezone)
     quiet = settings.quiet_hours
     return [{k: v for k, v in p.items() if k != "trigger_at"} for p in due

@@ -60,6 +60,11 @@ class ScheduleBlock(ORMModel):
     end_at: datetime
     predicted_kss: float | None
     alertness_score: int | None
+    focus: Literal["high", "normal", "light"] | None = Field(
+        default=None, description="Study blocks: focus the todo needs (difficulty ≥ 4 / 2–3 / 1).")
+    window: Literal["golden", "normal", "low"] | None = Field(
+        default=None, description="Study blocks: the alertness window it was placed in. "
+                                  "`high` focus outside `golden` means the golden hours had no room.")
 
 
 class UnscheduledTodo(BaseModel):

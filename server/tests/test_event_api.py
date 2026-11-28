@@ -32,6 +32,7 @@ def test_create_and_get(client, auth):
     assert event["sync_status"] == "not_synced"
     assert event["start_at"] == "2026-11-02T19:00:00+07:00"
     assert event["occurrence_start"] is None
+    assert (event.pop("clashes"), event.pop("rescheduled")) == ([], [])
     assert client.get(f"{API}/events/{event['id']}", headers=auth).json() == event
 
 
