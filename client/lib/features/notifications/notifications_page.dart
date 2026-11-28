@@ -11,10 +11,7 @@ enum NotificationFilter {
   all('Tất cả', {}),
   sleep('Giấc ngủ', {NotificationCategory.sleep}),
   deadline('Deadline', {NotificationCategory.deadline}),
-  study('Học tập', {
-    NotificationCategory.study,
-    NotificationCategory.motivation,
-  });
+  study('Học tập', {NotificationCategory.study});
 
   const NotificationFilter(this.label, this.categories);
 
