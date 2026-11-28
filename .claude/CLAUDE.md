@@ -11,7 +11,7 @@
 - Database: PostgreSQL
 - Frontend: Flutter (target: Android) — `client/lib/` (`core/` shared code, `features/<feature>/` per feature)
 - Scheduling/optimization: OR-Tools CP-SAT
-- AI: Vintern-1B-v3_5 (Vietnamese OCR), PhoWhisper (Vietnamese ASR), Google Gemini (LLM)
+- AI: Google Gemini (timetable photo OCR), PhoWhisper (Vietnamese ASR) and Qwen2.5 via Ollama on Kaggle (voice → todo, quotes)
 - Calendar: Google Calendar API (OAuth 2.0)
 - Deployment: Docker, Kubernetes, Redis
 
@@ -26,7 +26,7 @@ Task IDs (Rxx) refer to the team task board.
 
 ### Member 1 — Lê Thiên Hạo: Backend (all of `server/`)
 - Server setup, PostgreSQL schema, Google OAuth on backend (R03, R04, R08)
-- OCR: upload endpoint, Vintern integration, normalize OCR output to timetable, OCR testing (R09–R12)
+- OCR: upload endpoint, model integration (Gemini; Vintern dropped 2026-11-27), normalize OCR output to timetable, OCR testing (R09–R12)
 - CRUD APIs: timetable, sleep log, todo/deadline (R15, R17, R21)
 - Process S/C model: spec, implementation, API + tests (R18–R20)
 - CP-SAT scheduler: constraint spec, base solver, class/deadline constraints, generate & save schedule API (R24–R27)

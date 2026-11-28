@@ -95,7 +95,9 @@ def wait_until_server_is_ready(timeout_seconds: int = 60) -> None:
     raise RuntimeError(f"Ollama did not start, see {OLLAMA_LOG_PATH}")
 
 
-ollama_process = start_ollama_server()
+# Re-running this cell keeps the live server: a second `ollama serve` dies on "address already in use".
+if "ollama_process" not in globals() or ollama_process.poll() is not None:
+    ollama_process = start_ollama_server()
 wait_until_server_is_ready()
 print("Ollama server is running")
 
@@ -268,7 +270,8 @@ def wait_until_asr_is_ready(timeout_seconds: int = 600) -> None:
     raise RuntimeError(f"Speech server did not start, see {ASR_LOG_PATH}")
 
 
-asr_process = start_asr_server()
+if "asr_process" not in globals() or asr_process.poll() is not None:  # keep the live server on re-run
+    asr_process = start_asr_server()
 wait_until_asr_is_ready()
 print(f"Speech server is running ({ASR_MODEL_NAME})")
 
@@ -293,22 +296,35 @@ def start_tunnel(port: int, log_path: str) -> subprocess.Popen:
     return subprocess.Popen(command, stdout=log_file, stderr=log_file)
 
 
-def wait_for_tunnel_url(log_path: str, timeout_seconds: int = 60) -> str:
-    """Read the tunnel log until the public trycloudflare.com URL appears."""
+def wait_for_tunnel_url(process: subprocess.Popen, log_path: str, timeout_seconds: int = 60) -> str | None:
+    """Read the tunnel log until the public trycloudflare.com URL appears; None if cloudflared exits first."""
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
         with open(log_path) as log_file:
             match = re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", log_file.read())
         if match:
             return match.group(0)
+        if process.poll() is not None:  # e.g. "quick tunnel provisioning failed with status 429"
+            return None
         time.sleep(1)
     raise RuntimeError(f"No tunnel URL found, see {log_path}")
 
 
-tunnel_process = start_tunnel(OLLAMA_PORT, TUNNEL_LOG_PATH)
-public_url = wait_for_tunnel_url(TUNNEL_LOG_PATH)
-asr_tunnel_process = start_tunnel(ASR_PORT, ASR_TUNNEL_LOG_PATH)
-asr_public_url = wait_for_tunnel_url(ASR_TUNNEL_LOG_PATH)
+def open_tunnel(port: int, log_path: str, attempts: int = 6) -> tuple[subprocess.Popen, str]:
+    """Start a quick tunnel, retrying with a growing wait when trycloudflare rate-limits (HTTP 429)."""
+    for attempt in range(1, attempts + 1):
+        process = start_tunnel(port, log_path)
+        url = wait_for_tunnel_url(process, log_path)
+        if url:
+            return process, url
+        wait_seconds = 15 * attempt
+        print(f"Tunnel for port {port} failed (attempt {attempt}/{attempts}), retrying in {wait_seconds}s")
+        time.sleep(wait_seconds)
+    raise RuntimeError(f"Could not open a tunnel for port {port}, see {log_path}")
+
+
+tunnel_process, public_url = open_tunnel(OLLAMA_PORT, TUNNEL_LOG_PATH)
+asr_tunnel_process, asr_public_url = open_tunnel(ASR_PORT, ASR_TUNNEL_LOG_PATH)
 
 print("Put these lines in the Recolly server .env, then: docker compose restart server\n")
 print(f"OLLAMA_BASE_URL={public_url}")
