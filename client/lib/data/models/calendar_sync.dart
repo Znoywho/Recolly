@@ -1,3 +1,4 @@
+import 'enums.dart';
 import 'event.dart';
 import 'json_utils.dart';
 
@@ -7,6 +8,7 @@ class CalendarStatus {
     required this.connected,
     this.googleEmail,
     this.calendarId,
+    required this.syncMode,
     required this.twoWaySync,
     this.lastSyncedAt,
     required this.pendingCount,
@@ -17,6 +19,7 @@ class CalendarStatus {
     connected: json['connected'] as bool,
     googleEmail: json['google_email'] as String?,
     calendarId: json['calendar_id'] as String?,
+    syncMode: SyncMode.fromJson(json['sync_mode']),
     twoWaySync: json['two_way_sync'] as bool,
     lastSyncedAt: parseDateTimeOrNull(json['last_synced_at']),
     pendingCount: json['pending_count'] as int,
@@ -28,6 +31,9 @@ class CalendarStatus {
 
   /// `primary` or a calendar the user can write to.
   final String? calendarId;
+  final SyncMode syncMode;
+
+  /// Deprecated by the server: same as `syncMode == SyncMode.twoWay`.
   final bool twoWaySync;
   final DateTime? lastSyncedAt;
   final int pendingCount;
@@ -37,6 +43,7 @@ class CalendarStatus {
     'connected': connected,
     'google_email': googleEmail,
     'calendar_id': calendarId,
+    'sync_mode': syncMode.toJson(),
     'two_way_sync': twoWaySync,
     'last_synced_at': formatDateTimeOrNull(lastSyncedAt),
     'pending_count': pendingCount,

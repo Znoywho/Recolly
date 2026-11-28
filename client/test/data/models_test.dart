@@ -399,13 +399,16 @@ void main() {
       final status = CalendarStatus.fromJson({
         'connected': true,
         'google_email': 'student@gmail.com',
-        'calendar_id': 'primary',
+        'calendar_id': 'recolly@group.calendar.google.com',
+        'sync_mode': 'two_way',
+        'conflict_policy': 'ask',
         'two_way_sync': true,
         'last_synced_at': '2026-10-19T08:00:00+07:00',
         'pending_count': 2,
         'conflict_count': 0,
       });
       expect(status.pendingCount, 2);
+      expect(status.syncMode, SyncMode.twoWay);
 
       final settings = ReminderSettings.fromJson({
         'bedtime_reminder_enabled': true,

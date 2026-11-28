@@ -307,3 +307,22 @@ enum ConflictResolution {
       _parse(values, (e) => e.value, json);
   String toJson() => value;
 }
+
+/// G1/G8 `sync_mode` (contract draft 3): what the app does with Google Calendar.
+enum SyncMode {
+  /// Connected but paused: nothing goes to Google until turned back on.
+  off('off'),
+
+  /// One-way, the default: app → Google only; Google edits stay on Google.
+  push('push'),
+
+  /// Also pulls edits made on Google to Recolly's events.
+  twoWay('two_way');
+
+  const SyncMode(this.value);
+  final String value;
+
+  static SyncMode fromJson(Object? json) =>
+      _parse(values, (e) => e.value, json);
+  String toJson() => value;
+}

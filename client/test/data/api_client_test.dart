@@ -224,6 +224,7 @@ void main() {
         'connected': true,
         'google_email': null,
         'calendar_id': 'primary',
+        'sync_mode': 'push',
         'two_way_sync': false,
         'last_synced_at': null,
         'pending_count': 0,
@@ -250,9 +251,11 @@ void main() {
     expect(logs, isEmpty);
     expect(transport.last.uri.query, 'confirmed=false');
 
-    final status = await repos.calendarSync.updateSettings(twoWaySync: false);
-    expect(status.twoWaySync, isFalse);
-    expect(transport.lastJsonBody, {'two_way_sync': false});
+    final status = await repos.calendarSync.updateSettings(
+      syncMode: SyncMode.push,
+    );
+    expect(status.syncMode, SyncMode.push);
+    expect(transport.lastJsonBody, {'sync_mode': 'push'});
 
     final job = await repos.timetable.uploadTimetablePhoto(
       Uint8List(1),
