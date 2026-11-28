@@ -18,7 +18,7 @@ def sign_in_with_google(body: GoogleSignInRequest, db: DbSession, google: Google
         raise calendar_sync.api_error(exc) from exc
     except GoogleError as exc:
         raise ApiError(400, "GOOGLE_CODE_INVALID", "Google rejected the server_auth_code") from exc
-    user, is_new = auth_service.sign_in(db, grant)
+    user, is_new = auth_service.sign_in(db, grant, google)
     tokens = auth_service.issue_tokens(db, user)
     user_read = UserRead.model_validate(user, context=response_context(user))
     return AuthResponse(**tokens, user=user_read, is_new_user=is_new)

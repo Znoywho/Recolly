@@ -49,7 +49,7 @@ def connect_calendar(body: GoogleSignInRequest, user: CurrentUser, db: DbSession
         raise ApiError(400, "GOOGLE_CODE_INVALID", "Google rejected the server_auth_code") from exc
     if CALENDAR_SCOPE not in grant.scopes:
         raise ApiError(403, "GOOGLE_SCOPE_MISSING", "Google Calendar scope not granted")
-    if calendar_sync.save_connection(db, user, grant) is None:
+    if calendar_sync.save_connection(db, user, grant, google) is None:
         raise ApiError(400, "GOOGLE_CODE_INVALID",
                        "Google sent no refresh token; request offline access (forceCodeForRefreshToken)")
     db.flush()
@@ -66,10 +66,10 @@ def disconnect_calendar(user: CurrentUser, db: DbSession, google: GoogleDep):
 @router.patch("/settings", response_model=CalendarStatus)
 def update_calendar_settings(body: CalendarSettingsUpdate, user: CurrentUser, db: DbSession,
                              google: GoogleDep):
-    """G8 · Change the target calendar or turn two-way sync on/off."""
+    """G8 · Change the target calendar, the sync mode (off / push / two_way) or the conflict policy."""
     changes = body.changes()
     calendar_sync.update_settings(db, user, google, calendar_id=changes.get("calendar_id"),
-                                  two_way_sync=changes.get("two_way_sync"))
+                                  sync_mode=body.mode(), conflict_policy=changes.get("conflict_policy"))
     return _status(db, user)
 
 

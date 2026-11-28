@@ -55,7 +55,10 @@ class _GoogleCalendarSheetState extends State<GoogleCalendarSheet> {
     });
     try {
       var s = await repo.getStatus();
-      s = await keepTwoWay(s);
+      // R46: two-way conflicts are solved quietly (last edit wins), as before
+      if (s.conflictCount > 0 && await resolveAllConflicts(repo) > 0) {
+        s = await repo.getStatus();
+      }
       if (!mounted) return;
       setState(() {
         status = s;
@@ -70,16 +73,23 @@ class _GoogleCalendarSheetState extends State<GoogleCalendarSheet> {
     }
   }
 
-  // R46: turn on two-way sync and clear conflicts quietly, errors ignored
-  Future<CalendarStatus> keepTwoWay(CalendarStatus s) async {
-    if (!s.connected) return s;
+  // R46: the user picks one-way (default), two-way or paused; never forced
+  Future<void> setMode(SyncMode mode) async {
+    setState(() => busy = true);
     try {
-      if (!s.twoWaySync) s = await repo.updateSettings(twoWaySync: true);
-      if (s.conflictCount > 0 && await resolveAllConflicts(repo) > 0) {
-        s = await repo.getStatus();
-      }
-    } catch (_) {}
-    return s;
+      final s = await repo.updateSettings(syncMode: mode);
+      if (!mounted) return;
+      setState(() => status = s);
+    } on ApiException catch (e) {
+      showSnack(
+        e.code == 'GOOGLE_SCOPE_MISSING'
+            ? 'Quyền Google hết hạn, hãy kết nối lại.'
+            : 'Không đổi được cách đồng bộ, thử lại nhé.',
+      );
+    } catch (e) {
+      showSnack('Không đổi được cách đồng bộ, thử lại nhé.');
+    }
+    if (mounted) setState(() => busy = false);
   }
 
   void showSnack(String text) {
@@ -161,9 +171,10 @@ class _GoogleCalendarSheetState extends State<GoogleCalendarSheet> {
                 style: AppTypography.subtitle.copyWith(fontSize: 20),
               ),
               const SizedBox(height: AppSpacing.sm),
-              const Text(
+              Text(
                 'Lịch trong app vẫn giữ nguyên. Các sự kiện sẽ không còn '
-                'được đẩy lên Google.',
+                'được đẩy lên Google.'
+                '${status?.calendarId == 'primary' ? '' : ' Lịch "Recolly" trên Google sẽ bị xoá.'}',
                 style: AppTypography.body,
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -310,25 +321,103 @@ class _GoogleCalendarSheetState extends State<GoogleCalendarSheet> {
         spacing: 10,
         runSpacing: AppSpacing.sm,
         children: [
-          tag('Đã kết nối', AppColors.green),
+          s.syncMode == SyncMode.off
+              ? tag('Đang tạm dừng', AppColors.coral)
+              : tag('Đã kết nối', AppColors.green),
           if (s.pendingCount > 0)
             GestureDetector(
-              onTap: busy ? null : openPush,
+              onTap: busy || s.syncMode == SyncMode.off ? null : openPush,
               child: tag('${s.pendingCount} sự kiện chờ', AppColors.yellow),
             ),
         ],
       ),
       const SizedBox(height: AppSpacing.lg),
+      const Text('Cách đồng bộ', style: AppTypography.subtitle),
+      const SizedBox(height: AppSpacing.sm),
+      for (final mode in const [
+        SyncMode.push,
+        SyncMode.twoWay,
+        SyncMode.off,
+      ]) ...[
+        modeOption(mode, s.syncMode),
+        const SizedBox(height: AppSpacing.xs),
+      ],
+      const SizedBox(height: AppSpacing.md),
       BrutalButton(
         label: 'Đồng bộ ngay',
         icon: Icons.sync,
         leadingIcon: true,
         color: AppColors.teal,
-        onPressed: busy ? null : openPush,
+        onPressed: busy || s.syncMode == SyncMode.off ? null : openPush,
       ),
       const SizedBox(height: AppSpacing.sm),
       disconnectButton(),
     ];
+  }
+
+  static const modeTexts = {
+    SyncMode.push: (
+      'Một chiều: app → Google',
+      'Lịch học, khối học và todo có giờ tự lên Google. Sửa trên Google '
+          'không làm đổi lịch trong app.',
+    ),
+    SyncMode.twoWay: (
+      'Hai chiều',
+      'Sửa hoặc dời lịch Recolly trên Google thì app cũng đổi theo. '
+          'Lịch cá nhân của bạn không bị chép vào app.',
+    ),
+    SyncMode.off: (
+      'Tạm dừng',
+      'Không gửi gì lên Google. Bật lại thì những gì đã đổi sẽ được đẩy lên.',
+    ),
+  };
+
+  // One sync mode as a brutal radio card; the chosen one is yellow
+  Widget modeOption(SyncMode mode, SyncMode current) {
+    final selected = mode == current;
+    final (title, detail) = modeTexts[mode]!;
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: GestureDetector(
+        onTap: busy || selected ? null : () => setMode(mode),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          decoration: AppTheme.brutalBox(
+            color: selected ? AppColors.yellow : AppColors.white,
+            borderRadius: AppRadii.cardAll,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                selected ? Icons.radio_button_checked : Icons.radio_button_off,
+                size: 22,
+                color: AppColors.ink,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: AppTypography.label),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      detail,
+                      style: AppTypography.body.copyWith(
+                        fontSize: 14,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // Red label + icon (Figma), BrutalButton only has ink text

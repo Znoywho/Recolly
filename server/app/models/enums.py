@@ -108,6 +108,23 @@ class ConflictResolution(StrEnum):
     KEEP_GOOGLE = "google"
 
 
+class SyncMode(StrEnum):
+    """What the user lets Recolly do with Google Calendar (chosen in the app)."""
+
+    OFF = "off"          # connected but paused: nothing is pushed or pulled
+    PUSH = "push"        # app → Google; Google is only read for busy times
+    TWO_WAY = "two_way"  # also pull edits made on Google to the target calendar
+
+
+class ConflictPolicy(StrEnum):
+    """Who wins when the same field of an event was changed in the app and on Google."""
+
+    ASK = "ask"        # keep a SyncConflict for the user
+    GOOGLE = "google"
+    LOCAL = "local"
+    LATEST = "latest"  # the side edited last
+
+
 def str_enum(enum_cls: type[StrEnum]) -> Enum:
     """Store enum values as VARCHAR + CHECK, avoiding native PG enums (painful to migrate)."""
     return Enum(

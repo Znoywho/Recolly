@@ -1,8 +1,22 @@
 # Đồng bộ Google Calendar — ghi chú thiết kế
 
-> Trạng thái: **đề xuất**, chưa đưa vào `openapi.yaml` (xem §9).
+> Trạng thái: **ghi chú thiết kế ban đầu (2026-10-22)**. Bản đang chạy là
+> [`server/docs/calendar_sync.md`](../server/docs/calendar_sync.md) (thiết kế lại ngày 2026-11-28, contract `1.0.0-draft.3`).
 > Owner: Backend — Member 1 (R30, R31, R45). Phía Flutter: Member 2 (R32, R33, R46).
-> Ghi ngày 2026-10-22. Số liệu Google lấy từ tài liệu chính thức (§11).
+> Số liệu Google lấy từ tài liệu chính thức (§11). Phần rate limit (§3) và webhook (§6.5) vẫn đúng.
+
+## 0. So với bản đang chạy (2026-11-28)
+
+| Quyết định ở đây | Bản đang chạy |
+|---|---|
+| PostgreSQL là nguồn chính, app không gọi Google | **Giữ** |
+| Lịch phụ "Recolly" | **Giữ**, khi người dùng cấp `calendar.app.created`; chưa có thì ghi vào `primary`. Ngắt kết nối thì xoá lịch này (khác §6.6) |
+| Full sync **toàn bộ lịch chính** vào DB | **Bỏ** khi ghi vào lịch "Recolly": lịch cá nhân không được copy, server chỉ đọc *giờ bận* (`events.list` + `singleEvents`) khi cần xếp lịch / báo trùng giờ. Phương án dự phòng (chưa có scope, ghi vào `primary` + `two_way`) vẫn kéo `primary` về như trước |
+| Outbox `sync_queue` + worker | **Thay bằng** tự đẩy sau commit (`calendar_autopush`, event listener của SQLAlchemy) + bảng `calendar_deletions` |
+| Luôn hai chiều cho lịch "Recolly" | **Người dùng chọn** `sync_mode`: `off` / `push` (mặc định) / `two_way` |
+| Conflict = local `pending` + etag khác → luôn hỏi | **Merge ba bên** theo `synced_snapshot`: khác field thì tự gộp; cùng field thì theo `conflict_policy` (`ask` mặc định / `google` / `local` / `latest`) |
+| — | **Mới:** trùng giờ (`clashes`, khối CP-SAT tự dời — `rescheduled`), một buổi lẻ bị dời/huỷ (`event_exceptions`) |
+| §9 thay đổi contract (`import_status`, `read_only`, `id` do client sinh) | **Không làm**; các thay đổi thật nằm trong `docs/openapi.yaml` draft 3 |
 
 ## 1. Tóm tắt quyết định
 

@@ -213,3 +213,19 @@ def test_floor_to_period_rounds_down_to_the_mark():
     five = timedelta(minutes=5)
     assert floor_to_period(datetime(2026, 11, 21, 10, 7, 23, tzinfo=TZ), five) == datetime(2026, 11, 21, 10, 5, tzinfo=TZ)
     assert floor_to_period(datetime(2026, 11, 21, 10, 5, tzinfo=TZ), five) == datetime(2026, 11, 21, 10, 5, tzinfo=TZ)
+
+
+def test_a_fixed_slot_or_study_block_is_announced_15_minutes_before(client, auth):
+    add_device(client, auth)
+    start = deadline_in_days(2, hour=15)
+    todo = client.post(f"{API}/todos", headers=auth, json={
+        "title": "Gặp thầy", "start_at": start.isoformat(),
+        "end_at": (start + timedelta(minutes=30)).isoformat()}).json()
+    sender = FakeSender()
+    assert run_send_reminders(start - timedelta(minutes=14), sender) == {"sent": 1}  # window [−19, −14) min
+    [(_, payload)] = sender.sent
+    assert (payload["type"], payload["ref_id"]) == ("event_start", todo["id"])
+    assert payload["title"] == "15 phút nữa: Gặp thầy"
+
+    client.patch(f"{API}/todos/{todo['id']}", json={"status": "done"}, headers=auth)
+    assert run_send_reminders(start - timedelta(minutes=14), FakeSender()) == {}  # done: its slot is gone

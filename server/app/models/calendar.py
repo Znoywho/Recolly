@@ -2,10 +2,11 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, SystemTimeStamp, UUIDPrimaryKey
+from app.models.enums import ConflictPolicy, SyncMode, str_enum
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -21,7 +22,8 @@ class CalendarConnection(UUIDPrimaryKey, SystemTimeStamp, Base):
     )
     google_email: Mapped[str] = mapped_column(String(320))
     calendar_id: Mapped[str] = mapped_column(String(1024), default="primary")
-    two_way_sync: Mapped[bool] = mapped_column(Boolean, default=False)
+    sync_mode: Mapped[SyncMode] = mapped_column(str_enum(SyncMode), default=SyncMode.PUSH)
+    conflict_policy: Mapped[ConflictPolicy] = mapped_column(str_enum(ConflictPolicy), default=ConflictPolicy.ASK)
     # Encrypted by the sync service before saving; never store the raw token.
     refresh_token_encrypted: Mapped[str] = mapped_column(Text)
     # Google events.list syncToken for incremental pulls (two-way sync).
@@ -34,6 +36,11 @@ class CalendarConnection(UUIDPrimaryKey, SystemTimeStamp, Base):
     channel_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     user: Mapped["User"] = relationship(back_populates="calendar_connection")
+
+    @property
+    def two_way(self) -> bool:
+        """True when edits made on Google are pulled."""
+        return self.sync_mode is SyncMode.TWO_WAY
 
 
 class CalendarDeletion(UUIDPrimaryKey, SystemTimeStamp, Base):

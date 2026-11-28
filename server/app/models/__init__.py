@@ -3,7 +3,7 @@
 from app.db.base import Base
 from app.models.auth import RefreshToken
 from app.models.calendar import CalendarConnection, CalendarDeletion
-from app.models.event import Event, SyncConflict
+from app.models.event import Event, EventException, SyncConflict
 from app.models.health import HealthProfile, SleepLog
 from app.models.notification import Device, ReminderSettings
 from app.models.ocr import OcrJob
@@ -18,6 +18,7 @@ __all__ = [
     "CalendarDeletion",
     "Device",
     "Event",
+    "EventException",
     "HealthProfile",
     "OcrJob",
     "RefreshToken",

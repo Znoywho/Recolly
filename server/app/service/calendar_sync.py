@@ -10,7 +10,7 @@ import hmac
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -22,11 +22,20 @@ from app.core.errors import ApiError, not_found, validation_error
 from app.core.security import channel_token, decrypt, encrypt
 from app.core.timeutil import now_utc
 from app.models.calendar import CalendarConnection, CalendarDeletion
-from app.models.enums import ConflictResolution, EventKind, EventSource, SyncStatus
-from app.models.event import Event, SyncConflict
+from app.models.enums import ConflictPolicy, ConflictResolution, EventKind, EventSource, SyncMode, SyncStatus
+from app.models.event import Event, EventException, SyncConflict
 from app.models.user import User
 from app.repository.event_repository import EventRepository
-from app.service.google import GoogleAuthRevoked, GoogleClient, GoogleError, GoogleGrant, GoogleUnavailable
+from app.service.event_service import subject_follows_event
+from app.service.schedule_guard import Busy, make_room
+from app.service.google import (
+    APP_CALENDAR_SCOPE,
+    GoogleAuthRevoked,
+    GoogleClient,
+    GoogleError,
+    GoogleGrant,
+    GoogleUnavailable,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +45,10 @@ CHANNEL_RENEW_BEFORE = timedelta(days=1)
 PULL_COOLDOWN = timedelta(minutes=2)
 TO_PUSH = (SyncStatus.PENDING, SyncStatus.ERROR)
 UNTITLED = "(Không có tiêu đề)"
+APP_CALENDAR_NAME = "Recolly"
+# Fields compared by the three-way merge (two-way sync).
+MERGE_FIELDS = ("title", "description", "location", "start_at", "end_at", "all_day", "rrule")
+PUSH_QUEUE_KEY = "gcal_push_users"  # Session.info key read by calendar_autopush after commit
 # Google Calendar colorId per kind, so classes and study blocks are easy to tell apart.
 COLOR_IDS = {EventKind.CLASS: "9", EventKind.STUDY: "10", EventKind.REST: "2", EventKind.BEDTIME: "8"}
 
@@ -75,9 +88,27 @@ def _access_token(conn: CalendarConnection, google: GoogleClient) -> str:
 
 # ─────────────────────────── Connection ───────────────────────────
 
-def save_connection(db: Session, user: User, grant: GoogleGrant) -> CalendarConnection | None:
+def queue_push(db: Session, user_id: uuid.UUID) -> None:
+    """Ask for an automatic push of this user's pending changes once the transaction commits."""
+    db.info.setdefault(PUSH_QUEUE_KEY, set()).add(user_id)
+
+
+def _target_calendar(user: User, grant: GoogleGrant, google: GoogleClient | None) -> str:
+    """Recolly's own calendar when the grant allows creating it, else the primary calendar."""
+    if google is None or APP_CALENDAR_SCOPE not in grant.scopes or grant.refresh_token is None:
+        return "primary"
+    try:
+        return google.create_calendar(google.access_token(grant.refresh_token), APP_CALENDAR_NAME, user.timezone)
+    except GoogleError as exc:
+        logger.warning("Could not create the Recolly calendar, using primary: %s", exc)
+        return "primary"
+
+
+def save_connection(db: Session, user: User, grant: GoogleGrant,
+                    google: GoogleClient | None = None) -> CalendarConnection | None:
     """Create or refresh the Calendar link after A1/G6 granted the calendar scope.
 
+    A new link writes to a "Recolly" calendar when the app-calendar scope was granted.
     Returns None when Google sent no refresh token and nothing is stored yet.
     """
     conn = user.calendar_connection
@@ -88,15 +119,30 @@ def save_connection(db: Session, user: User, grant: GoogleGrant) -> CalendarConn
         conn.google_email = grant.email
         conn.refresh_token_encrypted = encrypted
         return conn
-    conn = CalendarConnection(user_id=user.id, google_email=grant.email, calendar_id="primary",
-                              two_way_sync=False, refresh_token_encrypted=encrypted)
+    conn = CalendarConnection(user_id=user.id, google_email=grant.email,
+                              calendar_id=_target_calendar(user, grant, google),
+                              sync_mode=SyncMode.PUSH, conflict_policy=ConflictPolicy.ASK,
+                              refresh_token_encrypted=encrypted)
     user.calendar_connection = conn
     db.flush()
     # Everything created before connecting goes up on the first sync.
     db.execute(update(Event)
                .where(Event.user_id == user.id, Event.sync_status == SyncStatus.NOT_SYNCED)
                .values(sync_status=SyncStatus.PENDING))
+    queue_push(db, user.id)
     return conn
+
+
+def _delete_app_calendar(conn: CalendarConnection, google: GoogleClient, refresh_token: str) -> None:
+    """Delete the "Recolly" calendar on disconnect (best effort).
+
+    The app only holds calendar.events + calendar.app.created, so Google refuses (403) to delete
+    any calendar the app did not create, e.g. one the user picked in G8.
+    """
+    try:
+        google.delete_calendar(google.access_token(refresh_token), conn.calendar_id)
+    except GoogleError as exc:
+        logger.info("Calendar %s kept on disconnect: %s", conn.calendar_id, exc)
 
 
 def disconnect(db: Session, user: User, google: GoogleClient) -> None:
@@ -115,6 +161,8 @@ def disconnect(db: Session, user: User, google: GoogleClient) -> None:
                                     conn.channel_resource_id)
             except GoogleError as exc:
                 logger.info("Could not stop channel %s: %s", conn.channel_id, exc)
+        if conn.calendar_id != "primary":
+            _delete_app_calendar(conn, google, refresh_token)
         google.revoke(refresh_token)
     event_ids = select(Event.id).where(Event.user_id == user.id)
     db.execute(delete(SyncConflict).where(SyncConflict.event_id.in_(event_ids),
@@ -130,9 +178,9 @@ def disconnect(db: Session, user: User, google: GoogleClient) -> None:
 def status(db: Session, user: User) -> dict[str, Any]:
     conn = user.calendar_connection
     if conn is None:
-        return {"connected": False, "google_email": None, "calendar_id": None,
-                "two_way_sync": False, "last_synced_at": None, "pending_count": 0,
-                "conflict_count": 0}
+        return {"connected": False, "google_email": None, "calendar_id": None, "sync_mode": SyncMode.OFF,
+                "conflict_policy": ConflictPolicy.ASK, "two_way_sync": False, "last_synced_at": None,
+                "pending_count": 0, "conflict_count": 0}
     pending = db.scalar(select(func.count()).select_from(Event).where(
         Event.user_id == user.id, Event.sync_status.in_(TO_PUSH)))
     deletions = db.scalar(select(func.count()).select_from(CalendarDeletion).where(
@@ -140,13 +188,15 @@ def status(db: Session, user: User) -> dict[str, Any]:
     conflicts = db.scalar(select(func.count()).select_from(SyncConflict).join(Event).where(
         Event.user_id == user.id, SyncConflict.resolved_at.is_(None)))
     return {"connected": True, "google_email": conn.google_email, "calendar_id": conn.calendar_id,
-            "two_way_sync": conn.two_way_sync, "last_synced_at": conn.last_synced_at,
+            "sync_mode": conn.sync_mode, "conflict_policy": conn.conflict_policy,
+            "two_way_sync": conn.two_way, "last_synced_at": conn.last_synced_at,
             "pending_count": pending + deletions, "conflict_count": conflicts}
 
 
-def update_settings(db: Session, user: User, google: GoogleClient, *,
-                    calendar_id: str | None = None, two_way_sync: bool | None = None) -> None:
-    """G8. Moving to another calendar re-pushes everything there; old copies are left alone."""
+def update_settings(db: Session, user: User, google: GoogleClient, *, calendar_id: str | None = None,
+                    sync_mode: SyncMode | None = None, conflict_policy: ConflictPolicy | None = None) -> None:
+    """G8. Moving to another calendar re-pushes everything there; old copies are left alone.
+    Leaving `off` pushes what changed while paused; only `two_way` keeps a webhook channel."""
     conn = require_connection(user)
     try:
         if calendar_id is not None and calendar_id != conn.calendar_id:
@@ -156,17 +206,26 @@ def update_settings(db: Session, user: User, google: GoogleClient, *,
             _stop_channel(conn, google, token)
             conn.calendar_id = calendar_id
             conn.sync_token = None
-            # Copies pulled from the old calendar belong there.
+            # Copies pulled from the old calendar belong there, and so do occurrences changed on it.
+            series = select(Event.id).where(Event.user_id == user.id)
+            db.execute(delete(Event).where(Event.id.in_(select(EventException.moved_event_id)
+                                                        .where(EventException.event_id.in_(series)))))
+            db.execute(delete(EventException).where(EventException.event_id.in_(series)))
             db.execute(delete(Event).where(Event.user_id == user.id,
                                            Event.source == EventSource.GOOGLE))
             db.execute(update(Event).where(Event.user_id == user.id).values(
-                google_event_id=None, google_etag=None, sync_status=SyncStatus.PENDING))
-        if two_way_sync is not None:
-            conn.two_way_sync = two_way_sync
-        if not conn.two_way_sync:
+                google_event_id=None, google_etag=None, synced_snapshot=None, sync_status=SyncStatus.PENDING))
+            queue_push(db, user.id)
+        if conflict_policy is not None:
+            conn.conflict_policy = conflict_policy
+        if sync_mode is not None:
+            if conn.sync_mode is SyncMode.OFF and sync_mode is not SyncMode.OFF:
+                queue_push(db, user.id)
+            conn.sync_mode = sync_mode
+        if not conn.two_way:
             conn.sync_token = None
         # Google is only needed here to open or close a push channel.
-        wants_channel = conn.two_way_sync and bool(Config.WEBHOOK_BASE_URL)
+        wants_channel = conn.two_way and bool(Config.WEBHOOK_BASE_URL)
         if wants_channel or conn.channel_id:
             token = _access_token(conn, google)
             if wants_channel:
@@ -185,9 +244,10 @@ def to_google(event: Event, tz: ZoneInfo) -> dict[str, Any]:
         "summary": event.title,
         "description": event.description,
         "location": event.location,
-        "recurrence": [f"RRULE:{event.rrule}"] if event.rrule else [],
         "extendedProperties": {"private": {"recolly_id": str(event.id)}},
     }
+    if event.moved_from is None:  # one occurrence of a series cannot carry a recurrence
+        body["recurrence"] = [f"RRULE:{event.rrule}"] if event.rrule else []
     if event.kind in COLOR_IDS:
         body["colorId"] = COLOR_IDS[event.kind]
     if event.all_day:
@@ -226,6 +286,32 @@ def snapshot(item: dict[str, Any], tz: ZoneInfo) -> dict[str, Any]:
     }
 
 
+def apply_google_version(event: Event, snap: dict[str, Any], tz: ZoneInfo) -> None:
+    """Take Google's version of an event; a class series also moves its timetable subject."""
+    apply_snapshot(event, snap)
+    if event.subject is not None and event.rrule:
+        subject_follows_event(event.subject, event, tz)
+
+
+def _utc_iso(value: datetime | str) -> str:
+    """One spelling per instant, so a base and a new version compare equal when unchanged."""
+    moment = datetime.fromisoformat(value) if isinstance(value, str) else value
+    return moment.astimezone(UTC).isoformat()
+
+
+def event_fields(event: Event) -> dict[str, Any]:
+    """The merge fields of a local event, in snapshot form."""
+    return {"title": event.title, "description": event.description, "location": event.location,
+            "start_at": _utc_iso(event.start_at), "end_at": _utc_iso(event.end_at),
+            "all_day": event.all_day, "rrule": event.rrule}
+
+
+def snapshot_fields(snap: dict[str, Any]) -> dict[str, Any]:
+    """The merge fields of a Google snapshot, in the same form as event_fields."""
+    return {field: _utc_iso(snap[field]) if field in ("start_at", "end_at") else snap[field]
+            for field in MERGE_FIELDS}
+
+
 def apply_snapshot(event: Event, snap: dict[str, Any]) -> None:
     event.title = snap["title"]
     event.description = snap["description"]
@@ -237,6 +323,7 @@ def apply_snapshot(event: Event, snap: dict[str, Any]) -> None:
     event.google_etag = snap["etag"]
     event.sync_status = SyncStatus.SYNCED
     event.last_synced_at = now_utc()
+    event.synced_snapshot = event_fields(event)
 
 
 def _mark_synced(event: Event, saved: dict[str, Any]) -> None:
@@ -244,6 +331,7 @@ def _mark_synced(event: Event, saved: dict[str, Any]) -> None:
     event.google_etag = saved.get("etag")
     event.sync_status = SyncStatus.SYNCED
     event.last_synced_at = now_utc()
+    event.synced_snapshot = event_fields(event)
 
 
 # ─────────────────────────── Push ───────────────────────────
@@ -265,14 +353,15 @@ def _insert(google: GoogleClient, token: str, calendar_id: str, event: Event,
 
 
 def _push_event(db: Session, google: GoogleClient, token: str, conn: CalendarConnection,
-                event: Event, tz: ZoneInfo, result: SyncResult) -> None:
+                event: Event, tz: ZoneInfo, result: SyncResult, *, retry: bool = True) -> None:
+    """Insert or patch one event; a 412 (also changed on Google) merges, then pushes the result once."""
     body = to_google(event, tz)
     try:
         if event.google_event_id is None:
             saved = _insert(google, token, conn.calendar_id, event, body, reuse_id=True)
         else:
             # Two-way: If-Match makes Google refuse (412) when the event changed there too.
-            etag = event.google_etag if conn.two_way_sync else None
+            etag = event.google_etag if conn.two_way else None
             try:
                 saved = google.patch_event(token, conn.calendar_id, event.google_event_id, body, etag)
             except GoogleError as exc:
@@ -285,8 +374,9 @@ def _push_event(db: Session, google: GoogleClient, token: str, conn: CalendarCon
         if exc.status == 412:
             item = google.get_event(token, conn.calendar_id, event.google_event_id)
             if item is not None:
-                _record_conflict(db, event, item, tz)
-                result.conflicts += 1
+                _merge_or_conflict(db, conn, event, item, tz, result)
+                if retry and event.sync_status in TO_PUSH:  # merged or local wins: now with Google's etag
+                    _push_event(db, google, token, conn, event, tz, result, retry=False)
                 return
         logger.warning("Push of event %s failed: %s", event.id, exc)
         event.sync_status = SyncStatus.ERROR
@@ -331,13 +421,74 @@ def _record_conflict(db: Session, event: Event, item: dict[str, Any], tz: ZoneIn
     event.sync_status = SyncStatus.CONFLICT
 
 
+def _pull_new_occurrence(db: Session, user: User, item: dict[str, Any], tz: ZoneInfo,
+                         result: SyncResult, touched: list[Event]) -> None:
+    """One occurrence of a series moved or cancelled on Google: the series skips it, and a moved
+    one becomes its own event (later edits of it are pulled like any event)."""
+    series = EventRepository(db).get_by_google_id(user.id, item["recurringEventId"])
+    if series is None or "originalStartTime" not in item:
+        return  # a series this app does not know
+    original_start, _ = _google_time(item["originalStartTime"], tz)
+    exception = next((e for e in series.exceptions if e.original_start == original_start), None)
+    if exception is None:
+        exception = EventException(original_start=original_start)
+        series.exceptions.append(exception)
+    if item.get("status") != "cancelled" and exception.moved_event is None:
+        moved = Event(user_id=user.id, kind=series.kind, source=EventSource.GOOGLE, google_event_id=item["id"])
+        apply_snapshot(moved, snapshot(item, tz))
+        exception.moved_event = moved
+        touched.append(moved)
+    result.pulled += 1
+
+
+def _accept_google_etag(event: Event, snap: dict[str, Any]) -> None:
+    """Google's version becomes the base; the local event stays pending, so the next push
+    (now with Google's etag) writes the local fields over it."""
+    event.google_etag = snap["etag"]
+    event.synced_snapshot = snapshot_fields(snap)
+
+
+def _merge_or_conflict(db: Session, conn: CalendarConnection, event: Event, item: dict[str, Any],
+                       tz: ZoneInfo, result: SyncResult) -> None:
+    """`event` changed in the app and on Google since the last sync (G3/G4).
+
+    Changes to different fields are merged (base = the last synced version); when both sides
+    changed the same field, the connection's conflict policy decides.
+    """
+    snap = snapshot(item, tz)
+    google, local, base = snapshot_fields(snap), event_fields(event), event.synced_snapshot
+    if base is not None:
+        local_changed = {field for field in MERGE_FIELDS if local[field] != base.get(field)}
+        google_changed = {field for field in MERGE_FIELDS if google[field] != base.get(field)}
+        if not local_changed & google_changed:
+            for field in google_changed:
+                value = snap[field]
+                setattr(event, field, datetime.fromisoformat(value) if field in ("start_at", "end_at") else value)
+            _accept_google_etag(event, snap)
+            result.pulled += 1
+            return
+    policy = conn.conflict_policy
+    if policy is ConflictPolicy.LATEST:
+        google_newer = datetime.fromisoformat(snap["updated_at"]) > event.updated_at
+        policy = ConflictPolicy.GOOGLE if google_newer else ConflictPolicy.LOCAL
+    if policy is ConflictPolicy.GOOGLE:
+        event.google_event_id = item["id"]
+        apply_google_version(event, snap, tz)
+        result.pulled += 1
+    elif policy is ConflictPolicy.LOCAL:
+        _accept_google_etag(event, snap)
+    else:
+        _record_conflict(db, event, item, tz)
+        result.conflicts += 1
+
+
 def _apply_pulled(db: Session, user: User, item: dict[str, Any], tz: ZoneInfo,
-                  result: SyncResult) -> None:
-    if item.get("recurringEventId"):
-        return  # a changed instance of a series: not supported, the series itself is kept
+                  result: SyncResult, touched: list[Event]) -> None:
+    """Apply one changed Google item; events added or re-timed by Google go into `touched`."""
     events = EventRepository(db)
     local = events.get_by_google_id(user.id, item["id"])
-    if local is None:
+    # An occurrence inherits the series' recolly_id, so it is only ever found by its own id.
+    if local is None and not item.get("recurringEventId"):
         recolly_id = ((item.get("extendedProperties") or {}).get("private") or {}).get("recolly_id")
         try:
             local = events.get_owned(uuid.UUID(recolly_id), user.id) if recolly_id else None
@@ -345,6 +496,9 @@ def _apply_pulled(db: Session, user: User, item: dict[str, Any], tz: ZoneInfo,
             local = None
     cancelled = item.get("status") == "cancelled"
 
+    if local is None and item.get("recurringEventId"):
+        _pull_new_occurrence(db, user, item, tz, result, touched)
+        return
     if local is None:
         if cancelled:
             return
@@ -352,6 +506,7 @@ def _apply_pulled(db: Session, user: User, item: dict[str, Any], tz: ZoneInfo,
                       google_event_id=item["id"])
         apply_snapshot(event, snapshot(item, tz))
         db.add(event)
+        touched.append(event)
         result.pulled += 1
         return
     if local.google_etag is not None and local.google_etag == item.get("etag"):
@@ -373,16 +528,17 @@ def _apply_pulled(db: Session, user: User, item: dict[str, Any], tz: ZoneInfo,
         _record_conflict(db, local, item, tz)  # already counted: refresh Google's side only
         return
     if local.sync_status in TO_PUSH:
-        _record_conflict(db, local, item, tz)
-        result.conflicts += 1
+        _merge_or_conflict(db, user.calendar_connection, local, item, tz, result)
         return
     local.google_event_id = item["id"]
-    apply_snapshot(local, snapshot(item, tz))
+    apply_google_version(local, snapshot(item, tz), tz)
+    touched.append(local)
     result.pulled += 1
 
 
 def _pull(db: Session, user: User, conn: CalendarConnection, google: GoogleClient, token: str,
           tz: ZoneInfo, result: SyncResult) -> None:
+    """Pull changes since the sync token; CP-SAT blocks under what Google added or moved make room."""
     sync_token, page_token, items = conn.sync_token, None, []
     while True:
         try:
@@ -400,8 +556,13 @@ def _pull(db: Session, user: User, conn: CalendarConnection, google: GoogleClien
             continue
         conn.sync_token = page.next_sync_token
         break
-    for item in items:
-        _apply_pulled(db, user, item, tz, result)
+    touched: list[Event] = []
+    # Occurrences last: on a full sync their series may come later in the list.
+    for item in sorted(items, key=lambda item: bool(item.get("recurringEventId"))):
+        _apply_pulled(db, user, item, tz, result, touched)
+    db.flush()
+    now = now_utc()
+    make_room(db, user, [event for event in touched if event in db and event.end_at > now], [])
 
 
 # ─────────────────────────── Channels ───────────────────────────
@@ -450,25 +611,29 @@ def _lock(db: Session, conn: CalendarConnection) -> None:
 
 
 def sync(db: Session, user: User, google: GoogleClient,
-         event_ids: list[uuid.UUID] | None = None) -> SyncResult:
-    """G2: push deletions and pending events, then pull Google changes when two-way."""
+         event_ids: list[uuid.UUID] | None = None, *, pull: bool = True) -> SyncResult:
+    """G2: push deletions and pending events, then pull Google changes when two-way.
+    `pull=False` is the automatic push after a change (calendar_autopush)."""
     conn = require_connection(user)
+    if conn.sync_mode is SyncMode.OFF:
+        raise ApiError(409, "CALENDAR_SYNC_OFF", "Google Calendar sync is turned off in settings")
     _lock(db, conn)
     tz = ZoneInfo(user.timezone)
     result = SyncResult()
-    should_pull = conn.two_way_sync and not pulled_recently(conn)
+    should_pull = pull and conn.two_way and not pulled_recently(conn)
     try:
         token = _access_token(conn, google)
         _push(db, user, conn, google, token, tz, result, event_ids)
         if should_pull:
             _pull(db, user, conn, google, token, tz, result)
             _renew_channel(conn, google, token)
+            _push(db, user, conn, google, token, tz, result, event_ids)  # what the pull merged
     except GoogleError as exc:
         # Keep what already reached Google; otherwise stale etags would look like conflicts.
         db.commit()
         raise api_error(exc) from exc
     # A push-only sync inside the cooldown must not extend it, or spamming would block pulls forever.
-    if should_pull or not conn.two_way_sync:
+    if should_pull or not conn.two_way:
         conn.last_synced_at = now_utc()
     db.flush()
     logger.info("GCal sync user=%s %s", user.id, result)
@@ -487,7 +652,7 @@ def pulled_recently(conn: CalendarConnection) -> bool:
 def channel_owner(db: Session, channel_id: str, resource_id: str, token: str | None) -> uuid.UUID | None:
     """G5: the user behind a verified Google notification, or None to ignore it."""
     conn = db.scalar(select(CalendarConnection).where(CalendarConnection.channel_id == channel_id))
-    if conn is None or conn.channel_resource_id != resource_id or not conn.two_way_sync:
+    if conn is None or conn.channel_resource_id != resource_id or not conn.two_way:
         return None
     if not hmac.compare_digest(token or "", channel_token(channel_id)):
         return None
@@ -535,7 +700,7 @@ def resolve_conflict(db: Session, user: User, conflict_id: uuid.UUID,
         raise ApiError(409, "CONFLICT_ALREADY_RESOLVED", "Conflict already resolved")
     event = conflict.event
     if keep is ConflictResolution.KEEP_GOOGLE:
-        apply_snapshot(event, conflict.google_payload)
+        apply_google_version(event, conflict.google_payload, ZoneInfo(user.timezone))
     else:
         event.google_etag = conflict.google_payload.get("etag")
         event.sync_status = SyncStatus.PENDING
@@ -543,3 +708,24 @@ def resolve_conflict(db: Session, user: User, conflict_id: uuid.UUID,
     conflict.resolution = keep
     db.flush()
     return event
+
+
+# ─────────────────────────── Busy times ───────────────────────────
+
+def google_busy(user: User, google: GoogleClient, start: datetime, end: datetime) -> list[Busy]:
+    """Busy times on the primary Google calendar in [start, end); [] when sync is off or Google fails.
+
+    Skips Recolly's own events, and everything when two-way already pulls the primary calendar.
+    """
+    conn = user.calendar_connection
+    if conn is None or conn.sync_mode is SyncMode.OFF or (conn.two_way and conn.calendar_id == "primary"):
+        return []
+    try:
+        items = google.busy_events(_access_token(conn, google), "primary", start, end)
+    except GoogleError as exc:
+        logger.warning("Busy times of user %s unavailable: %s", user.id, exc)
+        return []
+    return [Busy(datetime.fromisoformat(item["start"]["dateTime"]), datetime.fromisoformat(item["end"]["dateTime"]),
+                 item.get("summary") or UNTITLED)
+            for item in items
+            if not ((item.get("extendedProperties") or {}).get("private") or {}).get("recolly_id")]

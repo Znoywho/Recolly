@@ -115,6 +115,9 @@ class _CalendarPushPageState extends State<CalendarPushPage> {
     if (e.code == 'CALENDAR_NOT_CONNECTED') {
       return 'Chưa kết nối Google Calendar.';
     }
+    if (e.code == 'CALENDAR_SYNC_OFF') {
+      return 'Đồng bộ đang tạm dừng, bật lại trong Google Calendar nhé.';
+    }
     if (e.code == 'GOOGLE_SCOPE_MISSING') {
       return 'Quyền Google hết hạn, hãy kết nối lại.';
     }

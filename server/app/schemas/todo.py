@@ -6,6 +6,7 @@ from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
 from app.models.enums import Priority, TodoCategory, TodoStatus
 from app.schemas.common import ORMModel, PatchModel
+from app.schemas.event import ClashRead, EventRead
 
 TodoSort = Literal["deadline_at", "-deadline_at", "priority", "-priority", "created_at", "-created_at"]
 
@@ -87,3 +88,10 @@ class TranscribeResponse(BaseModel):
     transcript: str
     todo_draft: TodoDraft | None
     parser: Literal["gemini", "rules"]
+
+
+class TodoSaved(TodoRead):
+    """D2/D4 answer: with a fixed slot, also what that slot overlaps (see EventSaved)."""
+
+    clashes: list[ClashRead] = Field(default_factory=list)
+    rescheduled: list[EventRead] = Field(default_factory=list)

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Self
+from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, Field, model_validator
@@ -67,6 +67,27 @@ class EventRead(ORMModel):
         default=None, description="Set only on recurring instances returned by E1.")
     created_at: datetime
     updated_at: datetime
+
+
+class ClashRead(ORMModel):
+    """Something at the same time as the saved event."""
+
+    title: str
+    start_at: datetime
+    end_at: datetime
+    event_id: UUID | None = Field(description="Null for a busy time on the user's Google calendar.")
+    kind: EventKind | None
+    source: Literal["recolly", "google"]
+    movable: bool = Field(description="A CP-SAT block that could not be moved (e.g. no sleep profile).")
+
+
+class EventSaved(EventRead):
+    """E2/E4 answer: the event plus what it overlaps after CP-SAT blocks made room."""
+
+    clashes: list[ClashRead] = Field(default_factory=list, description="Fixed things still at the same time: "
+                                     "the app asks the user to keep both, move or drop.")
+    rescheduled: list[EventRead] = Field(default_factory=list,
+                                         description="CP-SAT study blocks moved out of the way (new events).")
 
 
 class EventList(BaseModel):

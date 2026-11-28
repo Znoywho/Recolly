@@ -31,7 +31,7 @@ def issue_tokens(db: Session, user: User) -> dict[str, Any]:
             "token_type": "bearer", "expires_in": Config.ACCESS_TOKEN_TTL_SECONDS}
 
 
-def sign_in(db: Session, grant: GoogleGrant) -> tuple[User, bool]:
+def sign_in(db: Session, grant: GoogleGrant, google: GoogleClient | None = None) -> tuple[User, bool]:
     """A1: find or create the user of a Google account; link Calendar if its scope was granted."""
     users = UserRepository(db)
     user = users.get_by_google_sub(grant.sub)
@@ -47,7 +47,7 @@ def sign_in(db: Session, grant: GoogleGrant) -> tuple[User, bool]:
     user.last_login_at = now_utc()
     if CALENDAR_SCOPE in grant.scopes:
         try:
-            calendar_sync.save_connection(db, user, grant)
+            calendar_sync.save_connection(db, user, grant, google)
         except ApiError as exc:  # e.g. no TOKEN_ENCRYPTION_KEY: sign in anyway, connect later (G6)
             logger.warning("Calendar not linked at sign-in: %s", exc.detail)
     db.flush()

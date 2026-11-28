@@ -41,7 +41,8 @@ def two_way(client, headers):
 
 def test_status_when_not_connected(client, auth):
     assert client.get(f"{API}/calendar/status", headers=auth).json() == {
-        "connected": False, "google_email": None, "calendar_id": None, "two_way_sync": False,
+        "connected": False, "google_email": None, "calendar_id": None, "sync_mode": "off",
+        "conflict_policy": "ask", "two_way_sync": False,
         "last_synced_at": None, "pending_count": 0, "conflict_count": 0}
     response = client.post(f"{API}/calendar/sync", headers=auth)
     assert response.status_code == 409
@@ -276,3 +277,195 @@ def test_daily_job_skips_a_revoked_user_and_keeps_going(client, connected, googl
     two_way(client, connected)
     google.revoked = True
     assert run_calendar_maintenance(google) == {"failed": 1}
+
+
+def class_series_on_google(client, headers, google):
+    """Save SUBJECT (Wednesdays 07:30) with two-way sync on and push it; returns Google's series."""
+    two_way(client, headers)
+    client.post(f"{API}/timetable", json={"subjects": [SUBJECT]}, headers=headers)
+    sync(client, headers)
+    [series] = google.events()
+    return series
+
+
+def test_two_way_pulls_one_moved_and_one_cancelled_class(client, connected, google):
+    series = class_series_on_google(client, connected, google)
+    moved = google.add_on_google("Học bù CTDL", datetime(2026, 11, 12, 14, 0, tzinfo=TZ), 135,
+                                 recurringEventId=series["id"],
+                                 originalStartTime={"dateTime": "2026-11-11T07:30:00+07:00"})
+    google.add_on_google("Cấu trúc dữ liệu", datetime(2026, 11, 18, 7, 30, tzinfo=TZ), 135, status="cancelled",
+                         recurringEventId=series["id"],
+                         originalStartTime={"dateTime": "2026-11-18T07:30:00+07:00"})
+    assert sync(client, connected) == {"pushed": 0, "pulled": 2, "failed": 0, "conflicts": 0}
+
+    def classes_of_two_weeks():
+        events = client.get(f"{API}/events", headers=connected, params={
+            "from": "2026-11-09T00:00:00+07:00", "to": "2026-11-23T00:00:00+07:00", "kind": "class"}).json()
+        return [(e["title"], e["start_at"]) for e in events["items"]]
+
+    assert classes_of_two_weeks() == [("Học bù CTDL", "2026-11-12T14:00:00+07:00")]
+    google.edit_on_google(moved["id"], summary="Học bù CTDL - C2.01")
+    assert sync(client, connected)["pulled"] == 1
+    assert classes_of_two_weeks() == [("Học bù CTDL - C2.01", "2026-11-12T14:00:00+07:00")]
+    # One changed occurrence leaves the timetable as it was.
+    [subject] = client.get(f"{API}/timetable", headers=connected).json()["items"]
+    assert subject["day_of_week"] == 3
+
+
+def test_class_series_moved_on_google_moves_the_subject(client, connected, google):
+    series = class_series_on_google(client, connected, google)
+    google.edit_on_google(series["id"], summary="CTDL", location="C2.01",
+                          start={"dateTime": "2026-09-10T13:00:00+07:00"},
+                          end={"dateTime": "2026-09-10T15:15:00+07:00"},
+                          recurrence=["RRULE:FREQ=WEEKLY;BYDAY=TH;UNTIL=20261220T165959Z"])
+    assert sync(client, connected)["pulled"] == 1
+    [subject] = client.get(f"{API}/timetable", headers=connected).json()["items"]
+    assert (subject["name"], subject["room"], subject["day_of_week"]) == ("CTDL", "C2.01", 4)
+    assert (subject["start_time"][:5], subject["end_time"][:5]) == ("13:00", "15:15")
+
+
+def test_only_a_todo_with_a_fixed_slot_becomes_an_event(client, connected, google):
+    def summaries():
+        return sorted(e["summary"] for e in google.events())
+
+    todo = client.post(f"{API}/todos", json={"title": "Nộp báo cáo", "category": "assignment",
+                                             "deadline_at": "2026-11-20T23:59:00+07:00"}, headers=connected).json()
+    assert todo["difficulty"] == 5  # default of its category
+    create_event(client, connected, title="Nộp báo cáo", kind="study", todo_id=todo["id"])
+    assert sync(client, connected)["pushed"] == 1
+    assert summaries() == ["Nộp báo cáo"]  # the study block; a deadline alone is not an event
+
+    url = f"{API}/todos/{todo['id']}"
+    client.patch(url, json={"title": "Báo cáo cuối kỳ"}, headers=connected)
+    assert sync(client, connected)["pushed"] == 1
+    assert summaries() == ["Báo cáo cuối kỳ"]  # the study block follows the new title
+
+    client.patch(url, json={"start_at": "2026-11-19T08:00:00+07:00", "end_at": "2026-11-19T10:00:00+07:00"},
+                 headers=connected)
+    assert sync(client, connected)["pushed"] == 1
+    assert summaries() == ["Báo cáo cuối kỳ", "Báo cáo cuối kỳ"]
+    slot = next(e for e in google.events() if e["start"]["dateTime"].startswith("2026-11-19T08:00"))
+    assert slot["end"]["dateTime"] == "2026-11-19T10:00:00+07:00"
+
+    client.patch(url, json={"status": "done"}, headers=connected)
+    assert sync(client, connected)["pushed"] == 1
+    assert summaries() == ["Báo cáo cuối kỳ"]
+
+    client.patch(url, json={"status": "todo"}, headers=connected)
+    client.delete(url, headers=connected)
+    sync(client, connected)
+    assert summaries() == ["Báo cáo cuối kỳ"]  # deleting the todo removes its own slot, not study blocks
+
+
+def settings(client, headers, **body):
+    response = client.patch(f"{API}/calendar/settings", json=body, headers=headers)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_sync_modes(client, connected, google):
+    status = client.get(f"{API}/calendar/status", headers=connected).json()
+    assert (status["sync_mode"], status["calendar_id"]) == ("push", "primary")  # default: one-way
+
+    event = create_event(client, connected)
+    sync(client, connected)
+    google.edit_on_google(uuid.UUID(event["id"]).hex, summary="Sửa trên Google")
+    assert sync(client, connected)["pulled"] == 0  # push mode never pulls
+    assert get_event(client, connected, event)["title"] == "Họp nhóm"
+
+    assert settings(client, connected, sync_mode="off")["two_way_sync"] is False
+    response = client.post(f"{API}/calendar/sync", headers=connected)
+    assert (response.status_code, response.json()["code"]) == (409, "CALENDAR_SYNC_OFF")
+
+    assert settings(client, connected, sync_mode="two_way")["two_way_sync"] is True
+    assert sync(client, connected)["pulled"] == 1
+    assert get_event(client, connected, event)["title"] == "Sửa trên Google"
+    assert settings(client, connected, two_way_sync=False)["sync_mode"] == "push"  # deprecated flag still works
+
+
+def test_a_new_link_writes_to_its_own_recolly_calendar(client, auth, google):
+    google.add_grant("code", sub="sub", email="sv@gmail.com", calendar=True, app_calendar=True)
+    status = client.post(f"{API}/calendar/connection", json={"server_auth_code": "code"}, headers=auth).json()
+    assert status["calendar_id"].startswith("recolly")
+    create_event(client, auth)
+    sync(client, auth)
+    assert google.events() == [] and len(google.events(status["calendar_id"])) == 1
+
+
+def test_changes_to_different_fields_merge_without_a_conflict(client, connected, google):
+    two_way(client, connected)
+    event = create_event(client, connected)
+    sync(client, connected)
+    google.edit_on_google(uuid.UUID(event["id"]).hex, location="Phòng C2.01")
+    client.patch(f"{API}/events/{event['id']}", json={"title": "Họp lớp"}, headers=connected)
+
+    assert sync(client, connected) == {"pushed": 1, "pulled": 1, "failed": 0, "conflicts": 0}
+    merged = get_event(client, connected, event)
+    assert (merged["title"], merged["location"], merged["sync_status"]) == ("Họp lớp", "Phòng C2.01", "synced")
+    [item] = google.events()
+    assert (item["summary"], item["location"]) == ("Họp lớp", "Phòng C2.01")
+
+
+@pytest.mark.parametrize(("policy", "title"), [("google", "Bản Google"), ("local", "Bản local"),
+                                               ("latest", "Bản Google")])
+def test_conflict_policy_decides_when_both_sides_changed_the_same_field(client, connected, google, policy, title):
+    two_way(client, connected)
+    settings(client, connected, conflict_policy=policy)
+    event = create_event(client, connected)
+    sync(client, connected)
+    client.patch(f"{API}/events/{event['id']}", json={"title": "Bản local"}, headers=connected)
+    google.edit_on_google(uuid.UUID(event["id"]).hex, summary="Bản Google")  # edited last
+
+    assert sync(client, connected)["conflicts"] == 0
+    assert get_event(client, connected, event)["title"] == title
+    assert google.events()[0]["summary"] == title
+
+
+def test_changes_are_pushed_automatically_after_commit(client, connected, google, monkeypatch):
+    from app.service import calendar_autopush
+
+    monkeypatch.setattr(calendar_autopush, "ENABLED", True)
+    monkeypatch.setattr(calendar_autopush, "run", lambda user_id: calendar_autopush.push_now(user_id, google))
+    event = create_event(client, connected)
+    assert [e["summary"] for e in google.events()] == ["Họp nhóm"]
+    assert get_event(client, connected, event)["sync_status"] == "synced"
+
+    settings(client, connected, sync_mode="off")
+    client.patch(f"{API}/events/{event['id']}", json={"title": "Đổi khi tắt sync"}, headers=connected)
+    assert google.events()[0]["summary"] == "Họp nhóm"  # paused
+    settings(client, connected, sync_mode="push")  # turning it back on pushes what waited
+    assert google.events()[0]["summary"] == "Đổi khi tắt sync"
+
+
+def test_google_busy_times_are_reported_as_clashes(client, connected, google):
+    google.add_on_google("Họp CLB", datetime(2026, 11, 2, 19, 30, tzinfo=TZ))
+    event = create_event(client, connected)  # 19:00-20:00 the same evening
+    [clash] = event["clashes"]
+    assert (clash["title"], clash["source"], clash["event_id"], clash["movable"]) == ("Họp CLB", "google", None, False)
+
+
+def test_a_412_merge_is_pushed_in_the_same_sync(client, connected, google, monkeypatch):
+    two_way(client, connected)
+    event = create_event(client, connected)
+    sync(client, connected)
+    google.edit_on_google(uuid.UUID(event["id"]).hex, location="Phòng C2.01")
+    client.patch(f"{API}/events/{event['id']}", json={"title": "Họp lớp"}, headers=connected)
+    # A push-only run (the automatic push) meets Google's newer etag: 412 → merge → push again.
+    from app.db.session import SessionLocal
+    from app.models.user import User
+
+    with SessionLocal() as db:
+        user = db.get(User, uuid.UUID(client.get(f"{API}/users/me", headers=connected).json()["id"]))
+        calendar_sync.sync(db, user, google, pull=False)
+        db.commit()
+    [item] = google.events()
+    assert (item["summary"], item["location"]) == ("Họp lớp", "Phòng C2.01")
+    assert get_event(client, connected, event)["sync_status"] == "synced"
+
+
+def test_disconnect_deletes_only_the_calendar_the_app_created(client, auth, google):
+    google.add_grant("code", sub="sub", email="sv@gmail.com", calendar=True, app_calendar=True)
+    calendar_id = client.post(f"{API}/calendar/connection", json={"server_auth_code": "code"},
+                              headers=auth).json()["calendar_id"]
+    assert client.delete(f"{API}/calendar/connection", headers=auth).status_code == 204
+    assert calendar_id not in google.calendars and "primary" in google.calendars
