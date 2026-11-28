@@ -89,6 +89,19 @@ def test_llm_quote_uses_sleep_debt_and_next_deadline(client, auth, monkeypatch):
     assert "giờ ngủ trong 7 ngày qua" in system_prompt
 
 
+
+def test_quote_is_written_once_per_day_and_a_fallback_is_not_kept(client, auth, monkeypatch):
+    seen = []
+    monkeypatch.setattr(quotes, "default_client", lambda: fake_ollama(None, seen))
+    assert client.get(f"{API}/quotes/random", headers=auth).json()["source"] == "fallback"
+    monkeypatch.setattr(quotes, "default_client", lambda: fake_ollama("Gét gô ní.", seen))
+    first = client.get(f"{API}/quotes/random", headers=auth).json()
+    again = client.get(f"{API}/quotes/random", headers=auth).json()
+    assert first == again and first["source"] == "llm"
+    assert len(seen) == 2  # the fallback call and the first llm call; the repeat came from the cache
+    assert client.get(f"{API}/quotes/random", params={"context": "sleep"}, headers=auth).json()["context"] == "sleep"
+
+
 def test_llm_quote_falls_back_on_empty_or_too_long_reply():
     for reply in ("  ", "x" * 500):
         assert quotes.llm_quote("progress", None, None, fake_ollama(reply, []))["source"] == "fallback"
