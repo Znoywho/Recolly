@@ -1,8 +1,12 @@
-from fastapi import APIRouter, Response
+import json
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy import select
 
 from app.core.deps import CurrentUser, DbSession, user_tz
-from app.core.timeutil import now_utc
+from app.core.redis_client import MemoryStore, RedisStore, get_store
+from app.core.timeutil import now_utc, today
 from app.models.enums import TodoStatus
 from app.models.notification import Device, ReminderSettings as ReminderSettingsRow
 from app.repository.todo_repository import TodoRepository
@@ -12,6 +16,7 @@ from app.service.quotes import llm_quote
 from app.service.reminders import reminder_settings_of
 
 router = APIRouter(tags=["Reminders"])
+QUOTE_CACHE_SECONDS = 24 * 3600  # the date in the key starts a new quote at local midnight
 
 
 @router.get("/reminder-settings", response_model=ReminderSettings)
@@ -71,8 +76,14 @@ def unregister_device(fcm_token: str, user: CurrentUser, db: DbSession):
 
 
 @router.get("/quotes/random", response_model=Quote)
-def get_random_quote(user: CurrentUser, db: DbSession, context: QuoteContext = "general"):
-    """R5 · Motivation quote about the user's sleep debt and next deadline; never fails (built-in list fallback)."""
+def get_random_quote(user: CurrentUser, db: DbSession,
+                     store: Annotated[RedisStore | MemoryStore, Depends(get_store)],
+                     context: QuoteContext = "general"):
+    """R5 · One motivation quote per user, context and local day about the user's sleep debt and next deadline;
+    never fails (built-in list fallback)."""
+    cache_key = f"quote:{user.id}:{context}:{today(user_tz(user))}"
+    if cached := store.get(cache_key):
+        return Quote(**json.loads(cached))
     debt_hours = None
     if user.health_profile is not None:  # no profile yet: quote without sleep debt instead of a 404
         debt_hours = biorhythm_service.debt_summary(db, user, user.health_profile, 7)["total_debt_minutes"] / 60
@@ -80,4 +91,7 @@ def get_random_quote(user: CurrentUser, db: DbSession, context: QuoteContext = "
                                        due_after=now_utc(), limit=1)
     deadline = (f"{todos[0].title}, {todos[0].deadline_at.astimezone(user_tz(user)):%H:%M %d/%m}"
                 if todos else None)
-    return Quote(**llm_quote(context, debt_hours, deadline))
+    quote = llm_quote(context, debt_hours, deadline)
+    if quote["source"] == "llm":  # a fallback is not kept, so the next open retries the model
+        store.set_with_ttl(cache_key, json.dumps(quote), QUOTE_CACHE_SECONDS)
+    return Quote(**quote)
