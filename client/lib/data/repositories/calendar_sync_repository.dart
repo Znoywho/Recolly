@@ -13,12 +13,15 @@ abstract interface class CalendarSyncRepository {
   /// G7: local events stay, their sync status becomes `not_synced`.
   Future<void> disconnect();
 
-  /// G8: changes the target calendar or two-way sync.
-  Future<CalendarStatus> updateSettings({String? calendarId, bool? twoWaySync});
+  /// G8: changes the target calendar or the sync mode (off / one-way / two-way).
+  Future<CalendarStatus> updateSettings({
+    String? calendarId,
+    SyncMode? syncMode,
+  });
 
   /// G2: pushes pending events ([eventIds] `null` → all pending) and pulls
-  /// changes when two-way. Throws `ApiException` 403 `GOOGLE_SCOPE_MISSING`
-  /// or 409 `CALENDAR_NOT_CONNECTED`.
+  /// changes when two-way. Throws `ApiException` 403 `GOOGLE_SCOPE_MISSING`,
+  /// 409 `CALENDAR_NOT_CONNECTED` or 409 `CALENDAR_SYNC_OFF` (mode `off`).
   Future<SyncResult> sync({List<String>? eventIds});
 
   Future<List<SyncConflict>> listConflicts();
@@ -50,11 +53,11 @@ class ApiCalendarSyncRepository implements CalendarSyncRepository {
   @override
   Future<CalendarStatus> updateSettings({
     String? calendarId,
-    bool? twoWaySync,
+    SyncMode? syncMode,
   }) async => CalendarStatus.fromJson(
     await _client.patch(
       'calendar/settings',
-      body: {'calendar_id': ?calendarId, 'two_way_sync': ?twoWaySync},
+      body: {'calendar_id': ?calendarId, 'sync_mode': ?syncMode?.toJson()},
     ) as Json,
   );
 

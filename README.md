@@ -192,9 +192,9 @@ Bảng dưới đây chỉ nói về backend.
 |---|---|
 | Xếp 3 con vật, đường năng lượng trong ngày | Đã có: `/chronotype/assess`, `/biorhythm` |
 | Nhật ký ngủ và nợ ngủ | Đã có: `/sleep-logs`, `/sleep-debt` |
-| Xếp giờ ôn thi và giờ nghỉ bằng CP-SAT, tránh thời khóa biểu, khung giờ bận và giữ khoảng đệm trước deadline | Đã có: `/schedule/generate`, `/schedule/apply` |
-| Sự kiện và todo/deadline | Đã có: `/events`, `/todos` |
-| Đẩy lịch lên Google Calendar | Đã có: `/calendar/sync` |
+| Xếp giờ ôn thi và giờ nghỉ bằng CP-SAT, tránh thời khóa biểu, khung giờ bận (cả giờ bận trên Google Calendar) và giữ khoảng đệm trước deadline; bài cần tập trung cao vào giờ vàng, việc nhẹ vào giờ thấp ([`server/docs/scheduler.md`](server/docs/scheduler.md)) | Đã có: `/schedule/generate`, `/schedule/apply` |
+| Sự kiện và todo/deadline; báo trùng giờ và tự dời khối học CP-SAT bị đè; chỉ todo có giờ cố định mới thành sự kiện | Đã có: `/events`, `/todos` |
+| Đẩy lịch lên Google Calendar (tự động sau mỗi thay đổi, vào lịch "Recolly" riêng; người dùng chọn chế độ `off` / `push` / `two_way`) | Đã có: `/calendar/settings`, `/calendar/sync` |
 | Nhập và sửa thời khóa biểu thủ công | Đã có: `/timetable` |
 | Chụp ảnh thời khóa biểu và trích xuất dữ liệu | Đã có: `/ocr/timetable` (xem giai đoạn 2) |
 
@@ -202,8 +202,8 @@ Bảng dưới đây chỉ nói về backend.
 
 | Tính năng | Backend |
 |---|---|
-| Thông báo nhắc giờ ngủ và deadline | Đã có: service `reminders` (mỗi 5 phút) gửi push FCM, chống gửi trùng qua Redis |
-| Đồng bộ hai chiều với Google Calendar | Đã có: `/calendar/sync`, `/calendar/conflicts`, `/calendar/webhook`; job hằng ngày gia hạn kênh push và kéo dữ liệu dự phòng |
+| Thông báo nhắc giờ ngủ, deadline (trước 24 h và 2 h) và 15 phút trước khối học / todo có giờ | Đã có: service `reminders` (mỗi 5 phút) gửi push FCM, chống gửi trùng qua Redis |
+| Đồng bộ hai chiều với Google Calendar | Đã có: `/calendar/sync`, `/calendar/conflicts`, `/calendar/webhook`; sửa khác field thì tự gộp, cùng field thì theo `conflict_policy`; service `calendar-maintenance` gia hạn kênh push và kéo dữ liệu dự phòng mỗi ngày. Thiết kế: [`server/docs/calendar_sync.md`](server/docs/calendar_sync.md), kịch bản test: [`server/docs/sync_test_cases.md`](server/docs/sync_test_cases.md) |
 | Nhập bằng giọng nói → bản nháp todo | Đã có: `/voice/transcribe` (PhoWhisper + Qwen2.5 trên Kaggle; khi Ollama tắt thì chỉ dùng luật). **Ghi âm được lưu trước**: Kaggle tắt thì trả `202`, service `voice-worker` thử lại mỗi phút và gửi push `voice_ready`; xem trạng thái ở `/voice/jobs/{id}`. Chi tiết ở [`server/README.md`](server/README.md) |
 | OCR ảnh thời khoá biểu | Đã có: `POST /ocr/timetable` trả `202` ngay, Gemini đọc ảnh thành môn học; app hỏi `/ocr/jobs/{id}` mỗi ~2 s rồi lưu bằng `POST /timetable`. Không gọi được model thì job `failed` với `OCR_MODEL_ERROR`. Chi tiết ở [`docs/ocr-pipeline.md`](docs/ocr-pipeline.md) |
 | Giới hạn tần suất gọi API | Đã có: 120 request/phút mỗi người, riêng `/schedule/generate` 10/phút và tối đa 2 lần giải cùng lúc. Webhook Google `/calendar/webhook` cũng bị giới hạn 120/phút theo IP (IP của Google, dùng chung): ổn cho demo, cần xem lại khi nhiều người dùng |
@@ -246,7 +246,8 @@ docker compose up --build       # PostgreSQL ở cổng 5433, Redis ở 127.0.0.
 |---|---|
 | `db`, `redis` | PostgreSQL 18, Redis 7 |
 | `server` | API FastAPI, cổng 8765 |
-| `reminders` | Nhắc giờ ngủ / deadline mỗi 5 phút (`python -m app.jobs.send_reminders --loop`) |
+| `reminders` | Nhắc giờ ngủ / deadline / 15 phút trước khối học, chạy mỗi 5 phút (`python -m app.jobs.send_reminders --loop`) |
+| `calendar-maintenance` | Mỗi ngày: gia hạn kênh webhook Google Calendar, kéo dự phòng khi không còn kênh (`python -m app.jobs.calendar_maintenance --loop`) |
 | `voice-worker` | Thử lại các ghi âm lưu lúc Kaggle tắt (mỗi phút), xoá ghi âm sau 7 ngày (`python -m app.jobs.process_voice --loop`) |
 | `logs` | Dozzle, xem log mọi container: http://localhost:8888 (chỉ máy này) |
 | `tunnel` | Cloudflare tunnel cho webhook Google Calendar; chỉ chạy khi `docker compose --profile tunnel up` |

@@ -1,4 +1,5 @@
 from app.service.google.client import (
+    APP_CALENDAR_SCOPE,
     CALENDAR_SCOPE,
     EventPage,
     GoogleAuthRevoked,
@@ -11,6 +12,7 @@ from app.service.google.client import (
 )
 
 __all__ = [
+    "APP_CALENDAR_SCOPE",
     "CALENDAR_SCOPE",
     "EventPage",
     "GoogleAuthRevoked",

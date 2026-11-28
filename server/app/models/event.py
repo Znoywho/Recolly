@@ -52,12 +52,23 @@ class Event(UUIDPrimaryKey, SystemTimeStamp, Base):
         str_enum(SyncStatus), default=SyncStatus.NOT_SYNCED
     )
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Fields as both sides agreed at the last sync: the base of the three-way merge (two-way sync).
+    synced_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
     user: Mapped["User"] = relationship(back_populates="events")
     subject: Mapped["Subject | None"] = relationship(back_populates="events")
     todo: Mapped["Todo | None"] = relationship(back_populates="events")
     conflicts: Mapped[list["SyncConflict"]] = relationship(
         back_populates="event", cascade="all, delete-orphan"
+    )
+    # Occurrences of this series changed on Google (selectin: read for every series expanded).
+    exceptions: Mapped[list["EventException"]] = relationship(
+        back_populates="event", cascade="all, delete-orphan", lazy="selectin",
+        foreign_keys="EventException.event_id",
+    )
+    # Set when this event is one occurrence of a series, moved on Google.
+    moved_from: Mapped["EventException | None"] = relationship(
+        back_populates="moved_event", foreign_keys="EventException.moved_event_id"
     )
 
 
@@ -76,3 +87,24 @@ class SyncConflict(UUIDPrimaryKey, Base):
     resolution: Mapped[ConflictResolution | None] = mapped_column(str_enum(ConflictResolution))
 
     event: Mapped["Event"] = relationship(back_populates="conflicts")
+
+
+class EventException(UUIDPrimaryKey, Base):
+    """One occurrence of a recurring event changed on Google: the series skips `original_start`;
+    when the occurrence was moved (not cancelled), `moved_event` shows it at its new time."""
+
+    __tablename__ = "event_exceptions"
+    __table_args__ = (UniqueConstraint("event_id", "original_start", name="uq_event_exceptions_event_id_start"),)
+
+    event_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("events.id", ondelete="CASCADE"), index=True)
+    original_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    moved_event_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("events.id", ondelete="SET NULL"), index=True
+    )
+
+    event: Mapped["Event"] = relationship(back_populates="exceptions", foreign_keys=[event_id])
+    # Deleting the series (its exceptions cascade) also deletes the moved occurrences.
+    moved_event: Mapped["Event | None"] = relationship(
+        back_populates="moved_from", foreign_keys=[moved_event_id],
+        cascade="all, delete-orphan", single_parent=True,
+    )

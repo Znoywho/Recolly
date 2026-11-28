@@ -50,6 +50,14 @@ def google():
     return FakeGoogle()
 
 
+@pytest.fixture(autouse=True)
+def no_auto_push(monkeypatch):
+    """Tests sync explicitly; test_calendar_autopush turns the automatic push back on."""
+    from app.service import calendar_autopush
+
+    monkeypatch.setattr(calendar_autopush, "ENABLED", False)
+
+
 @pytest.fixture
 def client(database, google):
     from fastapi.testclient import TestClient

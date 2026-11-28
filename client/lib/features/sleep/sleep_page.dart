@@ -12,6 +12,7 @@ import 'widgets/sleep_debt_hero_card.dart';
 import 'widgets/sleep_empty_card.dart';
 import 'widgets/sleep_tip_card.dart';
 import 'widgets/weekly_sleep_card.dart';
+import 'sleep_log_form_page.dart';
 
 class SleepPage extends StatefulWidget {
   const SleepPage({super.key});
@@ -36,6 +37,14 @@ class _SleepPageState extends State<SleepPage> {
   }
 
   Future<SleepData> _load() => SleepData.load(RepositoryScope.of(context));
+
+  // Opens the "Ghi giấc ngủ" form and reloads the page if a night was saved.
+  Future<void> _logSleep() async {
+    final saved = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const SleepLogFormPage()));
+    if (saved == true && mounted) await _refresh();
+  }
 
   Future<void> _refresh() {
     final next = _load();
@@ -150,10 +159,7 @@ class _SleepPageState extends State<SleepPage> {
 
   Widget _buildContent(SleepData data) {
     if (!data.hasSleepLogs) {
-      return SleepEmptyCard(
-        onLogSleep: () =>
-            _showMessage('Màn ghi giấc ngủ sẽ có trong bản tiếp theo.'),
-      );
+      return SleepEmptyCard(onLogSleep: _logSleep);
     }
     final tonight = data.tonight;
     final tip = _tipFor(data);
@@ -161,6 +167,14 @@ class _SleepPageState extends State<SleepPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SleepDebtHeroCard(totalDebtMinutes: data.sleepDebt.totalDebtMinutes),
+        const SizedBox(height: AppSpacing.md),
+        BrutalButton(
+          label: 'Ghi giấc ngủ',
+          icon: Icons.bedtime_outlined,
+          leadingIcon: true,
+          color: AppColors.white,
+          onPressed: _logSleep,
+        ),
         const SizedBox(height: AppSpacing.md),
         WeeklySleepCard(
           nights: data.sleepDebt.daily,

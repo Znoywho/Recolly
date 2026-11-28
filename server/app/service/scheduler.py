@@ -8,14 +8,18 @@ events, already applied blocks).
 Hard constraints: a block sits on free slots of one day and ends `deadline_buffer_minutes` before
 its todo's deadline; blocks keep `min_break_minutes` apart; at most `max_study_minutes_per_day`
 per day and at most `max_hard_blocks_per_day` blocks of difficulty ≥ 4 per day.
-Objective: Σ predicted KSS × slots, weighted by difficulty (hard work goes to golden hours),
-plus a large penalty per unscheduled slot (weighted by priority) and a tiny one per hour of
-delay, so the earlier of two equally alert slots wins.
+Objective, per placed slot: a tier cost first, then predicted KSS, then a tiny delay cost.
+Each awake slot is `golden`, `low` or `normal`, from the same daily windows the Biorhythm
+screen shows (Timeline.windows: awake-KSS quartiles). Each todo needs `high`, `normal` or
+`light` focus (difficulty ≥ 4 / 2–3 / 1, default by category): high focus goes to golden
+hours, light chores to low windows, and KSS picks the best slot inside a tier. A large
+penalty per unscheduled slot (weighted by priority) keeps every block that fits.
 """
 
 import math
 import time
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -27,7 +31,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import ApiError, not_found
 from app.core.redis_client import get_store
-from app.models.enums import Priority
+from app.models.enums import Priority, TodoCategory
 from app.models.event import Event
 from app.models.todo import Todo
 from app.models.user import User
@@ -46,11 +50,29 @@ KSS_SCALE = 100     # KSS 3.25 -> 325 (CP-SAT needs integers)
 UNSCHEDULED_PENALTY = 10_000  # per slot, x priority: always worse than any placement
 HARD_DIFFICULTY = 4  # difficulty ≥ this counts towards max_hard_blocks_per_day
 PRIORITY_FACTOR = {Priority.LOW: 1, Priority.MEDIUM: 2, Priority.HIGH: 3}
+# Focus a todo needs when the user did not say (team assumption, see docs/scheduler.md):
+# 5 = needs full focus, 3 = normal, 1 = light chore. The app offers exactly these three levels.
+HIGH, NORMAL, LIGHT = "high", "normal", "light"
+GOLDEN, LOW = "golden", "low"  # slot tiers besides NORMAL
+# Cost per slot of placing a todo of each focus in each tier. It outweighs any KSS difference
+# (KSS × KSS_SCALE ≤ 900), so a tier is only left when the preferred one has no room.
+# Normal work has no preference between golden and normal: hard work wins golden hours anyway.
+TIER_COST = {HIGH: {GOLDEN: 0, NORMAL: 1000, LOW: 2000},
+             NORMAL: {GOLDEN: 0, NORMAL: 0, LOW: 1000},
+             LIGHT: {GOLDEN: 1000, NORMAL: 300, LOW: 0}}
+DEFAULT_DIFFICULTY = {TodoCategory.EXAM: 5, TodoCategory.ASSIGNMENT: 5, TodoCategory.STUDY: 3,
+                      TodoCategory.PERSONAL: 1, TodoCategory.OTHER: 1}
 SUGGESTION_TTL = timedelta(hours=1)
 # The store keeps a suggestion a day past expiry, so S2 can still answer 410 (expired) instead of 404.
 STORE_TTL_SECONDS = int((SUGGESTION_TTL + timedelta(days=1)).total_seconds())
 BEDTIME_TITLE = "Đi ngủ"
 REST_TITLE = "Nghỉ giải lao"
+
+
+def focus_of(todo: Todo) -> str:
+    """Focus a todo needs: difficulty ≥ 4 high, 1 light, otherwise normal (unset → its category default)."""
+    difficulty = todo.difficulty or DEFAULT_DIFFICULTY[todo.category]
+    return HIGH if difficulty >= HARD_DIFFICULTY else LIGHT if difficulty <= 1 else NORMAL
 
 
 @dataclass
@@ -88,8 +110,9 @@ def split_minutes(remaining: int, options: ScheduleOptions) -> list[int]:
 
 class Planner:
     def __init__(self, db: Session, user: User, timeline: Timeline, first_day: date, days: int,
-                 now: datetime, options: ScheduleOptions):
+                 now: datetime, options: ScheduleOptions, busy: Sequence[Any] = ()):
         self.db, self.user, self.timeline = db, user, timeline
+        self.busy = busy  # Google busy times (schedule_guard.Busy: .start, .end)
         self.tz = timeline.tz
         self.options = options
         self.start = datetime.combine(first_day, datetime.min.time(), self.tz)
@@ -97,7 +120,9 @@ class Planner:
         self.now = now
         self.kss: list[float | None] = []
         self.free = [True] * self.n
+        self.tier = [NORMAL] * self.n
         self._build_slots()
+        self._build_tiers(first_day, days)
 
     # ─────────────────────────── slots ───────────────────────────
 
@@ -133,6 +158,8 @@ class Planner:
         for occ in occurrences(events, self.start, end, self.tz):
             if not occ.event.all_day:
                 self._block_range(occ.start, occ.end)
+        for busy in self.busy:
+            self._block_range(busy.start, busy.end)
 
         for day in range(self.n // DAY_SLOTS):
             midnight = self.slot_time(day * DAY_SLOTS)
@@ -159,6 +186,28 @@ class Planner:
                 starts.append(s)
         return starts
 
+    def _build_tiers(self, first_day: date, days: int) -> None:
+        """Mark slots lying fully inside a golden or low window of their day."""
+        for day in range(days):
+            golden, low = self.timeline.windows(first_day + timedelta(days=day))
+            for tier, windows in ((GOLDEN, golden), (LOW, low)):
+                for window in windows:
+                    first = max(0, math.ceil((window.start.astimezone(self.tz) - self.start) / SLOT))
+                    last = min(self.n, self.slot_of(window.end))
+                    for s in range(first, last):
+                        self.tier[s] = tier
+
+    def window_of(self, start: int, slots: int) -> str:
+        """The tier most of a block's slots lie in (golden wins a tie)."""
+        tiers = self.tier[start:start + slots]
+        return max((GOLDEN, NORMAL, LOW), key=tiers.count)
+
+    def slot_cost(self, block: Block, start: int) -> int:
+        """Objective cost of placing `block` at `start`: tier cost + KSS, plus a tiny delay cost."""
+        focus = focus_of(block.todo)
+        tier = sum(TIER_COST[focus][t] for t in self.tier[start:start + block.slots])
+        return tier + round(self.mean_kss(start, block.slots) * KSS_SCALE) * block.slots + start // 4
+
     def mean_kss(self, start: int, slots: int) -> float:
         return sum(self.kss[start:start + slots]) / slots
 
@@ -182,10 +231,9 @@ class Planner:
             starts[i], present[i] = start, is_on
             intervals.append(model.new_optional_fixed_size_interval_var(start, block.slots + gap, is_on, f"iv{i}"))
 
-            weight = 2 + (block.todo.difficulty or 3)  # difficulty 1..5 -> 3..7
             table = [0] * self.n
             for s in block.starts:
-                table[s] = weight * round(self.mean_kss(s, block.slots) * KSS_SCALE) * block.slots + s // 4
+                table[s] = self.slot_cost(block, s)
             cost = model.new_int_var(0, max(table), f"c{i}")
             model.add_element(start, table, cost)
             placed_cost = model.new_int_var(0, max(table), f"pc{i}")
@@ -260,8 +308,8 @@ def check_range(first_day: date, last_day: date) -> int:
 
 def generate(db: Session, user: User, timeline: Timeline, first_day: date, last_day: date,
              todo_ids: list[uuid.UUID] | None, options: ScheduleOptions,
-             now: datetime) -> dict[str, Any]:
-    """S1: a suggestion (not saved) as a ScheduleSuggestion dict."""
+             now: datetime, busy: Sequence[Any] = ()) -> dict[str, Any]:
+    """S1: a suggestion (not saved) as a ScheduleSuggestion dict; `busy` = Google busy times to avoid."""
     days = check_range(first_day, last_day)
     todos_repo = TodoRepository(db)
     if todo_ids is not None:
@@ -270,7 +318,7 @@ def generate(db: Session, user: User, timeline: Timeline, first_day: date, last_
             raise not_found("todo")
     todos = list(todos_repo.not_done(user.id, todo_ids))
 
-    planner = Planner(db, user, timeline, first_day, days, now, options)
+    planner = Planner(db, user, timeline, first_day, days, now, options, busy)
     scheduled = todos_repo.scheduled_minutes(t.id for t in todos)
     blocks: list[Block] = []
     unscheduled: list[dict[str, Any]] = []
@@ -318,7 +366,8 @@ def generate(db: Session, user: User, timeline: Timeline, first_day: date, last_
         result_blocks.append({"kind": "study", "todo_id": block.todo.id, "title": block.todo.title,
                               "start_at": planner.slot_time(start),
                               "end_at": planner.slot_time(start + block.slots),
-                              "predicted_kss": round(kss, 2), "alertness_score": alertness_score(kss)})
+                              "predicted_kss": round(kss, 2), "alertness_score": alertness_score(kss),
+                              "focus": focus_of(block.todo), "window": planner.window_of(start, block.slots)})
     study = sorted(result_blocks, key=lambda b: b["start_at"])
     study_minutes = sum((b["end_at"] - b["start_at"]).total_seconds() / 60 for b in study)
     mean_kss = None

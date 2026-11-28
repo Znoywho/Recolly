@@ -12,6 +12,8 @@ from app.core.errors import install_error_handlers
 from app.core.rate_limit import _bearer, caller_identity
 from app.db.base import Base
 from app.db.session import engine
+from app.db.upgrade import upgrade_schema
+from app.service import calendar_autopush  # noqa: F401  push calendar changes after each commit
 
 # uvicorn only configures its own loggers; without this every app logger.info() is dropped.
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -23,6 +25,7 @@ QUIET_PATHS = {"/api/v1/health"}  # polled by healthchecks; would flood the log 
 async def lifespan(_: FastAPI):
     # Create missing tables until migrations (Alembic) are set up
     Base.metadata.create_all(engine)
+    upgrade_schema(engine)
     yield
 
 

@@ -125,7 +125,7 @@ Full list of `code` values: `info.description` in `openapi.yaml`.
 | G1 | GET | `/calendar/status` | Connection + last sync info | R32, R46 |
 | G6 | POST | `/calendar/connection` | **New.** Connect / re-grant Calendar scope | R30, R32 |
 | G7 | DELETE | `/calendar/connection` | **New.** Disconnect Google Calendar | R32 |
-| G8 | PATCH | `/calendar/settings` | **New.** Change `calendar_id` / `two_way_sync` | R32, R46 |
+| G8 | PATCH | `/calendar/settings` | Change `calendar_id` / `sync_mode` / `conflict_policy` | R32, R46 |
 | G2 | POST | `/calendar/sync` | Push pending events (and pull when two-way) | R30, R31 |
 | G3 | GET | `/calendar/conflicts` | List sync conflicts | R45 |
 | G4 | POST | `/calendar/conflicts/{id}/resolve` | Keep local or keep Google version | R45 |
@@ -510,7 +510,26 @@ Saving subjects also creates recurring events (`source = "ocr"` or `"manual"`) s
 - **E1 `GET /events?from=&to=&kind=&source=`**: `from` and `to` (date-time) are required, max range 62 days. Recurring events are expanded into instances, and each instance has the series `id` plus `occurrence_start`. Edits and deletes act on the whole series.
 - E2 / E4 writable fields: `title`, `description`, `location`, `start_at`, `end_at`, `all_day`, `rrule`, `kind`, `todo_id`.
 - `kind` (for calendar colours): `class` (from the timetable), `study` / `rest` / `bedtime` (from the scheduler), `other`.
-- If an edited event was already synced, `sync_status` becomes `pending`.
+- If an edited event was already synced, `sync_status` becomes `pending`; it is pushed to Google automatically
+  right after the save (unless `sync_mode = off`). E5 deletes the Google copy the same way.
+- **E2 / E4 answer = Event + `clashes` + `rescheduled`** (draft 3):
+
+```json
+{
+  "...": "Event object",
+  "clashes": [
+    { "title": "Họp CLB", "start_at": "...", "end_at": "...", "event_id": null, "kind": null,
+      "source": "google", "movable": false }
+  ],
+  "rescheduled": [ { "...": "Event object (a CP-SAT study block moved out of the way)" } ]
+}
+```
+
+  CP-SAT study/rest blocks under the saved event are moved automatically (`rescheduled`). Fixed things
+  (classes, manual events, a todo's fixed slot, Google busy times) are only listed in `clashes`; the app asks
+  the user to keep both, move or drop. All-day events never clash; a recurring event is checked over 14 days.
+- An occurrence moved or cancelled on Google (two-way) disappears from its series in E1; a moved one comes back
+  as its own event at the new time.
 
 ### Todos
 
@@ -537,7 +556,12 @@ Saving subjects also creates recurring events (`source = "ocr"` or `"manual"`) s
 ```
 
 - **D1 `GET /todos?status=todo&status=in_progress&category=&due_before=&due_after=&sort=deadline_at&limit=20&cursor=`** → `{ "items": [...], "next_cursor": null }`.
-- `difficulty` is 1–5. The scheduler puts hard tasks in the lowest predicted-KSS slots (golden hours).
+- `difficulty` = focus the task needs; the app offers 5 (high → golden hours), 3 (normal), 1 (light chore).
+  Sent as `null`, D2 fills the category default: `exam`/`assignment` 5, `study` 3, `personal`/`other` 1.
+- **Only a todo with a fixed slot (`start_at` + `end_at`) becomes a calendar event** (kind `other`, `todo_id`
+  set, pushed to Google). A deadline alone is not an event: S1 plans study blocks before it and push reminders
+  come 24 h and 2 h before. Done / deleted → the slot event goes; renaming → its study blocks follow.
+- D2 / D4 answer = Todo + `clashes` + `rescheduled` (same as E2, filled only for a fixed slot).
 - `scheduled_minutes` (read-only) = minutes of study events already linked to the todo → progress bar vs `estimated_minutes`.
 - `status = done` sets `completed_at`.
 - `estimated_minutes` + `deadline_at` are required for a todo to be scheduled by S1.
@@ -638,8 +662,13 @@ Flutter polls **V2 `GET /voice/jobs/{id}`** (about every 5 s while the screen is
 - **Hard constraints:** no overlap with events or projected sleep; nothing in the first `wake_buffer_minutes`
   after waking (sleep inertia) or the last `bed_buffer_minutes` before bedtime; meal windows free; blocks end
   before the deadline; ≥ `min_break_minutes` between blocks; ≤ `max_study_minutes_per_day`.
-- **Objective:** minimise Σ predicted KSS × minutes, weighted by `difficulty`, + penalty for unscheduled minutes
-  (weighted by priority). Same timetable → different plans for a morning vs an evening type.
+- Also avoids **busy times on the user's Google calendar** (read for the request, never stored).
+- **Objective (draft 3):** per slot, a tier cost first, then predicted KSS. Awake slots are `golden` / `normal` /
+  `low` from the same daily windows as the Biorhythm screen; `high` focus (difficulty ≥ 4) goes to golden hours,
+  `light` (1) to low windows, `normal` has no preference. + penalty for unscheduled minutes (weighted by priority).
+  Same timetable → different plans for a morning vs an evening type. Details: `server/docs/scheduler.md`.
+- Study blocks carry `"focus": "high" | "normal" | "light"` and `"window": "golden" | "normal" | "low"`;
+  `high` outside `golden` = the golden hours had no room (say so in the UI).
 - `kind`: `study`, `rest` (only with `include_rest_blocks`), `bedtime` (at `recommended_sleep_at`).
 - `todo_ids = null` → all todos that are not `done`. Max range 14 days. Suggestions expire after 1 hour.
 
@@ -652,7 +681,8 @@ Flutter polls **V2 `GET /voice/jobs/{id}`** (about every 5 s while the screen is
 { "events": [ { "...": "Event object" } ], "sync": { "pushed": 3, "pulled": 0, "failed": 0, "conflicts": 0 } }
 ```
 
-`block_indexes = null` → apply all blocks. `sync` is `null` when `sync_to_google = false`.
+`block_indexes = null` → apply all blocks. `sync` is `null` when `sync_to_google = false` or `sync_mode = off`
+(the blocks then stay `pending`). Blocks are pushed automatically anyway; `sync_to_google` only waits for it.
 `410 SUGGESTION_EXPIRED` after 1 hour.
 
 ### Google Calendar
@@ -663,7 +693,9 @@ Flutter polls **V2 `GET /voice/jobs/{id}`** (about every 5 s while the screen is
 {
   "connected": true,
   "google_email": "student@gmail.com",
-  "calendar_id": "primary",
+  "calendar_id": "recolly@group.calendar.google.com",
+  "sync_mode": "two_way",
+  "conflict_policy": "ask",
   "two_way_sync": true,
   "last_synced_at": "2026-10-19T08:00:00+07:00",
   "pending_count": 2,
@@ -671,12 +703,23 @@ Flutter polls **V2 `GET /voice/jobs/{id}`** (about every 5 s while the screen is
 }
 ```
 
+- `sync_mode`: `off` (paused; changes wait as `pending`) · `push` (app → Google, **default**) · `two_way` (also
+  pull edits made on the target calendar). `two_way_sync` is **deprecated** (= `sync_mode == two_way`).
+- `conflict_policy`: when the app and Google changed the **same field** of one event: `ask` (default, G3 conflict),
+  `google`, `local`, `latest`. Changes to different fields are always merged without a conflict.
+- `calendar_id`: a new link writes to its own "Recolly" calendar when the user granted
+  `https://www.googleapis.com/auth/calendar.app.created`, else to `primary`.
+
 **G6 `POST /calendar/connection`** — body `{ "server_auth_code": "..." }` (re-requested with the
-`calendar.events` scope) → `200` status object. **G7 `DELETE /calendar/connection`** → `204`.
-**G8 `PATCH /calendar/settings`** — body `{ "calendar_id": "primary", "two_way_sync": true }` → `200` status object.
+`calendar.events` + `calendar.app.created` scopes) → `200` status object; starts in `push` and pushes existing events.
+**G7 `DELETE /calendar/connection`** → `204`; also deletes the "Recolly" calendar the app created.
+**G8 `PATCH /calendar/settings`** — body e.g. `{ "sync_mode": "two_way", "conflict_policy": "ask" }` → `200` status object.
+`{ "two_way_sync": true }` still works (deprecated).
 
 **G2 `POST /calendar/sync`** — optional body `{ "event_ids": null }` → `200 { "pushed": 5, "pulled": 1, "failed": 0, "conflicts": 0 }`.
-Returns `403 GOOGLE_SCOPE_MISSING` if the user did not grant the Calendar scope, `409 CALENDAR_NOT_CONNECTED` if not connected.
+Returns `403 GOOGLE_SCOPE_MISSING` if the user did not grant the Calendar scope, `409 CALENDAR_NOT_CONNECTED` if not connected,
+`409 CALENDAR_SYNC_OFF` while `sync_mode = off`. Pushing is automatic after every save, so G2 is the "sync now" button
+(retry errors, pull at once). Full design: `server/docs/calendar_sync.md`.
 
 **G3 `GET /calendar/conflicts`**
 
@@ -729,7 +772,9 @@ R1 returns the defaults above if the user never saved settings.
 { "type": "kss_prompt", "title": "Bạn đang thấy thế nào?", "body": "Chạm để chấm độ buồn ngủ 1–9", "deep_link": "recolly://kss" }
 ```
 
-`type`: `bedtime`, `deadline`, `kss_prompt`, `sleep_confirm`, `motivation`, `sync_conflict`.
+`type`: `bedtime`, `deadline`, `event_start`, `kss_prompt`, `sleep_confirm`, `motivation`, `sync_conflict`.
+`event_start` (draft 3): 15 min before a study block or a todo's fixed slot of an open todo; `ref_id` = the todo,
+`deep_link` = `recolly://todos/<id>`; on/off together with the deadline reminders.
 
 **R5 `GET /quotes/random?context=deadline`** — `context`: `general | deadline | sleep | progress`
 

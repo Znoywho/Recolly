@@ -1018,6 +1018,7 @@ class MockCalendarSyncRepository extends _Mock
     connected: true,
     googleEmail: _user.email,
     calendarId: 'primary',
+    syncMode: SyncMode.push,
     twoWaySync: false,
     lastSyncedAt: DateTime.now().subtract(const Duration(hours: 3)),
     pendingCount: 3,
@@ -1058,13 +1059,16 @@ class MockCalendarSyncRepository extends _Mock
   @override
   Future<CalendarStatus> updateSettings({
     String? calendarId,
-    bool? twoWaySync,
+    SyncMode? syncMode,
   }) async {
     await delay();
     return _status = CalendarStatus.fromJson({
       ..._status.toJson(),
       'calendar_id': ?calendarId,
-      'two_way_sync': ?twoWaySync,
+      if (syncMode != null) ...{
+        'sync_mode': syncMode.toJson(),
+        'two_way_sync': syncMode == SyncMode.twoWay,
+      },
     });
   }
 

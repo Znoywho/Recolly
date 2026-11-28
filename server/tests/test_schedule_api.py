@@ -241,3 +241,17 @@ def test_needs_a_profile_and_known_todos(client, auth):
     response = client.post(f"{API}/schedule/generate", headers=auth,
                            json={**body, "todo_ids": [str(uuid.uuid4())]})
     assert response.json()["code"] == "TODO_NOT_FOUND"
+
+
+def test_focus_picks_the_window_and_defaults_come_from_the_category(client, auth):
+    first = prepare(client, auth) + timedelta(days=1)  # a day without the class
+    deadline = at(first + timedelta(days=1), 22).isoformat()
+    exam = add_todo(client, auth, title="Ôn thi", category="exam", deadline_at=deadline, estimated_minutes=90)
+    chore = add_todo(client, auth, title="Nộp form", category="other", deadline_at=deadline, estimated_minutes=45)
+    assert (exam["difficulty"], chore["difficulty"]) == (5, 1)
+
+    suggestion = generate(client, auth, first, first)
+    by_todo = {b["todo_id"]: b for b in suggestion["blocks"] if b["kind"] == "study"}
+    assert (by_todo[exam["id"]]["focus"], by_todo[exam["id"]]["window"]) == ("high", "golden")
+    assert (by_todo[chore["id"]]["focus"], by_todo[chore["id"]]["window"]) == ("light", "low")
+    assert by_todo[exam["id"]]["predicted_kss"] < by_todo[chore["id"]]["predicted_kss"]

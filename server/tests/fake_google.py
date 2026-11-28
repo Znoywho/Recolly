@@ -12,6 +12,7 @@ from typing import Any
 from app.service.google import EventPage, GoogleAuthRevoked, GoogleError, GoogleGrant, GoogleUnavailable
 
 CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events"
+APP_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.app.created"
 
 
 class FakeGoogle:
@@ -29,8 +30,10 @@ class FakeGoogle:
     # ── test helpers ──
 
     def add_grant(self, code: str, *, sub: str, email: str, calendar: bool,
-                  refresh_token: str | None = "google-refresh-token", name: str = "Sinh Viên") -> None:
-        scopes = {"openid", "email", "profile"} | ({CALENDAR_SCOPE} if calendar else set())
+                  refresh_token: str | None = "google-refresh-token", name: str = "Sinh Viên",
+                  app_calendar: bool = False) -> None:
+        scopes = ({"openid", "email", "profile"} | ({CALENDAR_SCOPE} if calendar else set())
+                  | ({APP_CALENDAR_SCOPE} if app_calendar else set()))
         self.grants[code] = GoogleGrant(sub=sub, email=email, name=name, picture=None,
                                         refresh_token=refresh_token, scopes=frozenset(scopes))
 
@@ -141,6 +144,26 @@ class FakeGoogle:
             items = [calendar[eid] for eid in changed]
         last = max((seq for seq, *_ in self.changes), default=0)
         return EventPage(items=copy.deepcopy(items), next_page_token=None, next_sync_token=str(last))
+
+    def create_calendar(self, token: str, summary: str, time_zone: str) -> str:
+        self._check(token)
+        calendar_id = f"{summary.lower()}{next(self._ids):04d}@group.calendar.google.com"
+        self.calendars[calendar_id] = {}
+        return calendar_id
+
+    def delete_calendar(self, token: str, calendar_id: str) -> None:
+        self._check(token)
+        if not calendar_id.startswith("recolly"):
+            raise GoogleError(403, "forbidden")  # the app may only delete calendars it created
+        self.calendars.pop(calendar_id, None)
+
+    def busy_events(self, token: str, calendar_id: str, time_min: datetime, time_max: datetime) -> list[dict]:
+        self._check(token)
+        return [copy.deepcopy(e) for e in self.calendars.get(calendar_id, {}).values()
+                if e["status"] != "cancelled" and e.get("transparency") != "transparent"
+                and "dateTime" in e["start"]
+                and datetime.fromisoformat(e["start"]["dateTime"]) < time_max
+                and datetime.fromisoformat(e["end"]["dateTime"]) > time_min]
 
     def can_write(self, token: str, calendar_id: str) -> bool:
         self._check(token)

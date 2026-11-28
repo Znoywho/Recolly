@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Recolly API
-  version: 1.0.0-draft.2
+  version: 1.0.0-draft.3
   summary: Backend contract for the Recolly Android app (FastAPI + PostgreSQL).
   description: |
     Machine-readable contract for Recolly (task R01). `docs/api-v1.md` is the
@@ -38,6 +38,7 @@ info:
     | `GOOGLE_CODE_INVALID` | 400 | `server_auth_code` rejected by Google |
     | `GOOGLE_SCOPE_MISSING` | 403 | Calendar scope not granted |
     | `CALENDAR_NOT_CONNECTED` | 409 | Calendar operation without a connection |
+    | `CALENDAR_SYNC_OFF` | 409 | G2 while the user's `sync_mode` is `off` |
     | `FORBIDDEN` | 403 | Resource belongs to another user |
     | `<RESOURCE>_NOT_FOUND` | 404 | e.g. `TODO_NOT_FOUND`, `EVENT_NOT_FOUND`, `HEALTH_PROFILE_NOT_FOUND` |
     | `RANGE_TOO_LARGE` | 400 | `from`/`to` range longer than the endpoint allows |
@@ -87,6 +88,13 @@ info:
     personalisation (B1, B2) and H9 stay in the contract but are marked `x-phase: later`.
 
     This is a scheduling aid, **not** a medical or diagnostic tool.
+
+    **Draft 3 (2026-11-28): Google Calendar sync redesign.** Additive only, nothing removed.
+    Sync modes `off` / `push` / `two_way` chosen by the user, automatic push after every change, an
+    own "Recolly" calendar, three-way merge with a `conflict_policy`, time clashes (`clashes`,
+    `rescheduled` in E2/E4/D2/D4), focus tiers in S1 (`focus`, `window`), todo `difficulty`
+    default by category, push type `event_start`. `two_way_sync` stays but is deprecated.
+    Design: `server/docs/calendar_sync.md`, `server/docs/scheduler.md`.
   contact:
     name: Backend — Member 1 (Lê Thiên Hạo)
   license:
@@ -147,8 +155,10 @@ paths:
       summary: A1 · Sign in with Google
       description: |
         Flutter uses `google_sign_in` with `serverClientId`, requests the scopes
-        `openid email profile https://www.googleapis.com/auth/calendar.events`, and sends the
-        one-time `serverAuthCode`. The backend exchanges it, stores the Google refresh token
+        `openid email profile https://www.googleapis.com/auth/calendar.events
+        https://www.googleapis.com/auth/calendar.app.created`, and sends the
+        one-time `serverAuthCode`. With `calendar.app.created` the backend creates a "Recolly" calendar
+        and writes there; without it, it writes to `primary`. The backend exchanges it, stores the Google refresh token
         encrypted, and issues its own JWTs. `is_new_user = true` → show onboarding (R55).
       x-task-ids: [R07, R08]
       security: []
@@ -835,6 +845,8 @@ paths:
       description: |
         Recurring events are expanded into instances inside `[from, to)`; each instance has the
         series `id` plus `occurrence_start`. Max range 62 days. Edits and deletes act on the series.
+        An occurrence moved or cancelled on Google (two-way) is left out of its series; a moved one is
+        returned as its own event (`source = google`) at the new time.
       x-task-ids: [R28]
       parameters:
         - name: from
@@ -871,10 +883,12 @@ paths:
             schema: { $ref: '#/components/schemas/EventInput' }
       responses:
         '201':
-          description: Created (`source = manual`).
+          description: |
+            Created (`source = manual`), plus what it overlaps: CP-SAT blocks under it are moved
+            (`rescheduled`), fixed things are listed (`clashes`) for the user to decide.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Event' }
+              schema: { $ref: '#/components/schemas/EventSaved' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
@@ -898,7 +912,9 @@ paths:
       tags: [Events]
       operationId: updateEvent
       summary: E4 · Edit an event
-      description: If the event was already synced, `sync_status` becomes `pending`.
+      description: |
+        If the event was already synced, `sync_status` becomes `pending` and it is pushed
+        automatically (unless `sync_mode = off`). Clashes as in E2.
       x-task-ids: [R58]
       requestBody:
         required: true
@@ -907,10 +923,10 @@ paths:
             schema: { $ref: '#/components/schemas/EventUpdate' }
       responses:
         '200':
-          description: Updated event.
+          description: Updated event, its clashes and the blocks moved out of its way.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Event' }
+              schema: { $ref: '#/components/schemas/EventSaved' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/ValidationError' }
@@ -918,7 +934,7 @@ paths:
       tags: [Events]
       operationId: deleteEvent
       summary: E5 · Delete an event
-      description: A synced event is also deleted from Google Calendar on the next sync.
+      description: A synced event is also deleted from Google Calendar (automatically, unless `sync_mode = off`).
       x-task-ids: [R58]
       responses:
         '204': { description: Deleted. }
@@ -970,6 +986,10 @@ paths:
       tags: [Todos]
       operationId: createTodo
       summary: D2 · Create a todo
+      description: |
+        Without `difficulty` the todo gets its category's default (exam/assignment 5, study 3,
+        personal/other 1). Only a todo with a fixed slot (`start_at` + `end_at`) gets an event on the
+        calendar (kind `other`, `todo_id` set); a deadline alone is planned by S1 and reminded by push.
       x-task-ids: [R21, R57]
       requestBody:
         required: true
@@ -978,10 +998,10 @@ paths:
             schema: { $ref: '#/components/schemas/TodoInput' }
       responses:
         '201':
-          description: Created.
+          description: Created; with a fixed slot also its clashes (see E2).
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Todo' }
+              schema: { $ref: '#/components/schemas/TodoSaved' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
@@ -1005,7 +1025,10 @@ paths:
       tags: [Todos]
       operationId: updateTodo
       summary: D4 · Edit a todo or change its status
-      description: Setting `status = done` sets `completed_at`; any other status clears it.
+      description: |
+        Setting `status = done` sets `completed_at`; any other status clears it. The todo's own
+        event follows its fixed slot (removed when done or when the slot is cleared); its study
+        blocks follow its title.
       x-task-ids: [R21, R57]
       requestBody:
         required: true
@@ -1014,10 +1037,10 @@ paths:
             schema: { $ref: '#/components/schemas/TodoUpdate' }
       responses:
         '200':
-          description: Updated todo.
+          description: Updated todo; with a fixed slot also its clashes (see E2).
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Todo' }
+              schema: { $ref: '#/components/schemas/TodoSaved' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/ValidationError' }
@@ -1025,7 +1048,7 @@ paths:
       tags: [Todos]
       operationId: deleteTodo
       summary: D5 · Delete a todo
-      description: Study events created for it are kept, with `todo_id = null`.
+      description: Its fixed-slot event is deleted; study events created for it are kept, with `todo_id = null`.
       x-task-ids: [R21]
       responses:
         '204': { description: Deleted. }
@@ -1111,17 +1134,22 @@ paths:
       operationId: generateSchedule
       summary: S1 · Run CP-SAT → suggested study blocks (not saved)
       description: |
-        Inputs: todos (`deadline_at` + `estimated_minutes` required), class/other events, the
-        projected sleep of each night and the predicted KSS curve from the personal model.
+        Inputs: todos (`deadline_at` + `estimated_minutes` required), class/other events, busy
+        times on the user's Google calendar (read, not stored), the projected sleep of each night
+        and the predicted KSS curve from the personal model.
 
         Hard constraints: no overlap with events or projected sleep; nothing in the first
         `wake_buffer_minutes` after waking or the last `bed_buffer_minutes` before bedtime;
         meal windows free; every block ends before its todo's deadline; at least
         `min_break_minutes` between blocks; at most `max_study_minutes_per_day`.
 
-        Objective: minimise Σ predicted KSS × minutes, weighted by `difficulty` (hard work goes to
-        golden hours), plus a penalty per unscheduled minute (weighted by priority) and a small
-        penalty for finishing close to the deadline.
+        Objective, per placed slot: a tier cost first, then predicted KSS, then a tiny delay cost.
+        Awake slots are `golden` / `normal` / `low` from the same daily windows as the Biorhythm
+        screen (awake-KSS quartiles). A todo needs `high` / `normal` / `light` focus (`difficulty`
+        ≥ 4 / 2–3 / 1): high focus goes to golden hours, light chores to low windows. A large
+        penalty per unscheduled slot (weighted by priority) keeps every block that fits.
+        Each study block reports its `focus` and `window`; `high` outside `golden` means the
+        golden hours had no room. Details: `server/docs/scheduler.md`.
 
         `todo_ids = null` → every todo that is not `done`. Suggestions expire after 1 hour.
         Max range 14 days.
@@ -1149,7 +1177,8 @@ paths:
       summary: S2 · Save chosen suggestion blocks as events
       description: |
         `block_indexes = null` → apply every block. Blocks become events with `source = scheduler`
-        and `kind` = the block kind. With `sync_to_google = true` they are pushed immediately.
+        and `kind` = the block kind. With `sync_to_google = true` they are pushed immediately
+        (they are pushed automatically anyway); while `sync_mode = off` they stay `pending`, `sync = null`.
       x-task-ids: [R27, R33]
       requestBody:
         required: true
@@ -1189,7 +1218,9 @@ paths:
       summary: G6 · Connect (or re-grant) Google Calendar
       description: |
         For users who skipped the Calendar scope at sign-in. Flutter requests the
-        `calendar.events` scope again and sends the new `server_auth_code`.
+        `calendar.events` (+ `calendar.app.created`) scopes again and sends the new `server_auth_code`.
+        A new link starts in `sync_mode = push`, writes to a new "Recolly" calendar when
+        `calendar.app.created` was granted (else `primary`), and pushes existing events.
       x-task-ids: [R30, R32]
       requestBody:
         required: true
@@ -1209,7 +1240,10 @@ paths:
       tags: [Google Calendar]
       operationId: disconnectCalendar
       summary: G7 · Disconnect Google Calendar
-      description: Stops the watch channel and revokes Calendar access. Local events stay; their `sync_status` becomes `not_synced`.
+      description: |
+        Stops the watch channel, deletes the "Recolly" calendar the app created (with its copies; a
+        calendar the user picked in G8 is kept) and revokes Calendar access. Local events stay;
+        their `sync_status` becomes `not_synced`.
       x-task-ids: [R32]
       responses:
         '204': { description: Disconnected. }
@@ -1219,7 +1253,13 @@ paths:
     patch:
       tags: [Google Calendar]
       operationId: updateCalendarSettings
-      summary: G8 · Change target calendar or two-way sync
+      summary: G8 · Change target calendar, sync mode or conflict policy
+      description: |
+        `sync_mode`: `off` pauses (changes wait as `pending`, pushed when turned back on),
+        `push` = app → Google only, `two_way` also pulls edits made on the target calendar and keeps
+        a webhook channel. `conflict_policy` decides when the app and Google changed the **same field**
+        of an event (different fields are always merged). `two_way_sync` is deprecated:
+        `true` = `two_way`, `false` = `push`.
       x-task-ids: [R32, R46]
       requestBody:
         required: true
@@ -1241,6 +1281,13 @@ paths:
       tags: [Google Calendar]
       operationId: syncCalendar
       summary: G2 · Push pending events (and pull changes when two-way)
+      description: |
+        Changes are pushed automatically after every save; G2 is the "sync now" button (retry
+        errors, pull right away). `409 CALENDAR_SYNC_OFF` while `sync_mode = off`.
+        Pull: edits on Google to an event the app did not change are taken (a class series also
+        moves its timetable subject); when both changed it, changes to different fields are merged
+        and the same field follows `conflict_policy`. Events Google adds or moves onto CP-SAT blocks
+        make those blocks move.
       x-task-ids: [R30, R31, R45]
       requestBody:
         required: false
@@ -1653,6 +1700,14 @@ components:
     SyncStatus:
       type: string
       enum: [not_synced, pending, synced, conflict, error]
+    SyncMode:
+      type: string
+      enum: [off, push, two_way]
+      description: '`off` paused · `push` app → Google (default) · `two_way` also pull edits made on Google.'
+    ConflictPolicy:
+      type: string
+      enum: [ask, google, local, latest]
+      description: When the app and Google changed the same field of an event. `ask` (default) keeps a G3 conflict.
     TodoStatus:
       type: string
       enum: [todo, in_progress, done]
@@ -2546,6 +2601,34 @@ components:
         occurrence_start: null
         created_at: '2026-10-19T08:00:00+07:00'
         updated_at: '2026-10-19T08:00:00+07:00'
+    Clash:
+      type: object
+      description: Something at the same time as the saved event (all-day events never clash).
+      required: [title, start_at, end_at, event_id, kind, source, movable]
+      properties:
+        title: { type: string }
+        start_at: { type: string, format: date-time }
+        end_at: { type: string, format: date-time }
+        event_id: { type: [string, 'null'], format: uuid, description: Null for a busy time on the user's Google calendar. }
+        kind:
+          anyOf: [{ $ref: '#/components/schemas/EventKind' }, { type: 'null' }]
+        source: { type: string, enum: [recolly, google] }
+        movable: { type: boolean, description: A CP-SAT block that could not be moved (e.g. no sleep profile). }
+    EventSaved:
+      description: E2/E4 answer.
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - type: object
+          required: [clashes, rescheduled]
+          properties:
+            clashes:
+              type: array
+              description: Fixed things still at the same time; the app asks keep both / move / drop.
+              items: { $ref: '#/components/schemas/Clash' }
+            rescheduled:
+              type: array
+              description: CP-SAT study blocks moved out of the way (new events; the old ones are deleted).
+              items: { $ref: '#/components/schemas/Event' }
     EventList:
       type: object
       required: [items]
@@ -2572,7 +2655,9 @@ components:
           type: [integer, 'null']
           minimum: 1
           maximum: 5
-          description: 1 easy … 5 hard. Hard tasks are placed in the lowest predicted KSS slots.
+          description: |
+            Focus the task needs: 5 = high (golden hours), 3 = normal, 1 = light chore (the app offers
+            these three). `null` → default of the category: exam/assignment 5, study 3, personal/other 1.
         start_at: { type: [string, 'null'], format: date-time }
         end_at: { type: [string, 'null'], format: date-time }
     TodoUpdate:
@@ -2628,6 +2713,19 @@ components:
         completed_at: null
         created_at: '2026-10-19T08:00:00+07:00'
         updated_at: '2026-10-19T08:00:00+07:00'
+    TodoSaved:
+      description: D2/D4 answer; `clashes`/`rescheduled` only for a todo with a fixed slot.
+      allOf:
+        - $ref: '#/components/schemas/Todo'
+        - type: object
+          required: [clashes, rescheduled]
+          properties:
+            clashes:
+              type: array
+              items: { $ref: '#/components/schemas/Clash' }
+            rescheduled:
+              type: array
+              items: { $ref: '#/components/schemas/Event' }
     TodoPage:
       type: object
       required: [items, next_cursor]
@@ -2758,6 +2856,14 @@ components:
         end_at: { type: string, format: date-time }
         predicted_kss: { type: [number, 'null'], description: Mean predicted KSS over the block; null for `bedtime`. }
         alertness_score: { type: [integer, 'null'], minimum: 0, maximum: 100 }
+        focus:
+          type: [string, 'null']
+          enum: [high, normal, light, null]
+          description: 'Study blocks: focus the todo needs (`difficulty` ≥ 4 / 2–3 / 1).'
+        window:
+          type: [string, 'null']
+          enum: [golden, normal, low, null]
+          description: 'Study blocks: the alertness window it landed in.'
     UnscheduledTodo:
       type: object
       required: [todo_id, reason, missing_minutes]
@@ -2842,13 +2948,15 @@ components:
     # ─────────── Google Calendar ───────────
     CalendarStatus:
       type: object
-      required: [connected, google_email, calendar_id, two_way_sync, last_synced_at, pending_count,
-                 conflict_count]
+      required: [connected, google_email, calendar_id, sync_mode, conflict_policy, two_way_sync,
+                 last_synced_at, pending_count, conflict_count]
       properties:
         connected: { type: boolean }
         google_email: { type: [string, 'null'], format: email }
-        calendar_id: { type: [string, 'null'], examples: [primary] }
-        two_way_sync: { type: boolean }
+        calendar_id: { type: [string, 'null'], examples: [primary, recolly@group.calendar.google.com] }
+        sync_mode: { $ref: '#/components/schemas/SyncMode' }
+        conflict_policy: { $ref: '#/components/schemas/ConflictPolicy' }
+        two_way_sync: { type: boolean, deprecated: true, description: '`sync_mode == two_way`.' }
         last_synced_at: { type: [string, 'null'], format: date-time }
         pending_count: { type: integer }
         conflict_count: { type: integer }
@@ -2857,7 +2965,9 @@ components:
       minProperties: 1
       properties:
         calendar_id: { type: string, description: '`primary` or a calendar ID the user can write to.' }
-        two_way_sync: { type: boolean }
+        sync_mode: { $ref: '#/components/schemas/SyncMode' }
+        conflict_policy: { $ref: '#/components/schemas/ConflictPolicy' }
+        two_way_sync: { type: boolean, deprecated: true, description: '`true` = `two_way`, `false` = `push`; `sync_mode` wins.' }
     SyncRequest:
       type: object
       properties:
@@ -2964,7 +3074,12 @@ components:
       type: object
       required: [type, title, body, deep_link]
       properties:
-        type: { type: string, enum: [bedtime, deadline, kss_prompt, sleep_confirm, motivation, sync_conflict] }
+        type:
+          type: string
+          enum: [bedtime, deadline, event_start, kss_prompt, sleep_confirm, motivation, sync_conflict]
+          description: |
+            `deadline`: 24 h and 2 h before (settings). `event_start`: 15 min before a study block or a
+            todo's fixed slot of an open todo (on/off with the deadline reminders); `ref_id` = the todo.
         title: { type: string }
         body: { type: string }
         deep_link: { type: string, examples: ['recolly://kss', 'recolly://todos/<id>', 'recolly://sleep-logs/<id>'] }
