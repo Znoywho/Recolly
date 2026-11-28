@@ -61,7 +61,7 @@ void main() {
     testWidgets('SleepProfilePage has no overflow at $label', (tester) async {
       await _pumpAt(tester, size, const SleepProfilePage());
 
-      expect(find.text('Bạn thường đi ngủ lúc mấy giờ?'), findsOneWidget);
+      expect(find.text('Ngày đi học'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -104,7 +104,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('SleepProfilePage saves the chosen bedtime and wake time', (
+  testWidgets('SleepProfilePage sends the MCTQ answers and saves them', (
     tester,
   ) async {
     final repositories = AppRepositories.mock();
@@ -116,39 +116,70 @@ void main() {
       repositories: repositories,
     );
 
-    await tester.tap(find.bySemanticsLabel('Sau 1h'));
-    await tester.pump();
-    await tester.tap(find.byTooltip('Muộn hơn 15 phút'));
-    await tester.pump();
-    final shownWakeTime = tester
-        .widget<Text>(find.textContaining(RegExp(r'^\d\d:\d\d$')))
-        .data!;
+    Future<void> tapText(String text) async {
+      await tester.ensureVisible(find.text(text).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(text).first);
+      await tester.pumpAndSettle();
+    }
 
-    await tester.ensureVisible(find.text('Tiếp tục'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Tiếp tục'));
-    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.bySemanticsLabel('4 ngày đi học'));
+    await tester.tap(find.byTooltip('Thức dậy lúc: muộn hơn 15 phút'));
+    await tapText('Tiếp tục');
+    expect(find.text('Ngày nghỉ'), findsOneWidget);
+    await tapText('Tiếp tục');
+
+    // 3+ nights asks how long it has lasted before scoring.
+    await tester.tap(find.bySemanticsLabel('Khó ngủ 3+ đêm'));
+    await tester.pump();
+    expect(find.text('Tình trạng này kéo dài bao lâu rồi?'), findsOneWidget);
+    await tester.tap(find.bySemanticsLabel('Kéo dài >3m'));
+    await tapText('Xem con vật của bạn');
+
+    expect(find.text('Bạn là Gấu!'), findsOneWidget);
+    expect(find.byType(AnimalMascot), findsWidgets);
+    await tapText('Lưu và tiếp tục');
 
     expect(completed, isNotNull);
-    expect(completed!.chronotype, Chronotype.wolf);
-    expect(completed!.usualSleepTime, const ClockTime(1, 30));
-    expect(
-      '${completed!.usualWakeTime.hour.toString().padLeft(2, '0')}:'
-      '${completed!.usualWakeTime.minute.toString().padLeft(2, '0')}',
-      shownWakeTime,
-    );
+    expect(completed!.mctq?.workDays, 4);
+    expect(completed!.usualWakeTime, const ClockTime(6, 45));
+    expect(completed!.sleepQuality?.duration, ProblemDuration.overThreeMonths);
   });
 
   testWidgets('wake time wraps around midnight', (tester) async {
     await _pumpAt(tester, const Size(393, 852), const SleepProfilePage());
 
-    final earlier = find.byTooltip('Sớm hơn 15 phút');
+    // The wake-up card is the second clock on the school-day step.
+    String shownWakeTime() => tester
+        .widgetList<Text>(find.textContaining(RegExp(r'^\d\d:\d\d$')))
+        .last
+        .data!;
+    final before = shownWakeTime();
+    final earlier = find.byTooltip('Thức dậy lúc: sớm hơn 15 phút');
     for (var i = 0; i < 4 * 24; i++) {
       await tester.tap(earlier);
+      await tester.pump();
     }
     await tester.pump();
 
-    expect(find.textContaining(RegExp(r'^\d\d:\d\d$')), findsOneWidget);
+    expect(shownWakeTime(), before);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('every mascot paints without errors', (tester) async {
+    await _pumpAt(
+      tester,
+      const Size(393, 852),
+      Scaffold(
+        body: Wrap(
+          children: [
+            for (final animal in MascotAnimal.values)
+              AnimalMascot(animal: animal),
+          ],
+        ),
+      ),
+    );
+    expect(find.byType(AnimalMascot), findsNWidgets(4));
     expect(tester.takeException(), isNull);
   });
 }

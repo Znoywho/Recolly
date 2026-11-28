@@ -11,10 +11,7 @@ enum NotificationFilter {
   all('Tất cả', {}),
   sleep('Giấc ngủ', {NotificationCategory.sleep}),
   deadline('Deadline', {NotificationCategory.deadline}),
-  study('Học tập', {
-    NotificationCategory.study,
-    NotificationCategory.motivation,
-  });
+  study('Học tập', {NotificationCategory.study});
 
   const NotificationFilter(this.label, this.categories);
 
@@ -141,7 +138,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
         )
       else
         for (final notification in notifications) ...[
-          NotificationCard(notification: notification),
+          NotificationCard(
+            notification: notification,
+            chronotype: snapshot.requireData.chronotype,
+          ),
           const SizedBox(height: AppSpacing.md),
         ],
     ];

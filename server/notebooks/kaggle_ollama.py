@@ -13,9 +13,9 @@
 # ---
 
 # %% [markdown]
-# # Recolly: Ollama + PhoWhisper + Vintern on Kaggle
+# # Recolly: Ollama + PhoWhisper on Kaggle
 #
-# Runs an Ollama server (LLM) and an AI server with PhoWhisper (speech-to-text) and Vintern (timetable photo OCR) on Kaggle's GPUs, and exposes both through Cloudflare tunnels so the Recolly backend can call them. These models are too slow on a laptop CPU, so the backend has no local model.
+# Runs an Ollama server (LLM) and a speech server with PhoWhisper (speech-to-text) on Kaggle's GPUs, and exposes both through Cloudflare tunnels so the Recolly backend can call them. These models are too slow on a laptop CPU, so the backend has no local model.
 #
 # **Before running** (right sidebar, *Session options*):
 # - Accelerator: **GPU T4 x2**
@@ -46,11 +46,6 @@ ASR_SERVER_PATH = "/kaggle/working/asr_server.py"
 ASR_LOG_PATH = "/kaggle/working/asr_server.log"
 ASR_TUNNEL_LOG_PATH = "/kaggle/working/cloudflared_asr.log"
 
-# Timetable OCR, served by the same process, GPU, tunnel and token as speech (POST /ocr).
-# Model card: https://huggingface.co/5CD-AI/Vintern-1B-v3_5 (license CC BY-NC 4.0: non-commercial use only).
-OCR_MODEL_NAME = "5CD-AI/Vintern-1B-v3_5"
-# The T4 has no native bfloat16 (the card's dtype), so float16. If the OCR text comes out empty or garbled, try "bfloat16".
-OCR_DTYPE = "float16"
 
 # %% [markdown]
 # ## 2. Check the GPUs
@@ -155,11 +150,9 @@ for model_name in MODEL_NAMES:
 !nvidia-smi --query-gpu=index,memory.used,memory.total --format=csv
 
 # %% [markdown]
-# ## 7. Start the AI server (PhoWhisper + Vintern)
+# ## 7. Start the speech server (PhoWhisper)
 #
-# A small HTTP server (standard library only) on its own GPU. With `Authorization: Bearer <ASR_TOKEN>`: `POST /transcribe` takes raw audio bytes and `POST /ocr` takes a timetable photo (JPEG/PNG/HEIC, max 10 MB); both return `{"text": ...}` (OCR text is a markdown table). `GET /health` answers without a token. The first start downloads both models (about 1.5 GB + 2 GB).
-#
-# Vintern loads custom model code from Hugging Face (`trust_remote_code`). If loading fails with a transformers error, see `asr_server.log`; pinning an older transformers in a new cell (e.g. `!pip install -q "transformers<5"`), then restarting the session, is the first thing to try.
+# A small HTTP server (standard library only) on its own GPU. `POST /transcribe` takes raw audio bytes with `Authorization: Bearer <ASR_TOKEN>` and returns `{"text": ...}`; `GET /health` answers without a token. The first start downloads the model (about 1.5 GB). Timetable photos are read by Gemini, not here (see `docs/ocr-pipeline.md`).
 
 # %%
 import secrets
@@ -167,8 +160,6 @@ import shutil
 
 if shutil.which("ffmpeg") is None:  # decodes the uploaded phone audio
     subprocess.run("apt-get -qq update && apt-get -qq install -y ffmpeg > /dev/null", shell=True, check=True)
-# Vintern's remote code needs timm + einops; pillow-heif opens iPhone HEIC photos.
-subprocess.run("pip install -q timm einops pillow-heif", shell=True, check=True)
 
 ASR_SERVER_CODE = r"""
 import hmac
@@ -179,75 +170,20 @@ import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-import io
-
 import numpy as np
 import torch
-import torchvision.transforms as T
 import transformers
-from PIL import Image, UnidentifiedImageError
-from pillow_heif import register_heif_opener
-from torchvision.transforms.functional import InterpolationMode
-from transformers import AutoModel, AutoTokenizer, pipeline
+from transformers import pipeline
 
 MODEL_NAME = os.environ["ASR_MODEL"]
-OCR_MODEL_NAME = os.environ["OCR_MODEL"]
 TOKEN = os.environ["ASR_TOKEN"]
 SAMPLE_RATE = 16_000  # Whisper models expect 16 kHz mono audio
 MAX_AUDIO_BYTES = 25 * 1024 * 1024  # same limit as the backend
-MAX_IMAGE_BYTES = 10 * 1024 * 1024  # same limit as the backend
-TILE_SIZE = 448  # Vintern (InternVL) sees the photo as 448 x 448 tiles
-MAX_TILES = 6    # the model card uses up to 6 tiles per image
-IMAGENET_MEAN, IMAGENET_STD = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
-OCR_PROMPT = ("<image>\nTrích xuất toàn bộ bảng thời khoá biểu trong ảnh thành bảng markdown. Giữ nguyên thứ, "
-              "tiết hoặc giờ học, tên môn, mã môn, phòng, giảng viên, ngày bắt đầu và kết thúc.")
-OCR_GENERATION = dict(max_new_tokens=1024, do_sample=False, num_beams=3, repetition_penalty=2.5)  # model card values
 
 dtype_name = "dtype" if int(transformers.__version__.split(".")[0]) >= 5 else "torch_dtype"
 asr = pipeline("automatic-speech-recognition", model=MODEL_NAME, device=0, chunk_length_s=30,
                **{dtype_name: torch.float16})
-ocr_dtype = getattr(torch, os.environ["OCR_DTYPE"])
-ocr_model = AutoModel.from_pretrained(OCR_MODEL_NAME, low_cpu_mem_usage=True, trust_remote_code=True,
-                                      use_flash_attn=False, **{dtype_name: ocr_dtype}).eval().cuda()
-ocr_tokenizer = AutoTokenizer.from_pretrained(OCR_MODEL_NAME, trust_remote_code=True, use_fast=False)
-to_tensor = T.Compose([T.Resize((TILE_SIZE, TILE_SIZE), interpolation=InterpolationMode.BICUBIC),
-                       T.ToTensor(), T.Normalize(IMAGENET_MEAN, IMAGENET_STD)])
-register_heif_opener()
 gpu_lock = threading.Lock()  # one GPU: run one model call at a time
-
-
-def decode_image(image_bytes: bytes) -> Image.Image:
-    '''Open a JPEG/PNG/HEIC photo as RGB (raises UnidentifiedImageError for anything else).'''
-    return Image.open(io.BytesIO(image_bytes)).convert("RGB")
-
-
-def split_into_tiles(image: Image.Image) -> list:
-    '''InternVL dynamic preprocessing (model card): up to MAX_TILES tiles in the grid closest to the
-    photo's aspect ratio, plus a whole-photo thumbnail when there is more than one tile.'''
-    width, height = image.size
-    grids = sorted({(c, r) for c in range(1, MAX_TILES + 1) for r in range(1, MAX_TILES + 1) if c * r <= MAX_TILES},
-                   key=lambda grid: grid[0] * grid[1])
-    best, best_diff = (1, 1), float("inf")
-    for columns, rows in grids:
-        diff = abs(width / height - columns / rows)
-        # On a tie, a bigger grid only if the photo has enough pixels to fill it.
-        if diff < best_diff or (diff == best_diff and width * height > 0.5 * TILE_SIZE ** 2 * columns * rows):
-            best, best_diff = (columns, rows), diff
-    columns, rows = best
-    resized = image.resize((columns * TILE_SIZE, rows * TILE_SIZE))
-    tiles = [resized.crop(((i % columns) * TILE_SIZE, (i // columns) * TILE_SIZE,
-                           (i % columns + 1) * TILE_SIZE, (i // columns + 1) * TILE_SIZE))
-             for i in range(columns * rows)]
-    if len(tiles) > 1:
-        tiles.append(image.resize((TILE_SIZE, TILE_SIZE)))
-    return tiles
-
-
-def read_timetable(image: Image.Image) -> str:
-    '''Ask Vintern for the timetable in the photo as markdown.'''
-    pixel_values = torch.stack([to_tensor(tile) for tile in split_into_tiles(image)]).to(ocr_dtype).cuda()
-    with gpu_lock:
-        return ocr_model.chat(ocr_tokenizer, pixel_values, OCR_PROMPT, OCR_GENERATION).strip()
 
 
 def decode_audio(audio_bytes: bytes) -> np.ndarray:
@@ -264,28 +200,25 @@ def decode_audio(audio_bytes: bytes) -> np.ndarray:
 
 
 class AsrHandler(BaseHTTPRequestHandler):
-    '''GET /health, POST /transcribe (audio) and POST /ocr (timetable photo).'''
+    '''GET /health and POST /transcribe (audio).'''
 
     def do_GET(self):
         '''Health check, no token needed.'''
         if self.path == "/health":
-            self.reply(200, {"status": "ok", "model": MODEL_NAME, "ocr_model": OCR_MODEL_NAME})
+            self.reply(200, {"status": "ok", "model": MODEL_NAME})
         else:
             self.reply(404, {"error": "not found"})
 
     def do_POST(self):
-        '''Check the path, token and size, then run speech-to-text or OCR.'''
-        limits = {"/transcribe": MAX_AUDIO_BYTES, "/ocr": MAX_IMAGE_BYTES}
-        if self.path not in limits:
+        '''Check the path, token and size, then run speech-to-text.'''
+        if self.path != "/transcribe":
             return self.reply(404, {"error": "not found"})
         if not hmac.compare_digest(self.headers.get("Authorization", ""), f"Bearer {TOKEN}"):
             return self.reply(401, {"error": "bad token"})
         length = int(self.headers.get("Content-Length") or 0)
-        if not 0 < length <= limits[self.path]:
-            return self.reply(413, {"error": f"body must be 1 byte to {limits[self.path] // 2**20} MB"})
+        if not 0 < length <= MAX_AUDIO_BYTES:
+            return self.reply(413, {"error": f"body must be 1 byte to {MAX_AUDIO_BYTES // 2**20} MB"})
         body = self.rfile.read(length)
-        if self.path == "/ocr":
-            return self.answer_ocr(body)
         try:
             waveform = decode_audio(body)
         except subprocess.CalledProcessError:
@@ -294,14 +227,6 @@ class AsrHandler(BaseHTTPRequestHandler):
             output = asr({"raw": waveform, "sampling_rate": SAMPLE_RATE},
                          generate_kwargs={"language": "vi", "task": "transcribe"})
         self.reply(200, {"text": output["text"].strip()})
-
-    def answer_ocr(self, image_bytes: bytes) -> None:
-        '''Decode the photo and return Vintern's markdown table.'''
-        try:
-            image = decode_image(image_bytes)
-        except (UnidentifiedImageError, OSError):
-            return self.reply(400, {"error": "cannot open image"})
-        self.reply(200, {"text": read_timetable(image), "model": OCR_MODEL_NAME})
 
     def reply(self, status: int, body: dict) -> None:
         '''Send a JSON response.'''
@@ -324,7 +249,7 @@ def start_asr_server() -> subprocess.Popen:
     with open(ASR_SERVER_PATH, "w") as script_file:
         script_file.write(ASR_SERVER_CODE)
     environment = dict(os.environ, CUDA_VISIBLE_DEVICES=ASR_GPU, ASR_MODEL=ASR_MODEL_NAME,
-                       OCR_MODEL=OCR_MODEL_NAME, OCR_DTYPE=OCR_DTYPE, ASR_TOKEN=ASR_TOKEN, ASR_PORT=str(ASR_PORT))
+                       ASR_TOKEN=ASR_TOKEN, ASR_PORT=str(ASR_PORT))
     log_file = open(ASR_LOG_PATH, "w")
     return subprocess.Popen(["python", ASR_SERVER_PATH], env=environment, stdout=log_file, stderr=log_file)
 
@@ -345,7 +270,7 @@ def wait_until_asr_is_ready(timeout_seconds: int = 600) -> None:
 
 asr_process = start_asr_server()
 wait_until_asr_is_ready()
-print(f"AI server is running ({ASR_MODEL_NAME} + {OCR_MODEL_NAME})")
+print(f"Speech server is running ({ASR_MODEL_NAME})")
 
 # %% [markdown]
 # ## 8. Open the public tunnels
@@ -391,7 +316,7 @@ print(f"OLLAMA_MODEL={MODEL_NAMES[0]}")
 print(f"ASR_BASE_URL={asr_public_url}")
 print(f"ASR_TOKEN={ASR_TOKEN}")
 print(f"PHOWHISPER_MODEL={ASR_MODEL_NAME}")
-print("# OCR (Vintern) uses the same ASR_BASE_URL and ASR_TOKEN")
+print("# Timetable OCR runs on Gemini: set OCR_PROVIDER=gemini and GEMINI_API_KEY in the server .env")
 
 
 # %% [markdown]

@@ -11,6 +11,7 @@ from datetime import date, time, timedelta
 from pydantic import ValidationError
 
 from app.schemas.timetable import OcrSubject
+from app.service.llm.guard import UNTRUSTED_DATA_RULE, clean_text
 from app.service.llm.ollama_client import OllamaClient
 from app.service.voice.todo_parser import DEFAULT_MODEL_NAME
 
@@ -25,6 +26,7 @@ PERIOD_TIMES: dict[int, tuple[time, time]] = {
 }
 # A full timetable is ~1500 JSON tokens: more than the 60 s Ollama default on a T4.
 LLM_TIMEOUT_SECONDS = float(os.getenv("OCR_LLM_TIMEOUT_SECONDS", "180"))
+MAX_ROWS = 60              # far above a real weekly timetable: a hijacked reply cannot flood the review screen
 SEMESTER_WEEKS = 15        # used when the photo shows no end date
 READ_CONFIDENCE = 0.9      # every field came from the photo
 FILLED_CONFIDENCE = 0.6    # a date was missing and filled in: the user should check it
@@ -59,7 +61,8 @@ SYSTEM_PROMPT = (
     "- Bảng ghi tiết (ví dụ 'Tiết 1-3' hoặc '1→3') → điền start_period/end_period, để start_time/end_time = null.\n"
     "- Ngày dạng dd/mm/yyyy → đổi sang YYYY-MM-DD.\n"
     "- Chỉ chép những gì có trong bảng. Trường nào không có → null. Không bịa môn học.\n"
-    "- Không có bảng thời khoá biểu nào → subjects = []."
+    "- Không có bảng thời khoá biểu nào → subjects = [].\n"
+    + UNTRUSTED_DATA_RULE
 )
 _CLOCK = re.compile(r"(\d{1,2})\s*[:hH]\s*(\d{2})")
 
@@ -80,6 +83,11 @@ def parse_day(value: object) -> date | None:
         return None
 
 
+def clean_field(value: object) -> object:
+    """Strip hidden characters from a text field (an emptied one becomes None); other values are left to validation."""
+    return (clean_text(value) or None) if isinstance(value, str) else value
+
+
 def row_to_subject(row: dict, today: date) -> OcrSubject | None:
     """One LLM row -> OcrSubject, or None when the row has no usable time or fails validation."""
     start, end = parse_clock(row.get("start_time")), parse_clock(row.get("end_time"))
@@ -94,8 +102,9 @@ def row_to_subject(row: dict, today: date) -> OcrSubject | None:
     start_date = start_date or today
     end_date = end_date or start_date + timedelta(weeks=SEMESTER_WEEKS)
     try:
-        return OcrSubject(name=str(row.get("name") or "").strip(), code=row.get("code"), room=row.get("room"),
-                          lecturer=row.get("lecturer"), day_of_week=row.get("day_of_week"),
+        return OcrSubject(name=clean_text(str(row.get("name") or "")), code=clean_field(row.get("code")),
+                          room=clean_field(row.get("room")), lecturer=clean_field(row.get("lecturer")),
+                          day_of_week=row.get("day_of_week"),
                           start_time=start, end_time=end, start_date=start_date, end_date=end_date,
                           confidence=FILLED_CONFIDENCE if filled else READ_CONFIDENCE)
     except ValidationError:
@@ -103,8 +112,8 @@ def row_to_subject(row: dict, today: date) -> OcrSubject | None:
 
 
 def rows_to_subjects(rows: list[dict], today: date) -> list[OcrSubject]:
-    """Every usable row, in table order; broken rows are dropped (the user can add them by hand)."""
-    subjects = (row_to_subject(row, today) for row in rows if isinstance(row, dict))
+    """Every usable row of the first MAX_ROWS, in table order; broken rows are dropped (the user adds them by hand)."""
+    subjects = (row_to_subject(row, today) for row in rows[:MAX_ROWS] if isinstance(row, dict))
     return [subject for subject in subjects if subject is not None]
 
 

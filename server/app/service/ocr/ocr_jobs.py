@@ -1,10 +1,10 @@
-"""OCR jobs (R09–R11): save the photo, then Vintern on Kaggle + Ollama in a background task.
+"""OCR jobs (R09–R11): save the photo, then read it in a background task (OCR_PROVIDER: Vintern + Ollama, or Gemini).
 
     POST /ocr/timetable ──► create_job (file + row, committed) ──► 202 ──► process_job (background)
                                                                           ├─ subjects → succeeded
                                                                           ├─ no rows → failed OCR_NO_TABLE_FOUND
                                                                           ├─ bad image → failed OCR_LOW_QUALITY
-                                                                          └─ Kaggle/Ollama down → failed OCR_MODEL_ERROR
+                                                                          └─ model unreachable → failed OCR_MODEL_ERROR
     GET /ocr/jobs/{id} ◄── the app polls every ~2 s
 
 No retry queue (unlike voice): the user is waiting on the scan screen and can simply scan again.
@@ -26,9 +26,10 @@ from app.db.session import SessionLocal
 from app.models.enums import JobStatus
 from app.models.ocr import OcrJob
 from app.models.user import User
+from app.service.llm.gemini_client import GeminiBadReply, GeminiError
 from app.service.llm.ollama_client import OllamaError
-from app.service.ocr.timetable_parser import TimetableParser
-from app.service.ocr.vintern_client import OcrRejected, OcrUnavailable, VinternClient
+from app.service.ocr.readers import build_reader
+from app.service.ocr.vintern_client import OcrRejected, OcrUnavailable
 from app.service.voice.voice_jobs import is_job_audio
 
 # Only the server process reads the photo, so the container's temp folder is enough (no volume).
@@ -58,12 +59,12 @@ def process_job(job_id: uuid.UUID) -> None:
         db.commit()  # end the transaction: no pooled DB connection is held during the Kaggle/LLM calls
         user_today = today(ZoneInfo(db.get(User, job.user_id).timezone))
         try:
-            markdown, model = VinternClient.get_instance().read_timetable(Path(job.image_path).read_bytes())
-            job.raw_output = markdown  # kept for the accuracy check (R12)
-            subjects = TimetableParser().parse(markdown, user_today)
-        except OcrRejected:
+            reader, image_path = build_reader(), Path(job.image_path)
+            job.raw_output = reader.read_raw(image_path.read_bytes(), image_path.suffix)  # kept for the check (R12)
+            subjects = reader.parse(job.raw_output, user_today)
+        except (OcrRejected, GeminiBadReply):
             job.status, job.error_code = JobStatus.FAILED, "OCR_LOW_QUALITY"
-        except (OcrUnavailable, OllamaError):
+        except (OcrUnavailable, OllamaError, GeminiError):
             job.status, job.error_code = JobStatus.FAILED, "OCR_MODEL_ERROR"
         except Exception:  # a background task has no caller: never leave the app polling a stuck job
             logger.exception("OCR job %s crashed", job.id)

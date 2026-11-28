@@ -1,6 +1,6 @@
 """OCR endpoints (contract: docs/openapi.yaml, T1 POST /ocr/timetable, T2 GET /ocr/jobs/{id}; R09–R11).
 
-T1 saves the photo and answers 202 at once; Vintern + Ollama run in a background task.
+T1 saves the photo and answers 202 at once; the model chosen by OCR_PROVIDER runs in a background task.
 The app polls T2 every ~2 s, shows the subjects for review, then saves them with T4 POST /timetable.
 """
 
@@ -17,7 +17,8 @@ from app.models.enums import JobStatus
 from app.models.ocr import OcrJob
 from app.schemas.timetable import OcrJobCreated, OcrJobRead
 from app.service.ocr.ocr_jobs import create_job, delete_expired, process_job
-from app.service.ocr.vintern_client import OcrUnavailable, VinternClient
+from app.service.ocr.readers import check_ocr_available
+from app.service.ocr.vintern_client import OcrUnavailable
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024  # contract: max 10 MB
 STUCK_AFTER = timedelta(minutes=10)  # a job still running this long lost its process (server restart)
@@ -49,7 +50,7 @@ async def upload_timetable_image(user: CurrentUser, db: DbSession, background: B
     if suffix is None:
         raise ApiError(400, "UNSUPPORTED_IMAGE", "Image must be a JPEG, PNG or HEIC file")
     try:
-        VinternClient.get_instance()
+        check_ocr_available()
     except OcrUnavailable as error:
         raise ApiError(503, "OCR_UNAVAILABLE", "OCR model is not available") from error
 

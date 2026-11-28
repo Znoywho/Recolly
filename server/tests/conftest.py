@@ -23,6 +23,8 @@ os.environ["GOOGLE_CLIENT_ID"] = "test-client-id"
 os.environ["GOOGLE_CLIENT_SECRET"] = "test-client-secret"
 os.environ["WEBHOOK_BASE_URL"] = ""
 os.environ["REDIS_URL"] = ""
+os.environ["OCR_PROVIDER"] = "vintern"  # a developer's .env must not change what the tests exercise
+os.environ["GEMINI_API_KEY"] = ""  # and tests never call the real API
 
 from tests.fake_google import FakeGoogle  # noqa: E402
 

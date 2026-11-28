@@ -29,23 +29,59 @@ class AuthController extends ChangeNotifier {
   bool busy = false;
   String? error;
 
+  /// Set by [AuthGate]: takes the user back to login when the session
+  /// expires while they are using the app.
+  VoidCallback? onSessionExpired;
+
   // Called once when the app opens: check saved login.
   Future<void> start() async {
+    // Every token change (sign-in, refresh rotation, logout) goes to disk,
+    // otherwise the next launch would use a refresh token already rotated.
+    repos.tokenStore.onChanged = persistTokens;
+    repos.tokenStore.onExpired = expireSession;
     try {
       final saved = await storage.read(key: tokenKey);
       if (saved == null) {
         status = AuthStatus.loggedOut;
       } else {
         repos.tokenStore.save(AuthTokens.fromJson(jsonDecode(saved)));
+        // ApiClient refreshes an expired access token by itself here.
         user = await repos.user.getMe();
         status = AuthStatus.loggedIn;
       }
+    } on ApiException catch (e) {
+      if (e.isUnauthorized) {
+        // Refresh token expired or revoked -> log in again
+        await clear();
+        status = AuthStatus.loggedOut;
+      } else {
+        // Offline or server down: keep the login, screens show retry.
+        status = AuthStatus.loggedIn;
+      }
     } catch (e) {
-      // Token expired or server down -> log in again
+      // Broken saved data -> log in again
       await clear();
       status = AuthStatus.loggedOut;
     }
     notifyListeners();
+  }
+
+  // The server rejected the refresh token mid-session: back to login.
+  // During start() the 401 branch already shows login, so skip it there.
+  void expireSession() {
+    if (status != AuthStatus.loggedIn) return;
+    status = AuthStatus.loggedOut;
+    user = null;
+    onSessionExpired?.call();
+  }
+
+  // Writes the current tokens to secure storage (null = delete).
+  Future<void> persistTokens(AuthTokens? tokens) async {
+    if (tokens == null) {
+      await storage.delete(key: tokenKey);
+    } else {
+      await storage.write(key: tokenKey, value: jsonEncode(tokens.toJson()));
+    }
   }
 
   Future<String?> getGoogleCode() async {
@@ -73,10 +109,7 @@ class AuthController extends ChangeNotifier {
       } else {
         final session = await repos.auth.signInWithGoogle(code);
         repos.tokenStore.save(session.tokens);
-        await storage.write(
-          key: tokenKey,
-          value: jsonEncode(session.tokens.toJson()),
-        );
+        await persistTokens(session.tokens);
         user = session.user;
         isNewUser = session.isNewUser;
         status = AuthStatus.loggedIn;

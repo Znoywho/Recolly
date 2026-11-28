@@ -6,8 +6,7 @@ import '../../core/theme/app_theme.dart';
 enum NotificationCategory {
   sleep('Giấc ngủ', Icons.bedtime_outlined, AppColors.teal),
   deadline('Deadline', Icons.schedule_rounded, AppColors.coral),
-  study('Học tập', Icons.star_outline_rounded, AppColors.green),
-  motivation('Học tập', Icons.flag_outlined, AppColors.yellow);
+  study('Học tập', Icons.star_outline_rounded, AppColors.green);
 
   const NotificationCategory(this.label, this.icon, this.color);
 
@@ -31,27 +30,29 @@ class AppNotification {
 }
 
 class NotificationsData {
-  const NotificationsData({required this.notifications});
-
-  static const int _dailyQuoteHour = 8;
+  const NotificationsData({required this.notifications, this.chronotype});
 
   final List<AppNotification> notifications;
+
+  /// The user's animal, shown as the mascot giving each reminder.
+  /// `null` before onboarding.
+  final Chronotype? chronotype;
 
   static Future<NotificationsData> load(AppRepositories repositories) async {
     final overview = repositories.home.getOverview();
     final settings = _orNull(repositories.reminders.getSettings());
-    final quote = _orNull(repositories.reminders.randomQuote());
+    final profile = _orNull(repositories.sleep.getHealthProfile());
     return NotificationsData.from(
       overview: await overview,
       settings: await settings,
-      quote: await quote,
+      chronotype: (await profile)?.chronotype,
     );
   }
 
   factory NotificationsData.from({
     required HomeOverview overview,
     ReminderSettings? settings,
-    Quote? quote,
+    Chronotype? chronotype,
   }) {
     final now = overview.now.time;
     final tonight = overview.tonight;
@@ -95,20 +96,11 @@ class NotificationsData {
               ? 'Xong hết phiên ôn hôm nay, nghỉ ngơi xứng đáng!'
               : 'Thêm một bước gần hơn tới mục tiêu!',
         ),
-      if (quote != null && (settings?.motivationEnabled ?? true))
-        AppNotification(
-          category: NotificationCategory.motivation,
-          title: quote.text,
-          time: DateTime(
-            overview.date.year,
-            overview.date.month,
-            overview.date.day,
-            _dailyQuoteHour,
-          ),
-          message: 'Giữ nhịp đều, đừng quên nghỉ ngơi.',
-        ),
     ]..sort(_byCategoryThenTime);
-    return NotificationsData(notifications: notifications);
+    return NotificationsData(
+      notifications: notifications,
+      chronotype: chronotype,
+    );
   }
 
   static int _byCategoryThenTime(AppNotification a, AppNotification b) {

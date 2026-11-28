@@ -34,9 +34,16 @@ OAuth client is needed.
 
 ## Timetable OCR (T1, T2)
 
-Vintern-1B-v3_5 on the Kaggle GPU reads the photo as a markdown table, Ollama turns it into rows, and code
-maps periods to clock times (`PERIOD_TIMES` in `app/service/ocr/timetable_parser.py`). See
-[`docs/ocr-pipeline.md`](../docs/ocr-pipeline.md).
+`OCR_PROVIDER` picks the model that reads the photo:
+
+| value | how it reads | needs |
+|---|---|---|
+| `gemini` (default) | one Gemini call returns the rows (`app/service/ocr/gemini_reader.py`) | `GEMINI_API_KEY`, optional `GEMINI_MODEL` |
+| `vintern` | Vintern writes markdown, Ollama turns it into rows | a notebook serving `POST /ocr`; `notebooks/kaggle_ollama.ipynb` **no longer does** |
+
+`vintern` only works with an older notebook from git history. In both cases code maps periods to
+clock times (`PERIOD_TIMES` in `app/service/ocr/timetable_parser.py`). Use test data only on Gemini's unpaid tier.
+See [`docs/ocr-pipeline.md`](../docs/ocr-pipeline.md).
 
 ## Voice → todo pipeline (V1)
 

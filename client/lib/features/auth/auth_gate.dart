@@ -8,7 +8,10 @@ import 'screen/login_screen.dart';
 
 // Not logged in -> login. New user -> Startscreen. Else -> app.
 class AuthGate extends StatefulWidget {
-  const AuthGate({super.key});
+  const AuthGate({super.key, this.sessionExpired = false});
+
+  /// Shows "session expired" once on the login screen.
+  final bool sessionExpired;
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -22,8 +25,22 @@ class _AuthGateState extends State<AuthGate> {
     super.didChangeDependencies();
     if (controller == null) {
       controller = AuthController(RepositoryScope.of(context));
+      // Root navigator outlives this gate (onboarding replaces it), so the
+      // reset to login still works after the gate is gone.
+      final navigator = Navigator.of(context, rootNavigator: true);
+      controller!.onSessionExpired = () => navigator.pushAndRemoveUntil(
+        MaterialPageRoute<void>(
+          builder: (_) => const AuthGate(sessionExpired: true),
+        ),
+        (route) => false,
+      );
       controller!.addListener(refresh);
       controller!.start();
+      if (widget.sessionExpired) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) showSnack('Phiên đăng nhập hết hạn, đăng nhập lại nhé');
+        });
+      }
     }
   }
 
